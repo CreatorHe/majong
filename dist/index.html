@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17484c">
+  <meta name="description" content="叠雀：选择国标或日麻，组牌、收集奇物，用麻将番型构筑属于你的高分之旅。">
+  <title>叠雀 · 麻将肉鸽</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./pattern-guide.css">
+  <link rel="stylesheet" href="./settlement/settlement.css">
+  <link rel="stylesheet" href="./settlement/cinematic.css">
+</head>
+<body>
+  <div id="app"></div>
+  <section id="settlement-wrap" hidden aria-label="本关结算">
+    <div class="settlement-controls">
+      <strong>这一手，落定。</strong>
+      <button data-act="settlement-mute" class="secondary">声音</button>
+      <button data-act="settlement-speed" class="secondary">1×</button>
+      <button data-act="settlement-motion" class="secondary">减弱动画</button>
+      <button data-act="settlement-skip" class="secondary">跳过演出</button>
+      <button data-act="settlement-continue" class="primary" disabled>继续 →</button>
+    </div>
+    <div id="settlement-root"></div>
+    <p id="settlement-status" class="settlement-status" role="status" aria-live="polite"></p>
+  </section>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript>叠雀需要启用 JavaScript 才能组牌与保存游戏。</noscript>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "revision": "v3",
+  "generatedOn": "2026-10-21",
+  "relics": {
+    "jade": "./art/relics/jade-v2.webp",
+    "river": "./art/relics/river-v2.webp",
+    "stone": "./art/relics/stone-v2.webp",
+    "bamboo": "./art/relics/bamboo-v2.webp",
+    "mirror": "./art/relics/mirror-v2.webp",
+    "seal": "./art/relics/seal-v2.webp",
+    "echo": "./art/relics/echo-v2.webp",
+    "coin": "./art/relics/coin-v2.webp",
+    "ink": "./art/relics/ink-v2.webp",
+    "wind": "./art/relics/wind-v2.webp",
+    "growth": "./art/relics/growth-v2.webp",
+    "pair": "./art/relics/pair-v2.webp",
+    "wheel": "./art/relics/wheel-v2.webp",
+    "jiang": "./art/relics/jiang-v2.webp",
+    "mountain": "./art/relics/mountain-v2.webp",
+    "reserve": "./art/relics/reserve-v2.webp",
+    "single_seal": "./art/relics/single_seal-v3.webp",
+    "kong_cauldron": "./art/relics/kong_cauldron-v3.webp",
+    "rank_brush": "./art/relics/rank_brush-v3.webp",
+    "suit_ribbon": "./art/relics/suit_ribbon-v3.webp",
+    "wild_jade": "./art/relics/wild_jade-v3.webp"
+  },
+  "backgrounds": {
+    "page": "./art/backgrounds/page-v2.webp",
+    "board": "./art/backgrounds/board-v2.webp",
+    "shop": "./art/backgrounds/shop-v2.webp"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792566686187,
+      "tag": "0000_steep_mentor",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792569393780,
+      "tag": "0001_fluffy_jamie_braddock",
+      "breakpoints": true
+    }
+  ]
+}

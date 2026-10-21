@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>叠雀 V4 本地验收</title>
+<style>body{font:18px system-ui;max-width:900px;margin:40px auto;padding:20px;background:#123638;color:#efe5cc}button{font:inherit;margin:8px;padding:16px}p{line-height:1.7}</style>
+<h1>V4 本地验收场景</h1><p>仅用于本机 QA，不打包上线。点击会保存到此测试地址的 V4 存档，再从首页“继续上次”进入。</p>
+<button data-scene="mcr">国标合法14张</button><button data-scene="riichi">日麻三连刻</button><button data-scene="normal">普通和牌</button><button data-scene="daisangen">日麻大三元</button><button data-scene="wheel">日麻大车轮高光</button><button data-scene="falsepass">炸胡仍过关</button><button data-scene="falsefail">炸胡负分失败</button><button data-scene="kong">杠与改牌</button><button data-scene="victory">第六关收官</button>
+<button data-scene="honroutou">截图混老头</button><button data-scene="chinroutou">日麻清老头</button><button data-scene="orphans">日麻国士无双</button><button data-scene="knitted">国标组合龙不靠</button><button data-scene="giant">国标亿级大四喜</button><button data-scene="wheelprogress">七对构筑差最后一张</button><button data-scene="third">第三关资源</button><p id="error"></p><script type="module">
+import * as E from '/engine.js';
+document.addEventListener('click',event=>{
+const scene=event.target.dataset.scene;if(!scene)return;
+try{
+ const s=E.newRun(['mcr','knitted','giant'].includes(scene)?'mcr':'riichi',65);E.chooseStarter(s,'jade');
+ if(scene==='victory'||scene==='normal'||scene==='third'){s.round=scene==='normal'?1:scene==='third'?2:5;s.totalScore=scene==='normal'?0:400000;E.startRound(s);}
+ s.relics=['jade','single_seal','rank_brush','suit_ribbon','wild_jade','kong_cauldron',...(scene==='wheel'?['wheel']:['mountain'])];
+ const pool=[...s.hand,...s.deck];s.hand=[];s.deck=[];s.formed=[];s.discard=[];s.kongs=[];
+ const take=faces=>faces.map(f=>{const i=pool.findIndex(t=>t.face===f);if(i<0)throw Error('fixture tile unavailable');return pool.splice(i,1)[0]});
+ const faces=scene==='honroutou'?[0,0,0,17,17,17,26,26,26,27,27,27,28,28]:scene==='chinroutou'?[0,0,0,8,8,8,9,9,9,17,17,17,18,18]:scene==='orphans'?[0,8,9,17,18,26,27,28,29,30,31,32,33,0]:scene==='knitted'?[0,3,6,10,13,16,20,23,26,27,28,29,30,31]:scene==='giant'?[27,27,27,28,28,28,29,29,29,30,30,30,31,31]:scene==='daisangen'?[31,31,31,32,32,32,33,33,33,0,1,2,4,4]:scene==='normal'?[0,1,2,9,10,11,21,22,23,15,16,17,4,4]:['wheel','wheelprogress'].includes(scene)?Array.from({length:7},(_,i)=>[i+10,i+10]).flat():scene.startsWith('false')?[0,2,4,6,8,9,11,13,15,17,18,20,22,24]:[0,0,0,1,1,1,2,2,2,9,10,11,12,12];
+ if(scene==='normal')s.relics=[];
+ if(['wheel','wheelprogress'].includes(scene))s.relics=['mirror','pair','echo','wheel','rank_brush'];
+ if(scene==='wheelprogress'){s.formed=take(faces.slice(0,13));s.formed.forEach(t=>t.entered=true);s.hand=take([16]);}
+ else if(scene==='third'){s.hand=take([0,1,2,3,4,5,6,7,8,9,10,11]);s.relics=['jade'];}
+ else if(scene==='kong'){s.hand=take([0,0,0,0,1,2,3,9,10,11]);s.formed=take([18,19,20,27,27]);s.formed.forEach(t=>t.entered=true);}
+ else{s.formed=take(faces);s.formed.forEach(t=>t.entered=true);}
+ while(s.hand.length<E.DRAW_BATCH_SIZE)s.hand.push(pool.pop());s.deck=pool;E.sortHand(s);
+ if(scene==='falsepass'){s.roundStartScore=600;s.totalScore=600;}
+ if(!E.restore(JSON.stringify(s)))throw Error('fixture restore rejected');
+ localStorage.setItem('jade-run-v4',JSON.stringify(s));location.href='/';
+}catch(err){document.querySelector('#error').textContent=err.message;}
+});
+</script>

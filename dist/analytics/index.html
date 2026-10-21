@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#153e43">
+  <meta name="description" content="叠雀番型统计簿：查看番型出现次数、出现率、最高和牌分与闯关记录。">
+  <title>番型统计簿 · 叠雀</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./report.css">
+</head>
+<body>
+  <a class="skip-link" href="#pattern-ledger">跳转到番型统计</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="叠雀，返回游戏"><span class="brand-tile" aria-hidden="true">雀</span><span>叠雀<small>番型统计簿</small></span></a>
+    <a class="back-link" href="/">返回牌桌 <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main class="report-shell">
+    <section class="report-heading" aria-labelledby="report-title">
+      <div>
+        <p class="eyebrow"><span class="tiny-rule" aria-hidden="true"></span> 计分番型 · 服务端记录</p>
+        <h1 id="report-title">番型统计簿</h1>
+        <p class="intro">哪些番型最常计入得分，哪些牌局留下了新纪录。</p>
+      </div>
+      <div class="ledger-seal" aria-hidden="true"><span>一手</span><span>一记</span></div>
+    </section>
+
+    <p class="collection-notice"><span class="notice-dot" aria-hidden="true"></span><span id="collection-copy">每手按结算编号记账，国标与日麻、不同玩法版本分别统计。</span></p>
+
+    <section class="filter-panel" aria-label="统计筛选">
+      <div class="filter-group">
+        <span class="field-label" id="mode-label">规则</span>
+        <div class="segmented" role="group" aria-labelledby="mode-label">
+          <button type="button" data-mode="mcr" aria-pressed="true">国标番型</button>
+          <button type="button" data-mode="riichi" aria-pressed="false">日麻役种</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="field-label" id="scope-label">样本范围</span>
+        <div class="segmented" role="group" aria-labelledby="scope-label">
+          <button type="button" data-scope="production" aria-pressed="true">正式样本</button>
+          <button type="button" data-scope="sandbox" aria-pressed="false">测试样本</button>
+        </div>
+      </div>
+      <label class="version-field" for="version-select"><span class="field-label">玩法 / 计分版本</span><select id="version-select"><option value="">当前玩法 · 自由出牌 v4</option></select></label>
+      <button type="button" id="refresh-button" class="secondary refresh-button"><span aria-hidden="true">↻</span> 刷新记录</button>
+    </section>
+
+    <div id="fetch-message" class="fetch-message" role="status" aria-live="polite">正在读取服务端记录…</div>
+    <section class="summary-strip" aria-label="当前样本摘要" aria-busy="true">
+      <div><span class="summary-label" id="summary-hands-label">合法完整和牌</span><p><strong id="summary-hands">—</strong><span>手</span></p></div>
+      <div><span class="summary-label">番型累计命中</span><p><strong id="summary-occurrences">—</strong><span>次</span></p></div>
+      <div class="score-summary"><span class="summary-label" id="summary-max-label">最高和牌分</span><p><strong id="summary-max">—</strong><span>分</span></p></div>
+      <div data-free-play class="score-summary" hidden><span class="summary-label">最高本关净分</span><p><strong id="summary-net">—</strong><span>分</span></p></div>
+      <div data-free-play class="score-summary" hidden><span class="summary-label">最高终局累计分</span><p><strong id="summary-cumulative">—</strong><span>分</span></p></div>
+      <div data-free-play hidden><span class="summary-label">终局过关率</span><p><strong id="summary-pass-rate">—</strong></p><small id="summary-passed">暂无完整终局</small></div>
+      <div data-free-play class="terminal-summary" hidden><span>完整终局 <strong id="summary-terminals">—</strong> 关</span><span>炸胡 <strong id="summary-false-wins">—</strong> 关</span><span>其中仍达标 <strong id="summary-false-passed">—</strong> 关</span><p>过关按终局累计分判断；炸胡仍达标计入过关，始终不计入番型。</p></div>
+      <div class="summary-context"><span id="scope-badge" class="scope-badge">正式样本</span><p id="version-caption">版本读取中</p><small id="received-caption">尚无接收记录</small></div>
+    </section>
+
+    <section id="pattern-ledger" class="ledger" aria-labelledby="ledger-title" tabindex="-1">
+      <div class="ledger-toolbar">
+        <div><p class="eyebrow" id="ledger-subtitle">按可判定的合法完整和牌统计</p><h2 id="ledger-title">最常计入得分的番型</h2></div>
+        <div class="table-controls">
+          <label class="search-field" for="pattern-search"><span class="sr-only">搜索番型</span><input id="pattern-search" type="search" placeholder="搜索番型" autocomplete="off"></label>
+          <label for="sort-select"><span class="sr-only">排序方式</span><select id="sort-select"><option value="count">出现次数从高到低</option><option value="rate">出现率从高到低</option><option value="score">最高分从高到低</option><option value="fan">番数从高到低</option></select></label>
+        </div>
+      </div>
+      <div id="empty-state" class="empty-state" hidden>
+        <span class="empty-tile" aria-hidden="true">白</span><div><h3 id="empty-title">等待第一手记录</h3><p id="empty-copy">当前范围尚无合法完整和牌。开启游戏的数据采集并完成和牌后，计分番型将在这里积累。</p></div>
+      </div>
+      <p class="mobile-table-hint">左右滑动表格，查看出现率与最高分 <span aria-hidden="true">↔</span></p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="番型统计表，窄屏可横向滚动">
+        <table>
+          <caption class="sr-only" id="table-caption">每个番型的计分出现次数、出现率和含此番型的最高和牌分</caption>
+          <thead><tr><th scope="col">番型 <span id="pattern-total"></span></th><th scope="col">计分出现次数</th><th scope="col">计分出现率</th><th scope="col" id="pattern-score-heading">含此番型的最高和牌分</th></tr></thead>
+          <tbody id="pattern-rows"></tbody>
+        </table>
+      </div>
+      <p id="search-empty" class="search-empty" hidden>没有匹配的番型，试试其他名称。</p>
+      <div class="ledger-footnote"><span>统计口径</span><p id="metric-explanation">出现率 = 含该计分番型的手数 ÷ 可判定的合法完整和牌手数。合法未过关也计入，炸胡与不完整观测不计入。同手同番型最多一次，多番占比之和可超过 100%。</p></div>
+    </section>
+
+    <details id="verification-panel" class="verification-panel">
+      <summary><span><span class="section-mark" aria-hidden="true">验</span>采集链路验收</span><span class="details-hint">测试样本独立保存</span></summary>
+      <div class="verification-body">
+        <div class="verification-copy"><h2>从发送，到服务器留存</h2><p>每批含合法过关、合法未达标、炸胡仍达标、炸胡失败、扣后恰好达标，以及一条不完整观测。终局与合法和牌分别记账，重复发送保留原编号以验证去重。</p><p class="test-boundary">测试数据只进入测试范围。刷新页面后，已接收记录仍从服务器读取。</p></div>
+        <div class="verification-controls">
+          <p id="test-scope-hint">切换到“测试样本”后可写入验收记录。</p>
+          <div class="test-actions"><button type="button" id="sample-button" class="primary" disabled>允许并写入测试样本</button><button type="button" id="repeat-button" class="secondary" disabled>重复发送上一批</button></div>
+          <p class="consent-copy">点击写入即允许本次测试采集，生成随机测试客户端标识。不会读取游戏存档。</p>
+          <div id="delivery-status" class="delivery-status" role="status" aria-live="polite">尚未发送测试记录。</div>
+          <button type="button" id="stop-button" class="text-button" hidden>停止本次测试采集并清空待发送记录</button>
+        </div>
+      </div>
+    </details>
+    <footer class="report-footer"><span>叠雀 · 每手按编号去重，按版本记账</span><span id="updated-at">尚未更新</span></footer>
+  </main>
+  <noscript><p class="noscript-message">请启用 JavaScript 以读取服务端统计记录。</p></noscript>
+  <script type="module" src="./report.js"></script>
+</body>
+</html>

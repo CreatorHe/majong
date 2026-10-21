@@ -1,0 +1,27 @@
+{
+  "name": "jade-run",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "start": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist",
+    "build": "node scripts/build-analytics.mjs",
+    "dev": "node scripts/preview-analytics.mjs",
+    "deploy": "node scripts/deploy-cloudflare.mjs",
+    "db:generate": "drizzle-kit generate",
+    "test:analytics": "node --test tests/analytics-*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0",
+    "drizzle-kit": "0.31.10"
+  }
+}

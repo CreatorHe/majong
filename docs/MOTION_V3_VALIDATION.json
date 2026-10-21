@@ -1,0 +1,130 @@
+{
+  "tool": "imageio-ffmpeg 0.6.0 PyPI temporary installation",
+  "ffmpegVersion": "7.1",
+  "encoding": "H.264 libx264 CRF21 slow yuv420p 20fps faststart no audio",
+  "files": [
+    {
+      "effectId": "daisuushii",
+      "path": "dist/settlement/motion-v3/daisuushii.mp4",
+      "sourceBytes": 10690647,
+      "bytes": 1423864,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "1d4a89a82480d95d811e001d170477ff59dfa2110da3455c21c2a478c10b56e9",
+      "sourcePath": "../art/settlement/gifs-v3/daisuushii.gif"
+    },
+    {
+      "effectId": "daisangen",
+      "path": "dist/settlement/motion-v3/daisangen.mp4",
+      "sourceBytes": 10162657,
+      "bytes": 743246,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "11fb264cf3cb10906e4a46a01a36e443c4055fdd318f4992b3d06e40a8aa5773",
+      "sourcePath": "../art/settlement/gifs-v3/daisangen.gif"
+    },
+    {
+      "effectId": "chuuren",
+      "path": "dist/settlement/motion-v3/chuuren.mp4",
+      "sourceBytes": 11927588,
+      "bytes": 777228,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "c4f220e2e9af8d039d8e901d3f064ef1fdad9c32674dd9d2330a1933902443af",
+      "sourcePath": "../art/settlement/gifs-v3/chuuren.gif"
+    },
+    {
+      "effectId": "kokushi",
+      "path": "dist/settlement/motion-v3/kokushi.mp4",
+      "sourceBytes": 9774909,
+      "bytes": 773417,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "916eb3f76c4498ae3a9bcffd4b0b0a1714c2dadfb152a51a0816b07ee3c2f5b6",
+      "sourcePath": "../art/settlement/gifs-v3/kokushi.gif"
+    },
+    {
+      "effectId": "suukantsu",
+      "path": "dist/settlement/motion-v3/suukantsu.mp4",
+      "sourceBytes": 10051818,
+      "bytes": 690448,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "84ab1e961938716e134cddffdd99166ec5f930bb457e478294cf2de42a956b92",
+      "sourcePath": "../art/settlement/gifs-v3/suukantsu.gif"
+    },
+    {
+      "effectId": "tsuuiisou",
+      "path": "dist/settlement/motion-v3/tsuuiisou.mp4",
+      "sourceBytes": 11710159,
+      "bytes": 592636,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "da5f21344ef14c97c5eb71408570e813264821fa362ab16be0b66908e842bb4c",
+      "sourcePath": "../art/settlement/gifs-v3/tsuuiisou.gif"
+    },
+    {
+      "effectId": "ryuuiisou",
+      "path": "dist/settlement/motion-v3/ryuuiisou.mp4",
+      "sourceBytes": 16433086,
+      "bytes": 915255,
+      "frames": 96,
+      "uniqueFrames": 96,
+      "durationSeconds": 4.8,
+      "fps": 20.0,
+      "size": [
+        768,
+        432
+      ],
+      "codec": "h264",
+      "sha256": "0652005e89b17f7ef8870e6a66a99b16d8793a0ae93fbd28566670234099ed7a",
+      "sourcePath": "../art/settlement/gifs-v3/ryuuiisou.gif"
+    }
+  ],
+  "sourceTotalBytes": 80750864,
+  "videoTotalBytes": 5916094,
+  "ffmpegBinary": "ffmpeg-macos-aarch64-v7.1",
+  "pathBase": "repository root"
+}

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>叠雀 · 麻将牌面验收</title>
+<link rel="stylesheet" href="../dist/style.css">
+<style>
+main{max-width:1000px;margin:0 auto;padding:38px 28px 50px}h1{font-size:32px}header p{color:var(--muted);margin:8px 0 25px}.row{display:flex;gap:13px;align-items:center;margin:23px 0}.row h2{font:15px var(--body);width:46px;color:var(--muted)}.row .tile{width:70px;height:96px}.sample{border-top:1px solid var(--line);padding-top:16px;margin-top:35px}.sample .row .tile{width:38px;height:51px}.sample .row{gap:9px}.row .tile svg{display:block}
+@media(max-width:750px){main{padding:25px 12px}.row{gap:5px}.row h2{font-size:12px;width:24px}.row .tile{width:calc((100vw - 94px)/9);height:auto;aspect-ratio:50/69;min-width:0;padding:1px}.sample .row .tile{width:calc((100vw - 94px)/9);height:auto}.sample .row{gap:5px}}
+</style>
+<main><header><div class="eyebrow">叠雀 · 牌面更新</div><h1>熟悉的一副好牌。</h1><p>传统麻将字形 · 竹节索子 · 象牙白牌面</p></header><div id="faces"></div><section class="sample"><p class="section-kicker">桌上组合尺寸 · 38 PX</p><div id="small"></div></section></main>
+<script type="module">
+import {tile} from '../dist/tiles.js';
+const groups=[['万',[...Array(9).keys()]],['筒',[...Array(9).keys()].map(i=>i+9)],['条',[...Array(9).keys()].map(i=>i+18)],['字',[...Array(7).keys()].map(i=>i+27)]];
+document.querySelector('#faces').innerHTML=groups.map(([name,ids])=>`<section class="row"><h2>${name}</h2>${ids.map(t=>tile(t)).join('')}</section>`).join('');
+document.querySelector('#small').innerHTML=groups.filter(([n])=>n!=='筒').map(([name,ids])=>`<div class="row"><h2>${name}</h2>${ids.map(t=>tile(t,{size:'small'})).join('')}</div>`).join('');
+</script>
+</html>
