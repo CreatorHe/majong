@@ -25,7 +25,7 @@ export function getGameAnalytics(clientOptions = {}) {
     scope: 'production', entry: 'game',
     defaultEnabled: true,
     viewport: typeof window !== 'undefined' && window.innerWidth < 650 ? 'compact' : 'wide',
-    appRelease: 'free-play-v4', rulesVersion: GAME_RULES_VERSION, scoreModelVersion: GAME_SCORE_MODEL_VERSION,
+    appRelease: GAME_RULES_VERSION.replaceAll('_', '-'), rulesVersion: GAME_RULES_VERSION, scoreModelVersion: GAME_SCORE_MODEL_VERSION,
     ...configuration?.clientOptions, ...clientOptions,
   };
   instance = createClient({ ...settings, defaultEnabled: settings.scope === 'production' && settings.defaultEnabled === true });

@@ -1,3 +1,4 @@
+@import url('./v4/burst.css');
 @font-face{font-family:ShanBrush;src:url('./cinematic/MaShanZheng-subset.woff2') format('woff2');font-display:swap}
 .jr-cine-media,.jr-cine-video{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.jr-cine-video{object-fit:cover;object-position:center}.jr-cine-video[hidden]{display:none}
 .jr-settlement.jr-cinematic{border:0;border-radius:0;background:#061318;box-shadow:none;--cine-color:#dfb579;--cine-accent:#fff0cf}

@@ -9,7 +9,7 @@ const definitions = [
   ['normal', '和牌', 'normal', '#a6c9ac', '#f0ebdd', null, '牌面成型 · 逐项结算'],
   ['score', '高分落定', 'heaven', '#e6be6e', '#fff1c8', 'cosmos', '高分落定 · 记下这一手'],
   ['multiplier', '倍率升华', 'wheel', '#76d3c7', '#e5ffed', 'lotus', '倍率攀升 · 连锁收束'],
-  ['false_hu', '炸胡', 'normal', '#b88e78', '#e5d2bc', null, '牌型未成立 · 扣分后核对累计门槛'],
+  ['false_hu', '诈胡', 'normal', '#b88e78', '#e5d2bc', null, '牌型未成立 · 扣分后核对累计门槛'],
   ['kokushi', '国士无双', 'orphans', '#dbb067', '#fff0c3', 'sovereign', '十三门并立 · 一线归一'],
   ['daisangen', '大三元', 'dragons', '#de7864', '#f4d58c', 'cosmos', '三曜归一 · 星轨共鸣'],
   ['shousuushii', '小四喜', 'winds', '#a8d9d4', '#f9e7b9', 'phoenix', '三风起 · 一风归'],

@@ -1,5 +1,5 @@
 {
-  "revision": "v3",
+  "revision": "v5-reused-relic-art",
   "generatedOn": "2026-10-21",
   "relics": {
     "jade": "./art/relics/jade-v2.webp",
@@ -22,7 +22,14 @@
     "kong_cauldron": "./art/relics/kong_cauldron-v3.webp",
     "rank_brush": "./art/relics/rank_brush-v3.webp",
     "suit_ribbon": "./art/relics/suit_ribbon-v3.webp",
-    "wild_jade": "./art/relics/wild_jade-v3.webp"
+    "wild_jade": "./art/relics/wild_jade-v3.webp",
+    "core_high": "./art/relics/wheel-v2.webp",
+    "core_pung": "./art/relics/stone-v2.webp",
+    "core_held": "./art/relics/reserve-v2.webp",
+    "core_growth": "./art/relics/river-v2.webp",
+    "retrigger_meld": "./art/relics/echo-v2.webp",
+    "retrigger_held": "./art/relics/mirror-v2.webp",
+    "high_rescue": "./art/relics/rank_brush-v3.webp"
   },
   "backgrounds": {
     "page": "./art/backgrounds/page-v2.webp",

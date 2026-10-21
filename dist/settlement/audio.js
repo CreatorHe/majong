@@ -5,7 +5,7 @@
 export const SOUND_LABELS = Object.freeze({
   hand_reveal: '和牌 · 玉磬起声',
   hand_check: '检查 · 轻木一点',
-  false_hu: '炸胡 · 木声轻断',
+  false_hu: '诈胡 · 木声轻断',
   tile_score: '底分 · 木点入账',
   pattern_reveal: '番型 · 清玉叠音',
   relic_trigger: '奇物 · 木玉共鸣',

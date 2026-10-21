@@ -2,7 +2,7 @@ import {createSettlementAudio} from './audio.js';
 
 const EVENTS=new Set(['hand_reveal','tile_score','pattern_reveal','relic_trigger','multiplier_update','hand_total','round_result','false_hu']);
 const WEIGHTS={hand_reveal:.8,tile_score:.55,pattern_reveal:.8,relic_trigger:.65,multiplier_update:.65,hand_total:1.05,round_result:.85,false_hu:1};
-const TITLES={hand_reveal:'和牌成立',tile_score:'牌面底分',pattern_reveal:'番型揭示',relic_trigger:'奇物联动',multiplier_update:'倍率汇聚',hand_total:'一手成山',round_result:'关卡结算',false_hu:'炸胡 · 扣分'};
+const TITLES={hand_reveal:'和牌成立',tile_score:'牌面底分',pattern_reveal:'番型揭示',relic_trigger:'奇物联动',multiplier_update:'倍率汇聚',hand_total:'一手成山',round_result:'关卡结算',false_hu:'诈胡 · 扣分'};
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;};
 const text=(x,fallback='—')=>x===undefined||x===null?fallback:String(x);
 const tier=x=>Math.max(0,Math.min(2,Number.isFinite(x)?x:0));
@@ -21,8 +21,10 @@ export function validateSnapshot(s){
   if(ids.size!==s.hand.tiles.length)throw new Error('牌实例 ID 重复');
   const grouped=(s.hand.decomposition||[]).flatMap(g=>g.tileIds);
   if(s.handResult!=='false_hu'&&(grouped.length!==ids.size||new Set(grouped).size!==ids.size||grouped.some(id=>!ids.has(id))))throw new Error('最终拆分未完整覆盖实牌');
-  if(s.handResult==='false_hu'&&(s.steps.map(e=>e.event).join(',')!=='hand_reveal,false_hu,round_result'||typeof s.totals.penaltyText!=='string'||typeof s.totals.runScoreText!=='string'))throw new Error('炸胡快照缺少检查、处罚、失败顺序或处罚结果');
-  if(s.steps.some(e=>!EVENTS.has(e.event)||(e.tileIds||[]).some(id=>!ids.has(id))))throw new Error('步骤事件或牌实例无效');
+  if(s.handResult==='false_hu'&&(s.steps.map(e=>e.event).join(',')!=='hand_reveal,false_hu,round_result'||typeof s.totals.penaltyText!=='string'||typeof s.totals.runScoreText!=='string'))throw new Error('诈胡快照缺少检查、处罚、失败顺序或处罚结果');
+  const allIds=new Set([...s.hand.tiles,...(s.hand.heldTiles||[])].map(t=>t.id));
+  if(allIds.size!==s.hand.tiles.length+(s.hand.heldTiles||[]).length)throw new Error('实牌和留牌实例 ID 重复');
+  if(s.steps.some(e=>!EVENTS.has(e.event)||(e.tileIds||[]).some(id=>!allIds.has(id))))throw new Error('步骤事件或牌实例无效');
   for(const field of ['baseText','multiplierText','handScoreText','processScoreText','penaltyText','roundScoreText','runScoreBeforeText','runScoreText','targetText'])if(typeof s.totals[field]!=='string')throw new Error('最终数字必须为格式化文本：'+field);
   return true;
 }
@@ -208,7 +210,7 @@ export class SettlementPlayer{
     if(step.event==='round_result')this.renderResult();
     if(audible){
       const falseHu=this.snapshot.handResult==='false_hu';
-      const name=falseHu&&step.event==='hand_reveal'?'hand_check':step.event==='round_result'?(this.snapshot.totals.passed?'round_pass':'round_fail'):step.event;
+      const name=falseHu&&['hand_reveal','round_result'].includes(step.event)?'hand_check':step.event==='round_result'?(this.snapshot.totals.passed?'round_pass':'round_fail'):step.event;
       this.audio.play(name,{tier:falseHu?0:soundTier,speed:this.options.speed});
     }
     try{this.options.onStep?.({id:step.id,event:step.event,index});}catch{}
@@ -251,8 +253,8 @@ export class SettlementPlayer{
     if(this.snapshot.handResult==='false_hu')this.renderFalseHu();
   }
   renderFalseHu(){
-    this.seal.textContent='失';this.heroLabel.textContent='炸胡';this.heroValue.textContent='无法和牌 · 本次罚分';this.score.textContent='−'+this.snapshot.totals.penaltyText;this.scoreWrap.classList.add('is-landed');
-    this.operation.textContent='累计 '+this.snapshot.totals.runScoreBeforeText+' → '+this.snapshot.totals.runScoreText;this.phase.textContent=this.result.hidden?'炸胡 · 扣分':'结算完成';
+    this.seal.textContent='失';this.heroLabel.textContent='诈胡';this.heroValue.textContent='无法和牌 · 本次罚分';this.score.textContent='−'+this.snapshot.totals.penaltyText;this.scoreWrap.classList.add('is-landed');
+    this.operation.textContent='累计 '+this.snapshot.totals.runScoreBeforeText+' → '+this.snapshot.totals.runScoreText;this.phase.textContent=this.result.hidden?'诈胡 · 扣分':'结算完成';
   }
   buildFallback(error){
     this.root.replaceChildren();this.root.className='jr-settlement jr-fallback';this.scene=null;

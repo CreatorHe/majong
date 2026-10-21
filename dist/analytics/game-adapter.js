@@ -1,5 +1,5 @@
 import { getGameAnalytics } from './runtime.js';
-import { GAME_ACTIONS, gamePatternCatalog, relicIdsForVersion, patternIdForName, validateGamePayload } from './game-schema.js';
+import { GAME_ACTIONS, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, gamePatternCatalog, relicIdsForVersion, patternIdForName, validateGamePayload } from './game-schema.js';
 
 // This module observes committed engine transitions. It never scores, mutates a
 // game/save, repairs a hand, or reads an unplayed wall's faces.
@@ -13,7 +13,8 @@ const keyOf = state => state && `${state.rulesVersion}/${state.scoreVersion}/${s
 function gameVersions(game) {
   const versions = game?.version === 2 ? ['free_play_v2', 'cumulative_v2']
     : game?.version === 3 ? ['free_play_v3', 'exponential_v3']
-    : game?.version === 4 ? ['free_play_v4', 'exponential_v3'] : null;
+    : game?.version === 4 ? ['free_play_v4', 'exponential_v3']
+    : game?.version === 5 ? [V5_RULES_VERSION, V5_SCORE_MODEL_VERSION] : null;
   if (!versions || game.rulesVersion?.replaceAll('-', '_') !== versions[0] || game.scoreVersion?.replaceAll('-', '_') !== versions[1]) return null;
   return { rulesVersion: versions[0], scoreVersion: versions[1] };
 }
@@ -32,6 +33,7 @@ function stateSummary(game, rulesVersion) {
     total_score: integer(game.totalScore), round_score: integer(game.score), process_score: integer(game.processScore),
     round_start_score: integer(game.roundStartScore), target_score: Number.isSafeInteger(game.roundTarget) ? game.roundTarget : null,
     relic_ids: relics(game.relics, rulesVersion), single_count: integer(game.singleCount), wild_used: game.wildUsed === true || game.wildUsed === 1,
+    ...(game.version === 5 ? { rescue_used: game.rescueUsed === true || game.rescueUsed === 1 } : {}),
   };
 }
 
@@ -84,7 +86,7 @@ function rejectionCode(result, context) {
     [/最多生成一张/, 'wild_limit'], [/没有变化/, 'unchanged_tile'], [/杠内|已声明杠/, 'locked_kong'],
     [/字牌不能/, 'honor_transform'], [/1～9/, 'rank_boundary'], [/请选择万/, 'invalid_suit'],
     [/四张.*杠|四张相同/, 'invalid_kong'], [/超过|最多 14/, 'capacity_exceeded'],
-    [/填满 14/, 'incomplete_hand'], [/当前不在|本关已经结束/, 'invalid_phase'],
+    [/填满 14/, 'incomplete_hand'], [/当前不在|本关已经结束|请先完成起手准备|只在起手准备阶段/, 'invalid_phase'],
     [/请选择|有效且不重复/, 'invalid_selection'], [/数值超出/, 'score_limit'],
     [/计算失败/, 'calculation_failed'], [/不支持/, 'unsupported_transform'],
   ]) if (pattern.test(reason)) return code;
@@ -111,7 +113,7 @@ function settlementPayload(game, result, quality, rulesVersion) {
   const unlocks = [...patterns.unlocks];
   for (const gain of legal ? result.gains ?? [] : []) {
     if (gain.kind !== 'unlock') continue;
-    if (['free_play_v3', 'free_play_v4'].includes(rulesVersion)) {
+    if (['free_play_v3', 'free_play_v4', V5_RULES_VERSION].includes(rulesVersion)) {
       const patternId = patternIdForName(game.mode, gain.name, rulesVersion);
       const entry = gamePatternCatalog(rulesVersion).find(row => row.pattern_id === patternId && row.kind === 'unlock');
       if (!entry) return null; // Relic bonuses have distinct IDs from their base patterns.
@@ -180,20 +182,29 @@ export function createGameAdapter({ getClient = getGameAnalytics, now = Date.now
       const changed = !same(before?.state, after.state) || !same(before?.hand, after.hand) || !same(before?.formed, after.formed);
       const refused = result === false || result?.valid === false || result?.ok === false;
       const success = !refused && (changed || ['start','resume','select','settlement_skip','settlement_complete'].includes(action));
-      const newRound = ['starter','next_round','start'].includes(action) && success && after.roundId && before?.roundId !== after.roundId && after.state.phase === 'play';
+      const newRound = ['starter','next_round','start'].includes(action) && success && after.roundId && before?.roundId !== after.roundId && after.state.phase === (game.version === 5 ? 'prepare' : 'play');
       if (newRound && before?.observing && before.generation === status.collectionGeneration) boundedSet(observations, keyOf(after), { generation: status.collectionGeneration, dropped: status.dropped ?? 0 });
       let recordQuality = quality(after, status);
       const actionId = id(context.action_id) && context.action_id.length >= 8 ? context.action_id : `action.${before?.captureId ?? newId()}.${action}`.slice(0, 100);
       let changes = before?.runId === after.runId && before?.roundId === after.roundId ? tileChanges(before, after) : [];
-      const selected = context.selected_tile_ids ?? context.selectedIds ?? context.tileIds ?? (action === 'select' ? after.selected : before?.selected) ?? [];
+      const selected = context.selected_tile_ids ?? context.selectedIds ?? context.tileIds ?? context.ids ?? (action === 'select' ? after.selected : before?.selected) ?? [];
       const selectedIds = [...new Set(Array.isArray(selected) ? selected.filter(id) : [])];
       const requestedZone = context.source_zone ?? context.sourceZone;
       const inferredZone = Array.isArray(selected) && selected.length ? ['hand','formed'].find(zone => selected.every(tileId => before?.[zone]?.some(tile => tile.id === tileId))) : null;
+      const requestedRescue = context.rescue_type ?? context.rescue_kind ?? context.type;
+      const rescueType = action === 'high_rescue' && ['exchange','rank','suit'].includes(requestedRescue) ? requestedRescue : null;
+      const replacedRelic = context.replace_relic_id ?? context.replaced_relic_id ?? context.replaceId;
+      const transformAction = action === 'transform' || (action === 'high_rescue' && ['rank','suit'].includes(rescueType));
+      const transformKind = context.transform_kind ?? context.kind ?? context.transformKind ?? rescueType;
       const actionContext = {
         source_zone: ['hand','formed'].includes(requestedZone) ? requestedZone : inferredZone ?? null,
-        transform_kind: action === 'transform' && ['rank','suit','wild'].includes(context.transform_kind ?? context.kind ?? context.transformKind) ? context.transform_kind ?? context.kind ?? context.transformKind : null,
-        transform_value: action === 'transform' ? context.transform_value ?? context.value ?? context.arg ?? null : null,
+        transform_kind: transformAction && ['rank','suit','wild'].includes(transformKind) ? transformKind : null,
+        transform_value: transformAction ? context.transform_value ?? context.value ?? context.arg ?? null : null,
         relic_id: members(relicIdsForVersion(after.rulesVersion), context.relic_id ?? context.relicId ?? context.id) ? context.relic_id ?? context.relicId ?? context.id : null,
+        ...(game.version === 5 ? {
+          rescue_type: rescueType,
+          replace_relic_id: action === 'reward' && members(relicIdsForVersion(after.rulesVersion), replacedRelic) ? replacedRelic : null,
+        } : {}),
       };
       if (!actionContext.transform_kind || actionContext.transform_kind === 'wild') actionContext.transform_value = null;
       // A new-version action cannot validate an old-version hand/resource limit.
@@ -209,7 +220,7 @@ export function createGameAdapter({ getClient = getGameAnalytics, now = Date.now
       add('game_action', payload, actionId);
       if (invalid.length) { observations.delete(keyOf(after)); recordQuality = 'partial'; }
       if (action === 'start' && success) {
-        if (before?.runId && before.runId !== after.runId && ['starter','play','settlement','reward','shop'].includes(before.state.phase)) {
+        if (before?.runId && before.runId !== after.runId && ['starter','prepare','play','settlement','reward','shop'].includes(before.state.phase)) {
           add('run_ended', { state: before.state, record_quality: quality(before, status), reason: 'superseded' }, `ended.${before.runId}`,
             { mode: before.mode, run_id: before.runId, round_attempt_id: before.roundId,
               app_release: before.rulesVersion.replaceAll('_', '-'), rules_version: before.rulesVersion, score_model_version: before.scoreVersion });

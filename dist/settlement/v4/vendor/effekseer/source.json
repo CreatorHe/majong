@@ -1,0 +1,29 @@
+{
+  "project": "EffekseerForWebGL",
+  "version": "1.70e",
+  "license": "MIT",
+  "repository": "https://github.com/effekseer/EffekseerForWebGL",
+  "tag": "170e",
+  "commit": "f7ded69d91c1c75c13a758c148a7692f4d9b9698",
+  "download": "https://github.com/effekseer/EffekseerForWebGL/releases/download/170e/EffekseerForWebGL170e.zip",
+  "archiveSha256": "9bcb93b69e489570d46911cd96f27a1c8c45b296e8ef9c738f971a589d8d306f",
+  "licenseSource": "https://raw.githubusercontent.com/effekseer/EffekseerForWebGL/170e/LICENSE",
+  "modifications": "None. Official browser runtime and type declarations copied verbatim.",
+  "files": [
+    {
+      "path": "effekseer.min.js",
+      "bytes": 194297,
+      "sha256": "38172a9f16c23cf32e7d5521ddff136bee4bca3460ea2dda313c4b497a0702fb"
+    },
+    {
+      "path": "effekseer.wasm",
+      "bytes": 1202996,
+      "sha256": "e0f8f2e78173c14e38ccfb582feeffbac2b289242fae0c08cb65d9ad88ab51a5"
+    },
+    {
+      "path": "effekseer.d.ts",
+      "bytes": 17516,
+      "sha256": "cd7616dbae60903095a52e43d2b043cd8fa53db08e86feb8f77fe0d6d545abfa"
+    }
+  ]
+}

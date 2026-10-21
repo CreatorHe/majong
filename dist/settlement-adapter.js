@@ -1,4 +1,5 @@
 import { CinematicSettlementPlayer } from './settlement/cinematic-player.js';
+import { PATTERN_ANIMATIONS } from './settlement/v4/catalog.js';
 
 // This module only translates the engine's settled ledger into presentation data.
 // No game mutations, score operations, rewards, or random draws belong here.
@@ -14,36 +15,31 @@ const OLD_RELICS = ['jade', 'river', 'stone', 'bamboo', 'mirror', 'seal', 'echo'
   'ink', 'wind', 'growth', 'pair', 'wheel', 'jiang', 'mountain', 'reserve'];
 const NEW_RELICS = ['single_seal', 'kong_cauldron', 'rank_brush', 'suit_ribbon', 'wild_jade'];
 const numberFormat = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 12 });
-const PATTERN_EFFECTS = Object.freeze({
-  大三元: 'daisangen', 字一色: 'tsuuiisou', 清一色: 'chinitsu',
-  国士无双: 'kokushi', 十三幺: 'kokushi', 绿一色: 'ryuuiisou',
-  清老头: 'chinroutou', 清幺九: 'chinroutou', 九莲宝灯: 'chuuren',
-  小四喜: 'shousuushii', 大四喜: 'daisuushii', 四杠子: 'suukantsu', 四杠: 'suukantsu',
-  混老头: 'honroutou', 混幺九: 'honroutou',
-  七对: 'chiitoitsu', 七对子: 'chiitoitsu', 连七对: 'renqiidui',
-  清龙: 'ittsuu', 一气通贯: 'ittsuu', 三色三同顺: 'sanshoku', 三色同顺: 'sanshoku',
-  二盃口: 'ryanpeikou', 一色三同顺: 'pure_triple_chow', 一色四同顺: 'pure_quadruple_chow',
-  一色三节高: 'pure_triple_pung', 一色四节高: 'pure_quadruple_pung',
-});
-
-function effectFor(result) {
-  if (result.resultType === 'false_win') return 'false_hu';
-  const patterns = (result.patterns || []).filter(p => PATTERN_EFFECTS[p.name]);
+function presentationFor(result) {
+  if (result.resultType === 'false_win') return { effectId: 'false_hu', label: '诈胡', seal: '未和' };
+  const mappings = PATTERN_ANIMATIONS[result.mode] || {};
+  // Catalogue availability gates animation only; actual recognition stays in engine.
+  const patterns = (result.patterns || []).filter(p => mappings[p.name]?.enabled);
   const yakuman = result.mode === 'riichi' && patterns.filter(p => p.classification === 'yakuman')
     .sort((a, b) => (b.yakumanMultiplier || 1) - (a.yakumanMultiplier || 1) || b.fan - a.fan)[0];
-  if (yakuman) return PATTERN_EFFECTS[yakuman.name];
+  const chosen = pattern => ({ effectId: mappings[pattern.name].sceneId, label: pattern.name,
+    seal: pattern.classification === 'yakuman' && result.mode === 'riichi'
+      ? pattern.yakumanMultiplier === 2 ? '双倍役满' : '役满' : pattern.tier > 0 ? '大番' : '和牌' });
+  if (yakuman) return chosen(yakuman);
   const unlocks = (result.gains || []).filter(g => g.kind === 'unlock');
-  if (result.mode === 'riichi' && unlocks.some(g => g.id === 'wheel')) return 'daisharin';
-  if (unlocks.some(g => g.id === 'jiang')) return 'all_jiang';
+  if (result.mode === 'riichi' && unlocks.some(g => g.id === 'wheel')) return { effectId: 'daisharin', label: '大车轮', seal: '秘卷' };
+  if (unlocks.some(g => g.id === 'jiang')) return { effectId: 'all_jiang', label: '将将胡', seal: '秘卷' };
   const primary = patterns.sort((a, b) => b.fan - a.fan)[0];
-  return primary ? PATTERN_EFFECTS[primary.name]
-    : result.tiers?.multiplierTier > 0 ? 'multiplier'
-    : result.tiers?.scoreTier > 0 ? 'score' : 'normal';
+  return primary ? chosen(primary) : result.tiers?.multiplierTier > 0
+    ? { effectId: 'multiplier', label: '倍率升华', seal: '和牌' }
+    : result.tiers?.scoreTier > 0 ? { effectId: 'score', label: '高分落定', seal: '和牌' }
+    : { effectId: 'normal', label: '和牌', seal: '和牌' };
 }
 
 export const RELIC_ART_URLS = Object.freeze(Object.fromEntries([
   ...OLD_RELICS.map(id => [id, new URL(`./art/relics/${id}-v2.webp`, import.meta.url).href]),
   ...NEW_RELICS.map(id => [id, new URL(`./art/relics/${id}-v3.webp`, import.meta.url).href]),
+  ...Object.entries({ core_high: 'wheel-v2', core_pung: 'stone-v2', core_held: 'reserve-v2', core_growth: 'river-v2', retrigger_meld: 'echo-v2', retrigger_held: 'mirror-v2', high_rescue: 'rank_brush-v3' }).map(([id, art]) => [id, new URL(`./art/relics/${art}.webp`, import.meta.url).href]),
 ]));
 
 function display(value) {
@@ -86,6 +82,7 @@ export function buildSettlementSnapshot(game, result = game?.last) {
   const handResult = r.resultType === 'false_win' ? 'false_hu' : r.resultType === 'win' ? 'agari' : undefined;
   const sourceTiles = d.tiles || r.tiles || game?.formed || [];
   const tiles = sourceTiles.map(t => ({ id: t.id, face: FACES[t.face], label: labelForFace(t.face), wildcard: !!t.wild }));
+  const heldTiles = (r.heldTiles || []).map(t => ({ id: t.id, face: FACES[t.face], label: labelForFace(t.face), wildcard: !!t.wild }));
   const tileById = new Map(sourceTiles.map(t => [t.id, t]));
   const decomposition = (d.groupTileIds || []).map((ids, index) =>
     presentationGroup(ids, d.groups?.[index] || ids.map(id => tileById.get(id)?.face), index, d.shape, r.mode ?? game?.mode));
@@ -111,7 +108,7 @@ export function buildSettlementSnapshot(game, result = game?.last) {
       event: step.event,
       tileIds: [...(step.tileIds || [])],
     };
-    for (const key of ['sourceId', 'relicId', 'target', 'operation', 'label', 'emphasis']) {
+    for (const key of ['sourceId', 'relicId', 'target', 'operation', 'label', 'emphasis', 'detailText', 'triggerIndex', 'retrigger']) {
       if (step[key] !== undefined) converted[key] = step[key];
     }
     for (const key of ['before', 'delta', 'after']) {
@@ -134,12 +131,12 @@ export function buildSettlementSnapshot(game, result = game?.last) {
     rulesVersion: r.rulesVersion ?? game?.rulesVersion ?? game?.version,
     mode: (r.mode ?? game?.mode) === 'riichi' ? 'riichi' : 'guobiao',
     handResult,
-    hand: { tiles, decomposition, declaredKongs, wildcardAssignments },
+    hand: { tiles, heldTiles, decomposition, declaredKongs, wildcardAssignments },
     patterns,
     relics,
     steps,
     tiers: { ...r.tiers },
-    presentation: { effectId: effectFor(r) },
+    presentation: presentationFor(r),
     totals: {
       baseText: display(r.base),
       multiplierText: display(r.mult),

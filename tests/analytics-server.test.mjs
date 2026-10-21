@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { handleAnalytics } from '../server/analytics.js';
 import { PATTERN_CATALOG } from '../server/catalog.js';
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, GAME_PATTERN_CATALOG, V2_PATTERN_CATALOG, GAME_VERSION_PAIRS, gamePatternCatalog, patternIdForName, relicIdsForVersion, isSupportedGameVersion, validateGamePayload } from '../dist/analytics/game-schema.js';
+import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V5_CORE_IDS, GAME_PATTERN_CATALOG, V2_PATTERN_CATALOG, GAME_VERSION_PAIRS, gamePatternCatalog, patternIdForName, relicIdsForVersion, isSupportedGameVersion, validateGamePayload } from '../dist/analytics/game-schema.js';
 import { makeFixture } from '../dist/analytics/report.js';
 
 // Exercises the same migration SQL deployed to D1, with real SQLite constraints
@@ -275,7 +275,7 @@ test('generic events persist without contributing to pattern facts and sanitize 
 
 function gameEvents(mode = 'mcr') {
   return makeFixture(mode).map(({ event_name, payload, context }) => ({
-    schema_version: 1, event_id: crypto.randomUUID(), event_name, occurred_at: new Date().toISOString(), session_id: 'session-v2-001', ...context, rules_version: 'free_play_v2', score_model_version: 'cumulative_v2', payload,
+    schema_version: 1, event_id: crypto.randomUUID(), event_name, occurred_at: new Date().toISOString(), session_id: 'session-v2-001', ...context, rules_version: 'free_play_v2', score_model_version: 'cumulative_v2', payload: { ...payload, owned_relic_ids: [] },
   }));
 }
 function scoreParts(event, { start = 0, process = 0, win = 1000, penalty = 0, target = 100 } = {}) {
@@ -449,7 +449,7 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   let saved = null, timestamp = Date.now(), dropFirstAck = true;
   const preferences = new Map(), received = [];
   const client = createAnalytics({
-    scope: 'sandbox', autoFlush: false, locks: null, appRelease: 'free-play-v2', entry: 'debug', clock: () => timestamp,
+    scope: 'sandbox', autoFlush: false, locks: null, appRelease: 'opening-build-v5', entry: 'debug', clock: () => timestamp,
     storage: { load: async () => saved && structuredClone(saved), save: async data => { saved = structuredClone(data); }, clear: async () => { saved = null; } },
     preferenceStorage: { getItem: key => preferences.get(key), setItem: (key, value) => preferences.set(key, value) },
     fetch: async (path, init) => {
@@ -472,7 +472,12 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
     assert.deepEqual(tracked.invalid ?? [], []);
     return { before, result };
   }
-  await act('starter', () => engine.chooseStarter(game, 'single_seal'), { relic_id: 'single_seal' });
+  await act('starter', () => engine.chooseStarter(game, 'core_growth'), { relic_id: 'core_growth' });
+  assert.equal(game.phase, 'prepare');
+  assert.equal(game.swaps, 5);
+  // Controlled equipment/tiles exercise process awards and retriggered settlement
+  // through the real pipeline; reward acquisition is covered by adapter tests.
+  game.relics.push('single_seal', 'retrigger_meld');
   const pool = [...game.hand, ...game.formed, ...game.deck, ...game.discard];
   const faces = [0, 1, 2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 4];
   const chosen = faces.map(face => {
@@ -482,7 +487,9 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   const secondBatch = chosen.slice(1, 11);
   game.hand = chosen.slice(0, 12); game.formed = [];
   game.deck = pool.concat(chosen.slice(12).reverse()); game.discard = []; game.kongs = [];
-  assert.equal(game.swaps, 7);
+  await act('begin_play', () => engine.beginPlay(game));
+  assert.equal(game.phase, 'play');
+  assert.equal(game.swaps, 0);
   const tileId = chosen[0].id;
   const first = await act('commit', () => engine.commit(game, [tileId]), { selected_tile_ids: [tileId] });
   await adapter.trackGameAction('commit', first.before, game, first.result, { selected_tile_ids: [tileId] });
@@ -495,6 +502,7 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.equal(136 - game.deck.length, 26, 'initial 12 plus 14 played tiles were drawn');
   const terminal = await act('settle', () => engine.settle(game));
   assert.equal(terminal.result.legal, true);
+  assert.ok(terminal.result.gains.some(gain => gain.id === 'retrigger_meld'));
   await adapter.trackGameAction('settle', terminal.before, game, terminal.result);
   await act('settlement_skip', () => engine.finishSettlement(game));
   await client.flush(); timestamp += 2100;
@@ -504,6 +512,8 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.ok(received.some(ack => ack.duplicate.length > 0));
   assert.ok(received.every(ack => ack.rejected.length === 0));
   const r = await (await handleAnalytics(request('/api/reports/patterns?scope=sandbox&mode=mcr'), { DB })).json();
+  assert.equal(r.rules_version, V5_RULES_VERSION);
+  assert.equal(r.score_model_version, V5_SCORE_MODEL_VERSION);
   assert.equal(r.summary.completed_hands, 1);
   assert.equal(r.settlements.total, 1);
   assert.equal(r.summary.max_win_score, terminal.result.total);
@@ -514,6 +524,8 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   const commits = DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name = 'game_action'").all().map(row => JSON.parse(row.payload_json)).filter(action => action.action === 'commit');
   assert.equal(commits.length, 3, 'duplicate adapter callback did not create another process award event');
   assert.equal(commits.filter(action => action.after.process_score - action.before.process_score === 20).length, 1);
+  assert.equal(DB.sqlite.prepare("SELECT COUNT(*) AS n FROM raw_events WHERE event_name='round_started'").get().n, 1, 'begin_play does not start a second observed round');
+  assert.ok(DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name IN ('round_settled','hand_completed')").all().every(row => !Object.hasOwn(JSON.parse(row.payload_json), 'steps')), 'retrigger animation is not submitted as additional scoring facts');
   assert.equal(tableCount(DB, 'round_settlements'), 1);
   assert.equal(tableCount(DB, 'analytics_clients'), 1);
 });
@@ -676,4 +688,106 @@ test('v4 keeps v3 facts isolated and selects the latest rule for a shared score 
   const high = scoreParts({ ...v3Hand(), rules_version: 'free_play_v4' }, { win: Number.MAX_SAFE_INTEGER, target: Number.MAX_SAFE_INTEGER });
   assert.equal((await f.send([high])).body.accepted.length, 1);
   assert.equal((await f.report('rules_version=free_play_v4')).summary.max_win_score, Number.MAX_SAFE_INTEGER);
+});
+
+function v5Action(action = 'begin_play') {
+  const event = actionEvent();
+  event.rules_version = V5_RULES_VERSION; event.score_model_version = V5_SCORE_MODEL_VERSION;
+  const state = { ...gameState(), phase: 'prepare', hand_count: 12, deck_count: 124, swaps: 5, relic_ids: ['core_high', 'high_rescue'], rescue_used: false };
+  Object.assign(event.payload, {
+    action, before: state, after: { ...state, phase: 'play' }, selected_tile_ids: [], tile_changes: [],
+    context: { source_zone: null, transform_kind: null, transform_value: null, relic_id: null, rescue_type: null, replace_relic_id: null },
+  });
+  return event;
+}
+
+test('v5 facts stay isolated from v2–v4 and preserve the existing terminal contract', async t => {
+  const engine = await import('../dist/engine.js');
+  assert.equal(V5_RULES_VERSION, engine.RULES_VERSION.replaceAll('-', '_'));
+  assert.equal(V5_SCORE_MODEL_VERSION, engine.SCORE_MODEL_VERSION.replaceAll('-', '_'));
+  assert.equal(GAME_RULES_VERSION, V5_RULES_VERSION);
+  assert.equal(GAME_SCORE_MODEL_VERSION, V5_SCORE_MODEL_VERSION);
+  assert.deepEqual([...relicIdsForVersion(V5_RULES_VERSION)].sort(), engine.RELICS.map(item => item.id).sort());
+  assert.deepEqual([...V5_CORE_IDS].sort(), engine.RELICS.filter(item => item.core).map(item => item.id).sort());
+  assert.deepEqual(gamePatternCatalog(V5_RULES_VERSION), gamePatternCatalog('free_play_v4'));
+  const f = await fixture(t);
+  const v4 = { ...v3Hand('knitted'), rules_version: 'free_play_v4' };
+  assert.equal((await f.send([v4])).body.accepted.length, 1);
+  const latest = async () => (await (await handleAnalytics(request('/api/reports/patterns?mode=mcr'), f.env)).json());
+  assert.equal((await latest()).rules_version, V5_RULES_VERSION);
+  assert.equal((await latest()).summary.completed_hands, 0);
+  const v5 = scoreParts({ ...v3Hand('orphans'), rules_version: V5_RULES_VERSION, score_model_version: V5_SCORE_MODEL_VERSION }, { win: Number.MAX_SAFE_INTEGER, target: Number.MAX_SAFE_INTEGER });
+  v5.payload.owned_relic_ids = ['core_high', 'retrigger_meld', 'high_rescue', 'jade'];
+  assert.equal((await f.send([v5])).body.accepted.length, 1);
+  const completed = { ...structuredClone(v5), event_name: 'hand_completed', event_id: crypto.randomUUID() };
+  assert.deepEqual((await f.send([completed])).body.duplicate, [completed.event_id]);
+  const report = await latest();
+  assert.equal(report.summary.completed_hands, 1);
+  assert.equal(report.settlements.total, 1);
+  assert.equal(report.summary.max_win_score, Number.MAX_SAFE_INTEGER);
+  assert.equal(row(report, 'mcr.thirteen_orphans').count, 1);
+  assert.equal((await f.report('rules_version=free_play_v4')).summary.completed_hands, 1);
+  const invalid = [];
+  for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4']) {
+    assert.equal(relicIdsForVersion(rules).length, 21);
+    assert.equal(relicIdsForVersion(rules).includes('core_high'), false);
+    const old = { ...v3Hand(), rules_version: rules, score_model_version: GAME_VERSION_PAIRS[rules] };
+    old.payload.owned_relic_ids = ['core_high']; invalid.push(old);
+  }
+  for (const owned of [['core_high', 'core_pung'], ['core_high', 'jade', 'ink', 'wheel', 'jiang'], ['core_high', 'jade', 'jade']]) {
+    const bad = structuredClone(v5); bad.event_id = crypto.randomUUID(); bad.payload.owned_relic_ids = owned; invalid.push(bad);
+  }
+  const steps = structuredClone(v5); steps.event_id = crypto.randomUUID(); steps.payload.steps = []; invalid.push(steps);
+  const mixed = structuredClone(v5); mixed.event_id = crypto.randomUUID(); mixed.score_model_version = 'exponential_v3'; invalid.push(mixed);
+  assert.equal((await f.send(invalid)).body.rejected.length, invalid.length);
+  assert.equal(tableCount(f.DB, 'round_settlements'), 2);
+  assert.equal(tableCount(f.DB, 'completed_hands'), 0);
+});
+
+test('v5 prepare, rescue and reward evidence are bounded without broadening older schemas', async t => {
+  const f = await fixture(t);
+  const begin = v5Action();
+  const startRound = { ...structuredClone(begin), event_id: crypto.randomUUID(), event_name: 'round_started', payload: { state: begin.payload.before, record_quality: 'complete' } };
+  const rescue = v5Action('high_rescue');
+  rescue.payload.before.phase = 'play'; rescue.payload.after.rescue_used = true;
+  rescue.payload.selected_tile_ids = ['entity-1']; rescue.payload.context.rescue_type = 'exchange';
+  const rank = structuredClone(rescue); rank.event_id = crypto.randomUUID(); rank.payload.action_id = crypto.randomUUID();
+  rank.payload.after.ink--; Object.assign(rank.payload.context, { rescue_type: 'rank', transform_kind: 'rank', transform_value: 1 });
+  const suit = structuredClone(rank); suit.event_id = crypto.randomUUID(); suit.payload.action_id = crypto.randomUUID();
+  Object.assign(suit.payload.context, { rescue_type: 'suit', transform_kind: 'suit', transform_value: 2 });
+  const reward = v5Action('reward'); reward.payload.before.phase = 'reward'; reward.payload.after.phase = 'shop';
+  reward.payload.before.relic_ids = ['core_high', 'jade', 'ink', 'wheel']; reward.payload.after.relic_ids = ['core_high', 'high_rescue', 'ink', 'wheel'];
+  Object.assign(reward.payload.context, { relic_id: 'high_rescue', replace_relic_id: 'jade' });
+  const skip = v5Action('skip_reward'); skip.payload.before.phase = 'reward'; skip.payload.after.phase = 'shop';
+  const rejected = structuredClone(rescue); rejected.event_id = crypto.randomUUID(); rejected.payload.action_id = crypto.randomUUID();
+  rejected.payload.outcome = 'rejected'; rejected.payload.after = structuredClone(rejected.payload.before);
+  const events = [startRound, begin, rescue, rank, suit, reward, skip, rejected];
+  const received = await f.send(events);
+  assert.deepEqual(received.body.rejected, []);
+  assert.equal(received.body.accepted.length, events.length);
+  assert.equal(tableCount(f.DB, 'round_settlements'), 0, 'actions never create settlement awards');
+  const invalid = [];
+  for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4']) {
+    const old = actionEvent(); old.rules_version = rules; old.score_model_version = GAME_VERSION_PAIRS[rules];
+    old.payload.before.hand_count = old.payload.after.hand_count = rules === 'free_play_v3' ? 10 : 12;
+    for (const action of ['begin_play', 'high_rescue', 'skip_reward']) {
+      const extraAction = structuredClone(old); extraAction.event_id = crypto.randomUUID(); extraAction.payload.action = action; invalid.push(extraAction);
+    }
+    const extraState = structuredClone(old); extraState.event_id = crypto.randomUUID(); extraState.payload.after.rescue_used = false; invalid.push(extraState);
+    const extraContext = structuredClone(old); extraContext.event_id = crypto.randomUUID(); Object.assign(extraContext.payload.context, { rescue_type: null, replace_relic_id: null }); invalid.push(extraContext);
+  }
+  const mutateRejected = structuredClone(rejected); mutateRejected.event_id = crypto.randomUUID(); mutateRejected.payload.after.rescue_used = true; invalid.push(mutateRejected);
+  const wrongType = structuredClone(rank); wrongType.event_id = crypto.randomUUID(); wrongType.payload.context.rescue_type = 'suit'; invalid.push(wrongType);
+  const replacementLeak = structuredClone(begin); replacementLeak.event_id = crypto.randomUUID(); replacementLeak.payload.context.replace_relic_id = 'jade'; invalid.push(replacementLeak);
+  const missingRescue = v5Action(); delete missingRescue.payload.after.rescue_used; invalid.push(missingRescue);
+  const overflow = v5Action(); overflow.payload.after.hand_count = 13; invalid.push(overflow);
+  const result = await f.send(invalid);
+  assert.equal(result.body.rejected.length, invalid.length);
+  assert.ok(result.body.rejected.some(item => item.reason === 'rejected_action_mutates_state'));
+  assert.equal(tableCount(f.DB, 'raw_events'), events.length);
+  const bounded = v5Action('select');
+  bounded.payload.selected_tile_ids = Array.from({ length: 18 }, (_, i) => `t${i}`.padEnd(64, 'x'));
+  bounded.payload.tile_changes = Array.from({ length: 36 }, (_, i) => [`t${i}`.padEnd(64, 'x'), 'hand', 'formed', 0, 0, false, false, false, true]);
+  assert.equal(validateGamePayload(bounded.event_name, bounded.payload, bounded).ok, true);
+  assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 8192);
 });

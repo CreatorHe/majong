@@ -160,3 +160,13 @@ body.settlement-open{overflow:hidden}
 .synergy-new{animation:synergy-arrival .8s ease-out 1}@keyframes synergy-arrival{0%{box-shadow:0 0 0 1px var(--gold),0 0 22px #dcba7944}100%{box-shadow:0 0 0 0 transparent}}
 @media(max-width:650px){.build-panel{margin-top:18px;padding:16px 0 0}.build-hints{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.build-hint{padding:10px 8px}.build-hint-title{gap:5px}.build-hint-title .relic-emblem{width:28px;height:28px;flex-basis:28px}.build-hint-title b{font-size:11px}.build-hint-title>strong{font-size:10px;max-width:43%}.build-progress{font-size:10px}.build-detail{font-size:10px}.relic-build-detail .build-hint{max-width:100%}}
 @media(prefers-reduced-motion:reduce){.synergy-new{animation:none}}
+
+/* V5 preparation and four-route equipment flow. */
+.starter-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:900px;margin-inline:auto}
+.starter-grid .relic-card{min-width:0}.starter-grid .relic-card-copy{min-height:130px}
+.begin-play{flex:1;min-width:220px}.rescue-panel{margin-top:18px;padding:14px;border:1px solid #d4b77b66;border-radius:8px;background:#c79f4b0b}
+.rescue-panel b{display:block;color:var(--gold);font-size:13px}.rescue-panel small{display:block;color:var(--muted);line-height:1.8;margin-top:5px}
+.rescue-panel .free-actions{margin-top:10px}.skip-reward{display:block;margin:20px auto}
+.reward-replacements{display:grid;gap:10px;margin:20px 0}.reward-replacements button{display:flex;align-items:center;gap:14px;text-align:left}
+.reward-replacements .relic-emblem{height:46px;width:46px;flex:0 0 46px}
+@media(max-width:650px){.starter-grid{grid-template-columns:1fr}.starter-grid .relic-card-copy{min-height:0}.begin-play{grid-column:1/-1;min-width:0}.rescue-panel{padding:12px}.rescue-panel .free-actions{grid-template-columns:1fr 1fr}}

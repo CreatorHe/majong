@@ -1,111 +1,86 @@
 import { SettlementPlayer, validateSnapshot } from './player.js';
 import { getEffect } from './effects-v2.js';
-import { createCinematicAudio } from './cinematic-audio.js';
-import { CinematicStage } from './cinematic-stage.js';
-import { MOTION_DURATION } from './motion-v3.js';
+import { createBurstPlayer } from './v4/burst-player.js';
+import { createRuntimePlayer } from './v4/runtime.js';
 
-/** Layered cinematic presentation over the existing ordered, exact-text settlement player. */
+/** Compatibility facade: V4 renders legal frozen ledgers; invalid hands never celebrate. */
 export class CinematicSettlementPlayer extends SettlementPlayer {
   constructor(root, options = {}) {
     super(root, options);
-    this.cinematicAudio = options.cinematicAudio || createCinematicAudio();
-    this.ownsCinematicAudio = !options.cinematicAudio;
+    this.playerOptions = options;
+    this.burst = null;
+    this.legalPlayback = false;
+    this.playTicket = 0;
   }
-  async unlockAudio() {
-    const results = await Promise.allSettled([super.unlockAudio(), this.cinematicAudio.unlock()]);
-    return results.every(result => result.status === 'fulfilled' && result.value);
+  setMuted(value) { super.setMuted(value); this.burst?.setMuted(value); }
+  setSpeed(value) { super.setSpeed(Math.min(2, Number(value) || 1)); this.burst?.setSpeed(this.options.speed); }
+  setPaused(value) { super.setPaused(value); this.burst?.setPaused(value); }
+  setReducedMotion(value) { super.setReducedMotion(value); this.burst?.setReducedMotion(value); }
+  cancel(status = 'replaced') {
+    this.playTicket++;
+    this.burst?.cancel(status);
+    super.cancel(status);
   }
-  setMuted(value) { super.setMuted(value); this.cinematicAudio?.setMuted(!!value); }
-  setSpeed(value) { if (this.running) this.cinematicAudio?.stopAll(); super.setSpeed(value); if(this.running)this.renderFrame(this.clock); }
-  setPaused(value) {
-    if (this.running && this.options.paused !== !!value) this.previous = performance.now();
-    super.setPaused(value);
-    if(this.running)this.renderFrame(this.clock);
-    if (value) { this.audio.stopAll(); this.cinematicAudio?.stopAll(); }
-    for (const animation of this.root.getAnimations?.({ subtree: true }) || []) value ? animation.pause?.() : animation.play?.();
-  }
-  setReducedMotion(value) {
-    super.setReducedMotion(value);
-    if (value) this.cinematicAudio?.stopAll();
-    if (this.stage?.last) this.stage.render(this.stage.last.p, { ...this.stage.last.options, reducedMotion: !!value });
-  }
-  cancel(status = 'replaced') { this.stage?.stopMotion(); this.cinematicAudio?.stopAll(); super.cancel(status); }
-  dispose() { if (this.destroyed) return; this.stage?.dispose(); super.dispose(); if (this.ownsCinematicAudio) this.cinematicAudio.dispose(); }
+  releaseBurst() { this.burst?.dispose(); this.burst = null; }
   play(snapshot, options = {}) {
-    this.isPoster = false; this.impactPlayed = false;
-    return super.play(snapshot, { ...options, paused: false });
-  }
-  build() {
-    this.stage?.dispose(); super.build();
+    if (this.destroyed) return Promise.resolve({ status: 'disposed' });
+    this.cancel();
+    this.options = { ...this.options, ...options, paused: false };
+    this.snapshot = snapshot;
+    this.completionDelivered = false;
+    try {
+      this.snapshot = typeof structuredClone === 'function' ? structuredClone(snapshot) : JSON.parse(JSON.stringify(snapshot));
+      validateSnapshot(this.snapshot);
+    } catch (error) {
+      this.releaseBurst(); this.legalPlayback = false;
+      this.buildFallback(error); return this.complete('fallback');
+    }
     this.effect = getEffect(this.snapshot);
-    this.stage = new CinematicStage(this.effect, this.snapshot, this.tileUrl);
-    this.root.classList.add('jr-cinematic'); this.root.dataset.effectId = this.effect.id;
-    this.root.style.setProperty('--cine-color', this.effect.color); this.root.style.setProperty('--cine-accent', this.effect.accent);
-    this.root.insertBefore(this.stage.el, this.scene);
-    this.root.dataset.cinePhase = this.snapshot.handResult === 'false_hu' ? 'count' : 'intro';
-    this.scene.hidden = this.snapshot.handResult !== 'false_hu';
-    this.stage.resize(); this.stage.render(0, { reducedMotion: this.options.reducedMotion, poster: this.isPoster });
-  }
-  configureTimeline() {
-    if (this.snapshot.handResult === 'false_hu') { this.introMs = 0; return; }
-    this.introMs = this.stage.motion ? MOTION_DURATION : this.effect.introMs;
-    let at = 0;
-    this.timeline = this.snapshot.steps.map((step, index) => {
-      const duration = index === 0 && step.event === 'hand_reveal' ? this.introMs :
-        step.event === 'hand_total' ? 850 : step.event === 'round_result' ? 700 : step.event === 'pattern_reveal' ? 650 : 430;
-      const row = { at, duration }; at += duration; return row;
+    this.legalPlayback = this.snapshot.handResult === 'agari';
+    if (!this.legalPlayback) {
+      this.releaseBurst();
+      return super.play(this.snapshot, this.options);
+    }
+    if (!this.burst) {
+      this.root.replaceChildren(); this.root.className = 'jr-settlement jr-v4-settlement';
+      // Both branches share one audio owner. The facade alone disposes it.
+      const audio = this.audio;
+      this.burst = createBurstPlayer(this.root, {
+        tileUrl: this.tileUrl, relicUrl: this.relicUrl,
+        libraryFactory: this.playerOptions.libraryFactory || createRuntimePlayer,
+        ...(this.playerOptions.clock ? { clock: this.playerOptions.clock } : {}),
+        audioFactory: () => ({ setMuted: value => audio.setMuted(value), stopAll: () => audio.stopAll(),
+          play: (...args) => audio.play(...args), unlock: () => audio.unlock(),
+          getState: () => audio.getState?.() || {}, dispose() {} }),
+      });
+    }
+    this.setMuted(this.options.muted); this.setSpeed(this.options.speed); this.setReducedMotion(this.options.reducedMotion);
+    this.running = true;
+    const ticket = this.playTicket;
+    // Calling the facade again is an explicit replay, as in the original public API.
+    const playback = this.burst.play(this.snapshot, { ...this.options, replay: true });
+    return playback.then(outcome => {
+      if (ticket === this.playTicket && !this.destroyed) {
+        this.running = false; this.completionDelivered = true;
+        if (['completed', 'skipped', 'fallback'].includes(outcome.status)) {
+          try { this.options.onComplete?.(outcome); } catch {}
+        }
+      }
+      return outcome;
+    }).catch(error => {
+      if (ticket !== this.playTicket || this.destroyed) return { status: 'cancelled', settlementId: this.snapshot?.settlementId };
+      this.releaseBurst(); this.legalPlayback = false; this.buildFallback(error);
+      return this.complete('fallback');
     });
-    this.duration = at;
   }
-  applyStep(step, index, audible) {
-    const generation = this.generation;
-    super.applyStep(step, index, false);
-    if (generation !== this.generation || !this.running) return;
-    const falseHu = this.snapshot.handResult === 'false_hu';
-    if (index === 0 && !falseHu) {
-      this.cutInUsed = true; // The cinematic has already announced the supplied primary pattern.
-      this.heroLabel.textContent = this.effect.label;
-      this.heroValue.textContent = this.effect.variantLabel || this.effect.rarity;
-      if (audible && !this.options.paused) this.cinematicAudio.playIntro({ effectId: this.effect.family, variant: this.effect.rarity === '普通' ? 'normal' : 'rare', speed: this.options.speed, reducedMotion: this.options.reducedMotion });
-    } else if (audible && !this.options.paused) {
-      const event = falseHu && step.event === 'hand_reveal' ? 'hand_check' :
-        step.event === 'round_result' ? (this.snapshot.totals.passed ? 'round_pass' : 'round_fail') : step.event;
-      const rawTier = step.event === 'hand_total' ? this.snapshot.tiers?.scoreTier : step.event === 'pattern_reveal' ? this.snapshot.tiers?.patternTier : this.snapshot.tiers?.multiplierTier;
-      this.audio.play(event, { tier: falseHu ? 0 : Math.min(2, Number(rawTier) || 0), speed: this.options.speed });
-    }
+  skip() { if (this.legalPlayback) return this.burst?.skip(); return super.skip(); }
+  showPoster(snapshot, options = {}) { const pending = this.play(snapshot, { ...options, reducedMotion: true }); this.skip(); return pending; }
+  getState() {
+    return this.legalPlayback && this.burst ? this.burst.getState() : {
+      state: this.destroyed ? 'destroyed' : this.running ? 'playing' : 'completed',
+      settlementId: this.snapshot?.settlementId, speed: this.options.speed,
+      reducedMotion: this.options.reducedMotion, muted: this.options.muted,
+    };
   }
-  renderFrame(clock) {
-    if (!this.stage || this.isPoster) return;
-    const falseHu = this.snapshot.handResult === 'false_hu';
-    const progress = this.introMs ? Math.min(1, clock / this.introMs) : 1;
-    const counting = falseHu || clock >= this.introMs;
-    this.root.dataset.cinePhase = counting ? 'count' : 'intro'; this.scene.hidden = !counting;
-    const exit = this.options.reducedMotion ? 0 : Math.max(0, Math.min(1, (progress - .88) / .12));
-    this.stage.el.style.opacity = String(counting ? .36 : 1 - exit * .64);
-    this.scene.style.opacity = String(falseHu || this.options.reducedMotion ? 1 : Math.min(1, Math.max(0, (clock - this.introMs) / 250)));
-    if (!falseHu && !this.impactPlayed && progress >= .41) {
-      this.impactPlayed = true;
-      if (!this.options.paused && !this.options.reducedMotion && progress < .8) this.cinematicAudio.playImpact({ effectId: this.effect.family, speed: this.options.speed });
-    }
-    this.stage.render(progress, { reducedMotion: this.options.reducedMotion, paused: this.options.paused, speed: this.options.speed, phase: counting ? 'result' : 'intro', exit });
-  }
-  showFinal() {
-    super.showFinal(); if (!this.scene || !this.stage) return;
-    if (this.snapshot.handResult !== 'false_hu') { this.heroLabel.textContent = this.effect.label; this.heroValue.textContent = [this.effect.variantLabel, this.effect.rarity].filter(Boolean).join(' · '); }
-    this.cinematicAudio?.stopAll(); this.scene.hidden = false; this.scene.style.opacity = '1'; this.stage.el.style.opacity = '.36'; this.root.dataset.cinePhase = 'result';
-    this.stage.render(1, { reducedMotion: true, phase: 'result' });
-  }
-  skip() { this.cinematicAudio.stopAll(); super.skip(); }
-  showPoster(snapshot) {
-    if (this.destroyed) return;
-    this.cancel(); this.isPoster = true; this.completionDelivered = true;
-    this.snapshot = structuredClone(snapshot); this.options.paused = false;
-    try { validateSnapshot(this.snapshot); this.build(); }
-    catch (error) { this.stage?.dispose(); this.stage = null; this.buildFallback(error); return; }
-    super.showFinal();
-    this.setReducedMotion(this.options.reducedMotion);
-    this.scene.hidden = true; this.root.dataset.cinePhase = 'poster';
-    this.stage.render(.72, { poster: true, reducedMotion: this.options.reducedMotion });
-  }
-  buildFallback(error) { this.stage?.dispose(); this.stage = null; this.cinematicAudio?.stopAll(); super.buildFallback(error); }
+  dispose() { if (this.destroyed) return; this.releaseBurst(); super.dispose(); }
 }

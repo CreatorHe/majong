@@ -4,13 +4,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { buildSettlementSnapshot, createSettlementPlayer, RELIC_ART_URLS } from '../dist/settlement-adapter.js';
 import { validateSnapshot } from '../dist/settlement/player.js';
 import { getEffect } from '../dist/settlement/effects-v2.js';
-import { MotionVideo } from '../dist/settlement/motion-v3.js';
+import { createBurstPlan, createBurstPlayer, DECORATION_LOAD_TIMEOUT_MS } from '../dist/settlement/v4/burst-player.js';
 import { riichiPatterns } from '../dist/riichi-patterns.js';
-import { newRun, chooseStarter, commit, settle } from '../dist/engine.js';
+import { newRun, chooseStarter, beginPlay, commit, settle } from '../dist/engine.js';
 
 test('real engine results in both modes can play without adapter-side scoring', () => {
   for (const mode of ['mcr', 'riichi']) {
-    const game = newRun(mode, 123); chooseStarter(game, 'jade');
+    const game = newRun(mode, 123); chooseStarter(game, 'core_growth'); beginPlay(game);
     const pool = [...game.hand, ...game.deck];
     const faces = [0, 1, 2, 9, 10, 11, 21, 22, 23, 15, 16, 17, 4, 4];
     const chosen = faces.map(face => pool.splice(pool.findIndex(tile => tile.face === face), 1)[0]);
@@ -22,7 +22,7 @@ test('real engine results in both modes can play without adapter-side scoring', 
     assert.equal(snapshot.totals.handScoreText, new Intl.NumberFormat('zh-CN').format(outcome.total));
     assert.equal(snapshot.totals.passed, outcome.passed);
     assert.equal(snapshot.hand.tiles.length, 14);
-    assert.equal(snapshot.relics[0].id, 'jade');
+    assert.ok(snapshot.relics.some(relic => relic.id === 'core_growth'));
     assert.equal(JSON.stringify(game), before);
   }
 });
@@ -187,7 +187,7 @@ test('five highlight combinations use authoritative tiers, not inferred score la
 
 test('all registered relic images exist and the reserve relic is excluded', () => {
   const manifest = JSON.parse(readFileSync(new URL('../dist/art/manifest.json', import.meta.url), 'utf8'));
-  assert.equal(Object.keys(RELIC_ART_URLS).length, 21);
+  assert.equal(Object.keys(RELIC_ART_URLS).length, 28);
   assert.equal(manifest.relics.single_chain, undefined);
   for (const [id, url] of Object.entries(RELIC_ART_URLS)) {
     assert.ok(existsSync(new URL(url)), id);
@@ -217,62 +217,93 @@ class Element {
   setAttribute() {}
   addEventListener() {}
   getAnimations() { return []; }
+  remove() { this.removed = true; }
+  get childElementCount() { return this.children.length; }
 }
 
-test('motion media cannot restart after cancellation or reduced motion and rejection stays a static fallback', async () => {
+test('V4 loading skip, completed replay and disposal never replay frozen score operations', async () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
-  const videos = [];
-  class Video extends Element {
-    constructor() {
-      super(); this.readyState = 0; this.currentTime = 0; this.paused = true; this.plays = 0; this.listeners = new Map();
-      this.playResult = new Promise((resolve, reject) => { this.resolvePlay = resolve; this.rejectPlay = reject; });
-    }
-    addEventListener(name, callback) { this.listeners.set(name, callback); }
-    emit(name) { this.listeners.get(name)?.(); }
-    load() {}
-    play() { this.plays++; this.paused = false; return this.playResult; }
-    pause() { this.paused = true; }
-    removeAttribute(name) { if (name === 'src') this.src = ''; }
-    remove() { this.removed = true; }
-  }
-  globalThis.document = { createElement(tag) { assert.equal(tag, 'video'); const video = new Video(); videos.push(video); return video; } };
-  const flush = async () => { for (let i = 0; i < 4; i++) await Promise.resolve(); };
-  const host = new Element(), media = new MotionVideo(host, 'theme.mp4');
+  globalThis.document = { createElement: () => new Element() };
+  let time = 0, frame = 0, finishLoad, disposed = 0;
+  const frames = new Map(), sounds = [], steps = [], rendered = [];
+  const audio = { setMuted() {}, stopAll() {}, play(event) { sounds.push(event); }, unlock: async () => true, dispose() {}, getState: () => ({}) };
+  const renderer = { canvas: new Element(), setScene: async () => {}, render(ms) { rendered.push(ms); }, reset() {}, dispose() { disposed++; } };
+  const clock = { now: () => time, request: fn => { frames.set(++frame, fn); return frame; }, cancel: id => frames.delete(id) };
+  const player = createBurstPlayer(new Element(), { audioFactory: () => audio, clock, libraryFactory: () => finishLoad ? Promise.resolve({ ...renderer, canvas: new Element() }) : new Promise(resolve => { finishLoad = resolve; }) });
+  const snapshot = buildSettlementSnapshot({}, result()), before = JSON.stringify(snapshot);
+  const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
   try {
-    for (const options of [{ reducedMotion: true }, { poster: true }, { phase: 'result' }]) media.render(.2, options);
-    media.render(1);
-    assert.equal(videos.length, 0, 'static display must not download a motion source');
-
-    media.render(.2);
-    const cancelled = videos.at(-1);
-    media.cancel(); cancelled.readyState = 2; cancelled.emit('loadeddata'); media.render(.3);
-    assert.equal(cancelled.plays, 0);
-    assert.equal(cancelled.src, '');
-    assert.equal(videos.length, 1, 'late loading and further frames cannot revive a cancelled clip');
-
-    const reduced = new MotionVideo(host, 'theme.mp4'); reduced.render(.2, { paused: true });
-    const pending = videos.at(-1); pending.readyState = 2; pending.emit('loadeddata');
-    assert.equal(pending.plays, 0, 'loading while paused must stay paused');
-    reduced.render(.2); assert.equal(pending.plays, 1);
-    reduced.render(.2, { reducedMotion: true });
-    pending.paused = false; pending.resolvePlay(); await flush(); pending.emit('loadeddata');
-    assert.equal(pending.paused, true, 'late successful play is stopped after reduced motion releases the clip');
-    assert.equal(reduced.video, null);
-    assert.equal(pending.removed, true);
-    reduced.dispose(); reduced.render(.3);
-    assert.equal(videos.length, 2);
-
-    const rejected = new MotionVideo(host, 'theme.mp4'); rejected.render(.2);
-    const blocked = videos.at(-1); blocked.readyState = 2; blocked.emit('loadeddata');
-    blocked.rejectPlay(new Error('Playback denied')); await flush();
-    assert.equal(rejected.failed, true);
-    assert.equal(rejected.video, null);
-    assert.equal(blocked.paused, true);
-    assert.doesNotThrow(() => { rejected.render(.5); rejected.render(1, { phase: 'result' }); rejected.cancel(); rejected.dispose(); }, 'media failure must not interrupt the settlement clock or completion');
-    assert.equal(videos.length, 3, 'failed media leaves the static poster without retrying on every frame');
+    const first = player.play(snapshot); assert.equal(player.getState().state, 'loading');
+    player.skip(); player.skip(); assert.equal((await first).status, 'skipped');
+    assert.deepEqual(player.getState().values, { base: '240', multiplier: '2.5', score: '600' });
+    await flush(); finishLoad(renderer); await flush();
+    assert.equal(frames.size, 0, 'late loading cannot restart a skipped settlement');
+    assert.equal(player.play(snapshot), first, 'same ledger returns original promise unless replay was explicit');
+    const replay = player.play(snapshot, { replay: true, reducedMotion: false, speed: 1, onStep: step => steps.push(step.id) });
+    player.setSpeed(2); player.setReducedMotion(true);
+    await flush();
+    assert.equal(player.getState().speed, 2, 'loading completion preserves the current speed');
+    assert.equal(player.getState().reducedMotion, true, 'loading completion preserves reduced motion');
+    assert.deepEqual(rendered, [2700], 'first ready frame is static when reduced motion changed during loading');
+    time = 3000; const callback = [...frames.values()].at(-1); frames.clear(); callback(time);
+    assert.equal((await replay).status, 'completed');
+    assert.equal(steps.length, snapshot.steps.length);
+    assert.equal(new Set(steps).size, steps.length, 'each delayed-frame operation is shown exactly once');
+    assert.equal(sounds.length, 2, 'one initial cue and one coalesced delayed-frame sound');
+    assert.equal(player.getState().pendingFrame, false);
+    assert.equal(JSON.stringify(snapshot), before);
+    player.destroy(); player.destroy(); assert.equal(disposed, 2);
   } finally {
-    media.dispose();
+    player.destroy();
     if (previous) Object.defineProperty(globalThis, 'document', previous); else delete globalThis.document;
+  }
+});
+
+test('decoration total deadline completes frozen results and rejects late renderer or theme backfill', async () => {
+  const keys = ['document', 'setTimeout', 'clearTimeout', 'cancelAnimationFrame'];
+  const previous = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const timers = new Map(); let timerId = 0;
+  globalThis.document = { createElement: () => new Element(), createElementNS: () => new Element() };
+  globalThis.setTimeout = (callback, delay) => { timers.set(++timerId, { callback, delay }); return timerId; };
+  globalThis.clearTimeout = id => timers.delete(id);
+  globalThis.cancelAnimationFrame = () => {};
+  const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+  try {
+    for (const stage of ['renderer', 'theme']) {
+      let finishLoad, signal, completions = 0, disposed = 0, renders = 0, frames = 0;
+      const root = new Element(), snapshot = buildSettlementSnapshot({}, result()), before = JSON.stringify(snapshot);
+      const renderer = { canvas: new Element(), setScene: () => stage === 'theme' ? new Promise(resolve => { finishLoad = resolve; }) : Promise.resolve(), render() { renders++; }, reset() {}, dispose() { disposed++; } };
+      const audio = { setMuted() {}, stopAll() {}, play() { assert.fail('a timed-out decoration must not play cues'); }, unlock: async () => true };
+      const player = createSettlementPlayer(root, { audio,
+        clock: { now: () => 0, request: () => ++frames, cancel() {} },
+        libraryFactory: options => { signal = options.signal; return stage === 'renderer' ? new Promise(resolve => { finishLoad = resolve; }) : Promise.resolve(renderer); },
+      });
+      try {
+        const playing = player.play(snapshot, { onComplete: () => completions++ });
+        player.setSpeed(2); player.setReducedMotion(true);
+        await flush();
+        assert.equal(player.getState().state, 'loading');
+        const deadline = [...timers.values()].find(timer => timer.delay === DECORATION_LOAD_TIMEOUT_MS);
+        assert.ok(deadline, stage + ' has one total load deadline'); deadline.callback();
+        assert.equal((await playing).status, 'fallback');
+        assert.equal(completions, 1);
+        assert.equal(signal.aborted, true);
+        assert.deepEqual(player.getState().values, { base: '240', multiplier: '2.5', score: '600' });
+        assert.ok(root.textContent.includes('1,100')); assert.ok(root.textContent.includes('演出加载超时'));
+        finishLoad(stage === 'renderer' ? renderer : undefined); await flush();
+        assert.equal(disposed, 1, stage + ' is released exactly once');
+        assert.equal(root.children[0].children[0].children.length, 0, 'late canvas never mounts');
+        assert.equal(renders, 0); assert.equal(frames, 0);
+        assert.equal(player.getState().pendingFrame, false);
+        player.skip(); assert.equal(completions, 1);
+        assert.equal(JSON.stringify(snapshot), before);
+        assert.equal(timers.size, 0);
+      } finally { player.dispose(); }
+    }
+  } finally {
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key];
+    }
   }
 });
 
@@ -287,7 +318,7 @@ test('skip, replay and fallback show the same result without changing game or in
   const before = JSON.stringify(game);
   const root = new Element(), events = [];
   const audio = { setMuted() {}, stopAll() {}, play(name) { events.push(name); }, unlock: async () => true };
-  const player = createSettlementPlayer(root, { audio });
+  const player = createSettlementPlayer(root, { audio, libraryFactory: async () => ({ canvas: new Element(), setScene: async () => {}, render() {}, reset() {}, dispose() {} }) });
   try {
     const snapshot = buildSettlementSnapshot(game);
     for (let i = 0; i < 2; i++) {
@@ -303,10 +334,12 @@ test('skip, replay and fallback show the same result without changing game or in
     }
     const legal = buildSettlementSnapshot({}, result());
     const legalPlay = player.play(legal, { muted: true, reducedMotion: true });
-    assert.equal(player.stage.titleText.textContent, '和牌');
+    assert.ok(root.textContent.includes('和牌'));
+    assert.equal(player.getState().state, 'loading');
     player.skip();
     assert.equal((await legalPlay).status, 'skipped');
-    assert.equal(player.round.textContent, '1,100');
+    assert.equal(player.getState().values.score, '600');
+    assert.ok(root.textContent.includes('1,100'));
     const broken = structuredClone(snapshot); delete broken.totals.passed;
     assert.equal((await player.play(broken)).status, 'fallback');
     assert.ok(root.textContent.includes('1,100'));
@@ -319,4 +352,27 @@ test('skip, replay and fallback show the same result without changing game or in
       if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key];
     }
   }
+});
+
+
+test('V4 maps only supported patterns and keeps held-trigger references separate from fourteen-tile hand', () => {
+  const r = result(); r.mode = 'riichi';
+  r.patterns = [{ id: '纯正九莲宝灯', name: '纯正九莲宝灯', classification: 'yakuman', fan: 26, tier: 2 }];
+  assert.equal(buildSettlementSnapshot({}, r).presentation.effectId, 'normal');
+  r.patterns = [{ id: '对对和', name: '对对和', fan: 2, tier: 0 }];
+  r.heldTiles = [{ id: 'held-one', face: 0 }];
+  r.steps.splice(2, 0, { event: 'relic_trigger', relicId: 'core_held', label: '藏锋匣', target: 'multiplier', operation: 'multiply', before: 1, delta: 1.35, after: 1.35, tileIds: ['held-one'] });
+  const snapshot = buildSettlementSnapshot({}, r);
+  assert.equal(validateSnapshot(snapshot), true);
+  assert.equal(snapshot.presentation.effectId, 'toitoi');
+  assert.equal(snapshot.hand.tiles.length, 14);
+  assert.equal(snapshot.hand.heldTiles.length, 1);
+  const plan = createBurstPlan(snapshot);
+  assert.equal(plan.snapshot.hand.heldTiles[0].id, 'held-one');
+  assert.ok(Object.isFrozen(plan.snapshot.hand.heldTiles[0]));
+  assert.equal(plan.cues.at(-2).step.afterText, snapshot.totals.handScoreText);
+  assert.equal(plan.cues.at(-1).step.afterText, snapshot.totals.runScoreText);
+  const bad = structuredClone(snapshot); bad.steps[2].tileIds = ['not-seen'];
+  assert.throws(() => createBurstPlan(bad), /不存在/);
+  assert.throws(() => createBurstPlan(buildSettlementSnapshot({}, result({ falseHu: true }))), /诈胡/);
 });

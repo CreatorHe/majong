@@ -1,0 +1,36 @@
+{
+  "packages": [
+    {
+      "name": "pixi.js",
+      "version": "8.22.0",
+      "repository": "https://github.com/pixijs/pixijs",
+      "npm": "https://registry.npmjs.org/pixi.js/-/pixi.js-8.22.0.tgz",
+      "license": "MIT"
+    },
+    {
+      "name": "pixi-filters",
+      "version": "6.1.5",
+      "repository": "https://github.com/pixijs/filters",
+      "npm": "https://registry.npmjs.org/pixi-filters/-/pixi-filters-6.1.5.tgz",
+      "license": "MIT"
+    }
+  ],
+  "files": [
+    {
+      "file": "FILTERS-LICENSE",
+      "sha256": "d554721b2cd409d9bc075d743bb34f960e05ba55de1818a62fa60caf21ca6188"
+    },
+    {
+      "file": "PIXI-LICENSE",
+      "sha256": "5ce7447bc57f7349ffc48338782fbcabe613696e00712b20d66bc58e780f9473"
+    },
+    {
+      "file": "pixi-filters.js",
+      "sha256": "3bb1830fe730687c9aa24b331b51f8f2263023ac7c91885e50cf9f339cff36ef"
+    },
+    {
+      "file": "pixi.min.js",
+      "sha256": "06d9ef9823e743518793083c296d801e752db128cb1f519fbabe37e1259567ea"
+    }
+  ]
+}

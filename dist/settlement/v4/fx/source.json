@@ -1,0 +1,1456 @@
+{
+  "schemaVersion": 1,
+  "resourceRepository": "https://github.com/effekseer/ResourceData",
+  "resourceCommit": "1adef35d78363d3e914192267adf83a8e2b30759",
+  "preservation": "Original upstream bytes; no recoloring or effect edits. Relative asset layout under samples/ is preserved.",
+  "license": {
+    "id": "CC0-1.0",
+    "localNotice": "LICENSE-samples.txt",
+    "noticeSource": "https://raw.githubusercontent.com/effekseer/Effekseer/effd528a5ae5dbc60531c03e290db33e187f815b/docs/readme_sample.txt",
+    "noticeSha256": "376c144dc667d166c72fc7581110b24620e99b01a7cbec486e1a22f79d0e2386",
+    "officialStatement": "All the licenses of these effects are CC-0.",
+    "scopeEvidence": {
+      "source": "https://raw.githubusercontent.com/effekseer/Effekseer/effd528a5ae5dbc60531c03e290db33e187f815b/build.py",
+      "sha256": "88c2a531a291f593c9f5bc9487672204ca252736182df96a5d29ad61c9b8e367",
+      "lines": [
+        {
+          "line": 252,
+          "text": "copy_tree('ResourceData/samples', sample_dir)"
+        },
+        {
+          "line": 253,
+          "text": "shutil.copy('docs/readme_sample.txt', sample_dir / 'readme.txt')"
+        }
+      ],
+      "interpretation": "Official release packaging copies ResourceData/samples into Sample and writes this CC0 notice into that same Sample directory."
+    },
+    "attributionRequested": "Effekseer and the contributor. For this selected basic/version16 sample set, credit Effekseer Project; the files do not identify a separate contributor."
+  },
+  "rejectedCandidate": {
+    "entry": "02_Tktk03/Light.efkefc",
+    "reason": "Custom RadiarNoise.efkmat and AuraTube.efkmat both use shader $TIME$ to animate UV noise. The selected deterministic wrapper keeps renderer global time fixed. Fireworks avoids those global time dependencies.",
+    "evidenceSources": [
+      "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/02_Tktk03/Parts/RadiarNoise.efkmat",
+      "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/02_Tktk03/Parts/AuraTube.efkmat"
+    ]
+  },
+  "effects": [
+    {
+      "role": "charge",
+      "entry": "00_Version16/Aura01.efkefc",
+      "infoVersion": 1610,
+      "dependencies": [
+        "00_Version16/Textures/Aura02_T.png",
+        "00_Version16/Textures/Normal01.png",
+        "00_Version16/Textures/Particle01.png",
+        "00_Version16/Textures/Aura04_T.png"
+      ],
+      "editorParameters": {
+        "Root": {
+          "Name": "Root",
+          "Children": {
+            "Node": {
+              "CommonValues": {
+                "Life": {
+                  "Center": "160",
+                  "Max": "160",
+                  "Min": "160"
+                }
+              },
+              "DrawingValues": {
+                "Type": "0"
+              },
+              "Name": "Base",
+              "Children": {
+                "Node": [
+                  {
+                    "CommonValues": {
+                      "Life": {
+                        "Center": "200",
+                        "Max": "200",
+                        "Min": "200"
+                      }
+                    },
+                    "RendererCommonValues": {
+                      "ColorTexture": "Textures/Aura02_T.png",
+                      "FadeInType": "1",
+                      "FadeIn": {
+                        "Frame": "30"
+                      },
+                      "FadeOutType": "1",
+                      "FadeOut": {
+                        "Frame": "30"
+                      },
+                      "UV": "3",
+                      "UVScroll": {
+                        "Size": {
+                          "X": {
+                            "Center": "512",
+                            "Max": "512",
+                            "Min": "512"
+                          },
+                          "Y": {
+                            "Center": "512",
+                            "Max": "512",
+                            "Min": "512"
+                          }
+                        },
+                        "Speed": {
+                          "X": {
+                            "Center": "1",
+                            "Max": "1",
+                            "Min": "1"
+                          },
+                          "Y": {
+                            "Center": "4",
+                            "Max": "4",
+                            "Min": "4"
+                          }
+                        }
+                      }
+                    },
+                    "DrawingValues": {
+                      "Type": "5",
+                      "Model": {
+                        "ModelReference": "1",
+                        "Reference": "0",
+                        "Culling": "2",
+                        "Color_Fixed": {
+                          "R": "155",
+                          "B": "94"
+                        }
+                      }
+                    },
+                    "AdvancedRendererCommonValuesValues": {
+                      "UVDistortionTextureParam": {
+                        "Enabled": "True",
+                        "Texture": "Textures/Normal01.png",
+                        "UVDistortionIntensity": "0.1"
+                      }
+                    },
+                    "Name": "Core",
+                    "Children": {}
+                  },
+                  {
+                    "CommonValues": {
+                      "Life": {
+                        "Center": "200",
+                        "Max": "200",
+                        "Min": "200"
+                      }
+                    },
+                    "RendererCommonValues": {
+                      "ColorTexture": "Textures/Aura02_T.png",
+                      "AlphaBlend": "2",
+                      "FadeInType": "1",
+                      "FadeIn": {
+                        "Frame": "30"
+                      },
+                      "FadeOutType": "1",
+                      "FadeOut": {
+                        "Frame": "30"
+                      },
+                      "UV": "3",
+                      "UVScroll": {
+                        "Size": {
+                          "X": {
+                            "Center": "512",
+                            "Max": "512",
+                            "Min": "512"
+                          },
+                          "Y": {
+                            "Center": "512",
+                            "Max": "512",
+                            "Min": "512"
+                          }
+                        },
+                        "Speed": {
+                          "X": {
+                            "Center": "1",
+                            "Max": "1",
+                            "Min": "1"
+                          },
+                          "Y": {
+                            "Center": "4",
+                            "Max": "4",
+                            "Min": "4"
+                          }
+                        }
+                      }
+                    },
+                    "DrawingValues": {
+                      "Type": "5",
+                      "Model": {
+                        "ModelReference": "1",
+                        "Reference": "0",
+                        "Culling": "2",
+                        "Color_Fixed": {
+                          "R": "155",
+                          "B": "94"
+                        }
+                      }
+                    },
+                    "AdvancedRendererCommonValuesValues": {
+                      "UVDistortionTextureParam": {
+                        "Enabled": "True",
+                        "Texture": "Textures/Normal01.png",
+                        "UVDistortionIntensity": "0.1"
+                      }
+                    },
+                    "Name": "Core_Add",
+                    "Children": {}
+                  },
+                  {
+                    "CommonValues": {
+                      "MaxGeneration": {
+                        "Infinite": "True"
+                      },
+                      "Life": {
+                        "Center": "60",
+                        "Max": "60",
+                        "Min": "60"
+                      },
+                      "GenerationTime": {
+                        "Center": "5",
+                        "Max": "5",
+                        "Min": "5"
+                      }
+                    },
+                    "RotationValues": {
+                      "Type": "1",
+                      "PVA": {
+                        "Rotation": {
+                          "Y": {
+                            "Max": "180",
+                            "Min": "-180"
+                          }
+                        }
+                      }
+                    },
+                    "ScalingValues": {
+                      "Type": "3",
+                      "SinglePVA": {
+                        "Scale": {
+                          "Max": "1.1",
+                          "Min": "0.9"
+                        }
+                      }
+                    },
+                    "RendererCommonValues": {
+                      "ColorTexture": "Textures/Particle01.png",
+                      "Wrap": "1",
+                      "AlphaBlend": "2",
+                      "FadeInType": "1",
+                      "FadeIn": {
+                        "Frame": "5"
+                      },
+                      "FadeOutType": "1",
+                      "FadeOut": {
+                        "Frame": "5"
+                      },
+                      "UV": "3",
+                      "UVScroll": {
+                        "Start": {
+                          "Y": {
+                            "Center": "-512",
+                            "Max": "-512",
+                            "Min": "-512"
+                          }
+                        },
+                        "Size": {
+                          "X": {
+                            "Center": "256",
+                            "Max": "256",
+                            "Min": "256"
+                          },
+                          "Y": {
+                            "Center": "256",
+                            "Max": "256",
+                            "Min": "256"
+                          }
+                        },
+                        "Speed": {
+                          "Y": {
+                            "Center": "8",
+                            "Max": "8",
+                            "Min": "8"
+                          }
+                        }
+                      }
+                    },
+                    "DrawingValues": {
+                      "Type": "5",
+                      "Model": {
+                        "ModelReference": "1",
+                        "Reference": "1",
+                        "Color_Fixed": {
+                          "R": "24",
+                          "B": "100"
+                        }
+                      }
+                    },
+                    "AdvancedRendererCommonValuesValues": {
+                      "AlphaTextureParam": {
+                        "Enabled": "True",
+                        "Texture": "Textures/Aura04_T.png"
+                      },
+                      "UVDistortionTextureParam": {
+                        "Enabled": "True",
+                        "Texture": "Textures/Normal01.png",
+                        "UVDistortionIntensity": "0.1"
+                      }
+                    },
+                    "Name": "Flow",
+                    "Children": {}
+                  },
+                  {
+                    "CommonValues": {
+                      "MaxGeneration": {
+                        "Infinite": "True"
+                      }
+                    },
+                    "ScalingValues": {
+                      "Type": "6",
+                      "SingleFCurve": {
+                        "Keys": {
+                          "S": {
+                            "Key0": {
+                              "Frame": "0",
+                              "Value": "0",
+                              "LeftX": "0",
+                              "LeftY": "0",
+                              "RightX": "0",
+                              "RightY": "0",
+                              "InterpolationType": "0"
+                            },
+                            "Key1": {
+                              "Frame": "20",
+                              "Value": "0.2",
+                              "LeftX": "20",
+                              "LeftY": "0.2",
+                              "RightX": "20",
+                              "RightY": "0.2",
+                              "InterpolationType": "0"
+                            },
+                            "Key2": {
+                              "Frame": "100",
+                              "Value": "7.450581E-09",
+                              "LeftX": "100",
+                              "LeftY": "7.450581E-09",
+                              "RightX": "100",
+                              "RightY": "7.450581E-09",
+                              "InterpolationType": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "LocationAbsValues": {
+                      "LocalForceField1": {
+                        "Type": "1",
+                        "Power": "0.1"
+                      },
+                      "LocalForceField2": {
+                        "Type": "3",
+                        "Power": "0.04"
+                      },
+                      "LocalForceField3": {
+                        "Type": "4",
+                        "Power": "0.1"
+                      }
+                    },
+                    "GenerationLocationValues": {
+                      "Type": "3",
+                      "Circle": {
+                        "AxisDirection": "1",
+                        "Division": "90",
+                        "Radius": {
+                          "Center": "2.8",
+                          "Max": "3.2",
+                          "Min": "2.4"
+                        }
+                      }
+                    },
+                    "RendererCommonValues": {
+                      "ColorTexture": "Textures/Particle01.png"
+                    },
+                    "DrawingValues": {
+                      "Sprite": {
+                        "ColorAll": "1",
+                        "ColorAll_Fixed": {
+                          "R": "110",
+                          "G": "252",
+                          "B": "110"
+                        },
+                        "ColorAll_Random": {
+                          "R": {
+                            "Center": "115",
+                            "Max": "142",
+                            "Min": "88",
+                            "DrawnAs": "0"
+                          },
+                          "G": {
+                            "DrawnAs": "0"
+                          },
+                          "B": {
+                            "Center": "110",
+                            "Max": "142",
+                            "Min": "78",
+                            "DrawnAs": "0"
+                          },
+                          "A": {
+                            "DrawnAs": "0"
+                          }
+                        }
+                      }
+                    },
+                    "Name": "Particle",
+                    "Children": {}
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "Dynamic": {
+          "Inputs": {
+            "DynamicInput": [
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              }
+            ]
+          },
+          "Equations": {}
+        },
+        "ProceduralModel": {
+          "ProceduralModels": {
+            "ProceduralModelParameter": [
+              {
+                "Name": "Main",
+                "Type": "0",
+                "Mesh": {
+                  "AngleBeginEnd": {
+                    "X": "0",
+                    "Y": "360"
+                  },
+                  "Divisions": {
+                    "X": "60",
+                    "Y": "60"
+                  },
+                  "Rotate": "1"
+                },
+                "Ribbon": {
+                  "CrossSection": "0",
+                  "Rotate": "1",
+                  "Vertices": "10",
+                  "RibbonScales": {
+                    "X": "0.2",
+                    "Y": "0.2"
+                  },
+                  "RibbonAngles": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "RibbonNoises": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "Count": "2"
+                },
+                "Shape": {
+                  "PrimitiveType": "3",
+                  "Radius": "1",
+                  "Radius2": "1",
+                  "Depth": "1",
+                  "DepthMin": "-1",
+                  "DepthMax": "1",
+                  "Point1": {
+                    "X": "3",
+                    "Y": "0"
+                  },
+                  "Point2": {
+                    "X": "1",
+                    "Y": "1"
+                  },
+                  "Point3": {
+                    "X": "1",
+                    "Y": "3"
+                  },
+                  "Point4": {
+                    "X": "1.5",
+                    "Y": "4"
+                  },
+                  "AxisType": "1"
+                },
+                "ShapeNoise": {
+                  "TiltNoiseFrequency": {
+                    "X": "1",
+                    "Y": "1"
+                  },
+                  "TiltNoiseOffset": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "TiltNoisePower": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "WaveNoiseFrequency": {
+                    "X": "1",
+                    "Y": "1",
+                    "Z": "1"
+                  },
+                  "WaveNoiseOffset": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "WaveNoisePower": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "CurlNoiseFrequency": {
+                    "X": "1",
+                    "Y": "1",
+                    "Z": "1"
+                  },
+                  "CurlNoiseOffset": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "CurlNoisePower": {
+                    "X": "0.01",
+                    "Y": "0.01",
+                    "Z": "0.01"
+                  }
+                },
+                "VertexColor": {
+                  "ColorUpperLeft": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorUpperCenter": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorUpperRight": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorMiddleLeft": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "255"
+                  },
+                  "ColorMiddleCenter": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "255"
+                  },
+                  "ColorMiddleRight": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "255"
+                  },
+                  "ColorLowerLeft": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorLowerCenter": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorLowerRight": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorCenterPosition": {
+                    "X": "0.5",
+                    "Y": "0.533"
+                  },
+                  "ColorCenterArea": {
+                    "X": "0",
+                    "Y": "0.531"
+                  }
+                },
+                "VertexColorNoise": {
+                  "NoiseFrequency": {
+                    "X": "1",
+                    "Y": "1",
+                    "Z": "1"
+                  },
+                  "NoiseOffset": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "NoisePower": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  }
+                },
+                "UV": {
+                  "UVPosition": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "UVSize": {
+                    "X": "1",
+                    "Y": "1"
+                  }
+                }
+              },
+              {
+                "Name": "Wire",
+                "Type": "1",
+                "Mesh": {
+                  "AngleBeginEnd": {
+                    "X": "0",
+                    "Y": "360"
+                  },
+                  "Divisions": {
+                    "X": "60",
+                    "Y": "60"
+                  },
+                  "Rotate": "0"
+                },
+                "Ribbon": {
+                  "CrossSection": "1",
+                  "Rotate": "1",
+                  "Vertices": "30",
+                  "RibbonScales": {
+                    "X": "0.5",
+                    "Y": "0.5"
+                  },
+                  "RibbonAngles": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "RibbonNoises": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "Count": "1"
+                },
+                "Shape": {
+                  "PrimitiveType": "3",
+                  "Radius": "1",
+                  "Radius2": "1",
+                  "Depth": "1",
+                  "DepthMin": "-1",
+                  "DepthMax": "1",
+                  "Point1": {
+                    "X": "5",
+                    "Y": "0"
+                  },
+                  "Point2": {
+                    "X": "1.6",
+                    "Y": "1"
+                  },
+                  "Point3": {
+                    "X": "1.6",
+                    "Y": "3"
+                  },
+                  "Point4": {
+                    "X": "5",
+                    "Y": "4.5"
+                  },
+                  "AxisType": "1"
+                },
+                "ShapeNoise": {
+                  "TiltNoiseFrequency": {
+                    "X": "1",
+                    "Y": "1"
+                  },
+                  "TiltNoiseOffset": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "TiltNoisePower": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "WaveNoiseFrequency": {
+                    "X": "1",
+                    "Y": "1",
+                    "Z": "1"
+                  },
+                  "WaveNoiseOffset": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "WaveNoisePower": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "CurlNoiseFrequency": {
+                    "X": "1",
+                    "Y": "1",
+                    "Z": "1"
+                  },
+                  "CurlNoiseOffset": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "CurlNoisePower": {
+                    "X": "0.01",
+                    "Y": "0.01",
+                    "Z": "0.01"
+                  }
+                },
+                "VertexColor": {
+                  "ColorUpperLeft": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorUpperCenter": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorUpperRight": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorMiddleLeft": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "255"
+                  },
+                  "ColorMiddleCenter": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "255"
+                  },
+                  "ColorMiddleRight": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "255"
+                  },
+                  "ColorLowerLeft": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorLowerCenter": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorLowerRight": {
+                    "R": "255",
+                    "G": "255",
+                    "B": "255",
+                    "A": "0"
+                  },
+                  "ColorCenterPosition": {
+                    "X": "0.5",
+                    "Y": "0.5"
+                  },
+                  "ColorCenterArea": {
+                    "X": "0",
+                    "Y": "0.8"
+                  }
+                },
+                "VertexColorNoise": {
+                  "NoiseFrequency": {
+                    "X": "1",
+                    "Y": "1",
+                    "Z": "1"
+                  },
+                  "NoiseOffset": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  },
+                  "NoisePower": {
+                    "X": "0",
+                    "Y": "0",
+                    "Z": "0"
+                  }
+                },
+                "UV": {
+                  "UVPosition": {
+                    "X": "0",
+                    "Y": "0"
+                  },
+                  "UVSize": {
+                    "X": "1",
+                    "Y": "4"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "Recording": {
+          "RecordingWidth": "500",
+          "RecordingHeight": "300",
+          "RecordingScale": "3",
+          "RecordingExporter": "1",
+          "RecordingStorageTarget": "1"
+        },
+        "ToolVersion": "1.6",
+        "Version": "3",
+        "StartFrame": "0",
+        "EndFrame": "240",
+        "IsLoop": "True"
+      },
+      "visualReview": "Not performed; selection and scale/timing guidance are based on parsed official effect parameters."
+    },
+    {
+      "role": "slash",
+      "entry": "00_Basic/Simple_Ribbon_Sword.efkefc",
+      "infoVersion": 1500,
+      "dependencies": [
+        "00_Basic/Texture/SwordLine01.png"
+      ],
+      "editorParameters": {
+        "Root": {
+          "Name": "Root",
+          "Children": {
+            "Node": {
+              "CommonValues": {
+                "MaxGeneration": {
+                  "Value": "10"
+                },
+                "Life": {
+                  "Center": "15",
+                  "Max": "15",
+                  "Min": "15"
+                }
+              },
+              "RotationValues": {
+                "Type": "2",
+                "Easing": {
+                  "Start": {
+                    "Z": {
+                      "Center": "120",
+                      "Max": "120",
+                      "Min": "120"
+                    }
+                  },
+                  "End": {
+                    "Z": {
+                      "Center": "-60",
+                      "Max": "-60",
+                      "Min": "-60"
+                    }
+                  },
+                  "StartSpeed": "-30",
+                  "EndSpeed": "30"
+                }
+              },
+              "ScalingValues": {
+                "Type": "2",
+                "Easing": {
+                  "Start": {
+                    "X": {
+                      "Center": "0",
+                      "Max": "0",
+                      "Min": "0"
+                    },
+                    "Y": {
+                      "Center": "0",
+                      "Max": "0",
+                      "Min": "0"
+                    },
+                    "Z": {
+                      "Center": "0",
+                      "Max": "0",
+                      "Min": "0"
+                    }
+                  },
+                  "End": {
+                    "X": {
+                      "Center": "2",
+                      "Max": "2",
+                      "Min": "2"
+                    },
+                    "Y": {
+                      "Center": "2",
+                      "Max": "2",
+                      "Min": "2"
+                    },
+                    "Z": {
+                      "Center": "2",
+                      "Max": "2",
+                      "Min": "2"
+                    }
+                  }
+                }
+              },
+              "RendererCommonValues": {
+                "ColorTexture": "Texture/SwordLine01.png",
+                "AlphaBlend": "2"
+              },
+              "DrawingValues": {
+                "Type": "3",
+                "Sprite": {
+                  "Position": "1"
+                },
+                "Ribbon": {
+                  "ColorAll": "2",
+                  "ColorAll_Easing": {
+                    "Start": {
+                      "G": {
+                        "Center": "0",
+                        "Max": "0",
+                        "Min": "0"
+                      },
+                      "B": {
+                        "Center": "0",
+                        "Max": "0",
+                        "Min": "0"
+                      },
+                      "A": {
+                        "Center": "0",
+                        "Max": "0",
+                        "Min": "0"
+                      }
+                    }
+                  },
+                  "Position": "1",
+                  "Position_Fixed_L": "0.5",
+                  "Position_Fixed_R": "4"
+                }
+              },
+              "Children": {}
+            }
+          }
+        },
+        "Dynamic": {
+          "Inputs": {
+            "DynamicInput": [
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              }
+            ]
+          },
+          "Equations": {}
+        },
+        "ToolVersion": "1.53c",
+        "Version": "3",
+        "StartFrame": "0",
+        "EndFrame": "120",
+        "IsLoop": "True"
+      },
+      "visualReview": "Not performed; selection and scale/timing guidance are based on parsed official effect parameters."
+    },
+    {
+      "role": "burst",
+      "entry": "00_Basic/Simple_Turbulence_Fireworks.efkefc",
+      "infoVersion": 1500,
+      "dependencies": [
+        "00_Basic/Texture/Particle01.png",
+        "00_Basic/Texture/Particle02.png"
+      ],
+      "editorParameters": {
+        "Root": {
+          "Name": "Root",
+          "Children": {
+            "Node": {
+              "CommonValues": {
+                "MaxGeneration": {
+                  "Value": "10"
+                },
+                "GenerationTime": {
+                  "Center": "20",
+                  "Max": "20",
+                  "Min": "20"
+                }
+              },
+              "LocationValues": {
+                "Type": "1",
+                "PVA": {
+                  "Velocity": {
+                    "X": {
+                      "Max": "0.05",
+                      "Min": "-0.05"
+                    },
+                    "Y": {
+                      "Center": "0.5",
+                      "Max": "0.6",
+                      "Min": "0.4"
+                    },
+                    "Z": {
+                      "Max": "0.05",
+                      "Min": "-0.05"
+                    }
+                  },
+                  "Acceleration": {
+                    "Y": {
+                      "Center": "-0.005",
+                      "Max": "-0.005",
+                      "Min": "-0.005"
+                    }
+                  }
+                }
+              },
+              "LocationAbsValues": {
+                "LocalForceField1": {
+                  "Type": "1"
+                }
+              },
+              "GenerationLocationValues": {
+                "Point": {
+                  "Location": {
+                    "X": {
+                      "Max": "5",
+                      "Min": "-5"
+                    }
+                  }
+                }
+              },
+              "RendererCommonValues": {
+                "ColorTexture": "Texture/Particle01.png",
+                "AlphaBlend": "2"
+              },
+              "Name": "Fireworks",
+              "Children": {
+                "Node": [
+                  {
+                    "CommonValues": {
+                      "MaxGeneration": {
+                        "Value": "500"
+                      },
+                      "LocationEffectType": "1",
+                      "Life": {
+                        "Center": "60",
+                        "Max": "60",
+                        "Min": "60"
+                      },
+                      "GenerationTime": {
+                        "Center": "0.2",
+                        "Max": "0.2",
+                        "Min": "0.2"
+                      }
+                    },
+                    "LocationValues": {
+                      "Type": "1",
+                      "PVA": {
+                        "Location": {
+                          "X": {
+                            "Max": "0.1",
+                            "Min": "-0.1"
+                          },
+                          "Y": {
+                            "Max": "0.1",
+                            "Min": "-0.1"
+                          },
+                          "Z": {
+                            "Max": "0.1",
+                            "Min": "-0.1"
+                          }
+                        },
+                        "Velocity": {
+                          "X": {
+                            "Max": "0.01",
+                            "Min": "-0.01"
+                          },
+                          "Y": {
+                            "Max": "0.01",
+                            "Min": "-0.01"
+                          },
+                          "Z": {
+                            "Max": "0.01",
+                            "Min": "-0.01"
+                          }
+                        }
+                      }
+                    },
+                    "ScalingValues": {
+                      "Type": "4",
+                      "Fixed": {
+                        "Scale": {
+                          "X": "0.2",
+                          "Y": "0.2",
+                          "Z": "0.2"
+                        }
+                      },
+                      "SingleEasing": {
+                        "Start": {
+                          "Center": "0.3",
+                          "Max": "0.4",
+                          "Min": "0.2"
+                        },
+                        "End": {
+                          "Center": "0",
+                          "Max": "0",
+                          "Min": "0"
+                        },
+                        "EndSpeed": "20"
+                      }
+                    },
+                    "RendererCommonValues": {
+                      "ColorTexture": "Texture/Particle01.png",
+                      "AlphaBlend": "2",
+                      "FadeOut": {
+                        "Frame": "30"
+                      }
+                    },
+                    "DrawingValues": {
+                      "Sprite": {
+                        "ColorAll_Fixed": {
+                          "G": "140",
+                          "B": "90"
+                        }
+                      }
+                    },
+                    "Name": "Particles",
+                    "Children": {}
+                  },
+                  {
+                    "CommonValues": {
+                      "LocationEffectType": "1",
+                      "Life": {
+                        "Center": "30",
+                        "Max": "30",
+                        "Min": "30"
+                      },
+                      "GenerationTimeOffset": {
+                        "Center": "100",
+                        "Max": "100",
+                        "Min": "100"
+                      }
+                    },
+                    "RendererCommonValues": {
+                      "ColorTexture": "Texture/Particle02.png",
+                      "FadeIn": {
+                        "Frame": "10"
+                      },
+                      "FadeOutType": "1",
+                      "FadeOut": {
+                        "Frame": "30"
+                      }
+                    },
+                    "DrawingValues": {
+                      "Sprite": {
+                        "ColorAll": "1",
+                        "ColorAll_Random": {
+                          "R": {
+                            "Min": "0",
+                            "DrawnAs": "0"
+                          },
+                          "G": {
+                            "Max": "128",
+                            "Min": "128",
+                            "DrawnAs": "0"
+                          },
+                          "B": {
+                            "DrawnAs": "0"
+                          },
+                          "A": {
+                            "DrawnAs": "0"
+                          },
+                          "ColorSpace": "1"
+                        }
+                      }
+                    },
+                    "Name": "Explosion",
+                    "Children": {
+                      "Node": {
+                        "CommonValues": {
+                          "MaxGeneration": {
+                            "Value": "80"
+                          },
+                          "LocationEffectType": "1",
+                          "Life": {
+                            "Center": "40",
+                            "Max": "40",
+                            "Min": "40"
+                          },
+                          "GenerationTime": {
+                            "Center": "1E-05",
+                            "Max": "1E-05",
+                            "Min": "1E-05"
+                          }
+                        },
+                        "LocationValues": {
+                          "Type": "2",
+                          "Fixed": {
+                            "Location": {
+                              "Z": "6.9"
+                            }
+                          },
+                          "PVA": {
+                            "Velocity": {
+                              "Z": {
+                                "Center": "1",
+                                "Max": "1",
+                                "Min": "1"
+                              }
+                            }
+                          },
+                          "Easing": {
+                            "End": {
+                              "Z": {
+                                "Center": "10",
+                                "Max": "10",
+                                "Min": "10"
+                              }
+                            },
+                            "StartSpeed": "20",
+                            "EndSpeed": "-20"
+                          }
+                        },
+                        "ScalingValues": {
+                          "Type": "4",
+                          "SingleEasing": {
+                            "End": {
+                              "Center": "0",
+                              "Max": "0",
+                              "Min": "0"
+                            }
+                          }
+                        },
+                        "GenerationLocationValues": {
+                          "EffectsRotation": "True",
+                          "Type": "1",
+                          "Sphere": {
+                            "RotationX": {
+                              "Max": "90",
+                              "Min": "-90"
+                            },
+                            "RotationY": {
+                              "Max": "180",
+                              "Min": "-180"
+                            }
+                          }
+                        },
+                        "RendererCommonValues": {
+                          "ColorTexture": "Texture/Particle01.png",
+                          "AlphaBlend": "2",
+                          "FadeInType": "1",
+                          "FadeIn": {
+                            "Frame": "4"
+                          },
+                          "ColorInheritType": "1"
+                        },
+                        "DrawingValues": {
+                          "Sprite": {
+                            "ColorAll_Random": {
+                              "R": {
+                                "Min": "0",
+                                "DrawnAs": "0"
+                              },
+                              "G": {
+                                "Max": "77",
+                                "Min": "77",
+                                "DrawnAs": "0"
+                              },
+                              "B": {
+                                "DrawnAs": "0"
+                              },
+                              "A": {
+                                "DrawnAs": "0"
+                              },
+                              "ColorSpace": "1"
+                            }
+                          }
+                        },
+                        "Children": {
+                          "Node": {
+                            "CommonValues": {
+                              "MaxGeneration": {
+                                "Value": "40"
+                              },
+                              "LocationEffectType": "1",
+                              "RotationEffectType": "0",
+                              "ScaleEffectType": "0",
+                              "Life": {
+                                "Center": "20",
+                                "Max": "20",
+                                "Min": "20"
+                              }
+                            },
+                            "ScalingValues": {
+                              "Fixed": {
+                                "Scale": {
+                                  "X": "0.2"
+                                }
+                              }
+                            },
+                            "RendererCommonValues": {
+                              "ColorTexture": "Texture/Particle01.png",
+                              "AlphaBlend": "2",
+                              "ColorInheritType": "1"
+                            },
+                            "DrawingValues": {
+                              "Type": "6"
+                            },
+                            "Children": {}
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "Dynamic": {
+          "Inputs": {
+            "DynamicInput": [
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              },
+              {
+                "Input": "0"
+              }
+            ]
+          },
+          "Equations": {}
+        },
+        "ToolVersion": "1.50RC1",
+        "Version": "3",
+        "StartFrame": "0",
+        "EndFrame": "360",
+        "IsLoop": "True"
+      },
+      "visualReview": "Not performed; selection and scale/timing guidance are based on parsed official effect parameters."
+    }
+  ],
+  "files": [
+    {
+      "path": "00_Basic/Simple_Ribbon_Sword.efkefc",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Basic/Simple_Ribbon_Sword.efkefc",
+      "sha256": "c2d8ea5eadeda770dbf7f4a9698bd603451f45715efdff6093716d48b1a77371",
+      "bytes": 1460,
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "00_Basic/Simple_Turbulence_Fireworks.efkefc",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Basic/Simple_Turbulence_Fireworks.efkefc",
+      "sha256": "355e506e0fe440da81a4373436608517d1cb2c16dc24c4b28b2f22ad422ae64a",
+      "bytes": 4036,
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "00_Basic/Texture/Particle01.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Basic/Texture/Particle01.png",
+      "sha256": "b1346d2bfafa6e783661453680b282edc6bc0e0b85711414b9914aac03a3a881",
+      "bytes": 7082,
+      "license": "CC0-1.0",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "path": "00_Basic/Texture/Particle02.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Basic/Texture/Particle02.png",
+      "sha256": "3734dfdba425f96ce5aca1f6682b572a85f73c799a6a615cd5978e16fc3c6e07",
+      "bytes": 7230,
+      "license": "CC0-1.0",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "path": "00_Basic/Texture/SwordLine01.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Basic/Texture/SwordLine01.png",
+      "sha256": "b2b5d65f582c77d07ea28690d3976da3eaf3979fc3c775b44bec505e4965c8b1",
+      "bytes": 6493,
+      "license": "CC0-1.0",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "path": "00_Version16/Aura01.efkefc",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Version16/Aura01.efkefc",
+      "sha256": "e5ba625a1f3d66f2b9b6bf4555772e8707b3aa53cbe58313c8666f66d1c10073",
+      "bytes": 9351,
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "00_Version16/Textures/Aura02_T.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Version16/Textures/Aura02_T.png",
+      "sha256": "91fa124b3180997088df9c87d47be29c4f61113a1db141668e44acb2a4132e9e",
+      "bytes": 107569,
+      "license": "CC0-1.0",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "00_Version16/Textures/Aura04_T.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Version16/Textures/Aura04_T.png",
+      "sha256": "2862c5447e5d4a383ebdc2beedc28cc7f807b46803a88f50d88393f244614ae3",
+      "bytes": 65972,
+      "license": "CC0-1.0",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "00_Version16/Textures/Normal01.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Version16/Textures/Normal01.png",
+      "sha256": "37fff3cef328c4a2abe5dfe576b3701d06b301b5f2e08e21dbd3b7e968ad1917",
+      "bytes": 1420731,
+      "license": "CC0-1.0",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "path": "00_Version16/Textures/Particle01.png",
+      "source": "https://raw.githubusercontent.com/effekseer/ResourceData/1adef35d78363d3e914192267adf83a8e2b30759/samples/00_Version16/Textures/Particle01.png",
+      "sha256": "b9ad217c3c07536dceaf13180c4d81aa835b01ce6076ae020706b061ba574f87",
+      "bytes": 7414,
+      "license": "CC0-1.0",
+      "width": 256,
+      "height": 256
+    }
+  ]
+}

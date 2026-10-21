@@ -1,0 +1,3 @@
+dist/settlement/v4/vendor/pixi/*.js whitespace=-blank-at-eol,-blank-at-eof
+dist/settlement/v4/vendor/effekseer/*.d.ts whitespace=-blank-at-eol,-blank-at-eof
+dist/settlement/v4/fx/LICENSE-samples.txt text eol=lf

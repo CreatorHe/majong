@@ -578,15 +578,32 @@ test('versioned lifecycle and actions preserve rule limits and old outboxes acro
   const v4State = { ...highState, hand_count: 12, deck_count: 124, swaps: 7 };
   assert.equal((await h.client.track('round_started', { state: v4State, record_quality: 'complete' }, v4Context)).queued, true);
   assert.equal((await h.client.track('round_started', { state: v4State, record_quality: 'complete' }, v3Context)).reason, 'invalid_event');
-  for (const [context, state] of [[v3Context, highState], [v4Context, v4State]]) {
+  const v5Context = { ...gameContext, rules_version: 'opening_build_v5', score_model_version: 'four_core_v5' };
+  const v5State = { ...v4State, phase: 'prepare', swaps: 5, relic_ids: ['core_high', 'high_rescue'], rescue_used: false };
+  assert.equal((await h.client.track('round_started', { state: v5State, record_quality: 'complete' }, v5Context)).queued, true);
+  assert.equal((await h.client.track('round_started', { state: v5State, record_quality: 'complete' }, { ...v5Context, score_model_version: 'exponential_v3' })).reason, 'invalid_event');
+  assert.equal((await h.client.track('round_started', { state: v5State, record_quality: 'complete' }, v4Context)).reason, 'invalid_event');
+  const begin = {
+    ...action, action: 'begin_play', before: v5State, after: { ...v5State, phase: 'play' }, selected_tile_ids: [],
+    context: { ...action.context, source_zone: null, rescue_type: null, replace_relic_id: null },
+  };
+  assert.equal((await h.client.track('game_action', begin, v5Context)).queued, true);
+  const rescue = {
+    ...begin, action: 'high_rescue', before: begin.after, after: { ...begin.after, rescue_used: true },
+    context: { ...begin.context, source_zone: 'hand', rescue_type: 'exchange' },
+  };
+  assert.equal((await h.client.track('game_action', rescue, v5Context)).queued, true);
+  assert.equal(h.storage.peek().events.at(-1).payload.after.rescue_used, true);
+  assert.equal((await h.client.track('game_action', { ...begin, context: action.context }, v5Context)).reason, 'invalid_event');
+  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State]]) {
     assert.equal((await h.client.track('round_started', { state: { ...state, hand_count: state.hand_count + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
     assert.equal((await h.client.track('round_started', { state: { ...state, total_score: Number.MAX_SAFE_INTEGER + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
   }
-  const storedOld = h.storage.peek().events.filter(event => ['free_play_v2', 'free_play_v3'].includes(event.rules_version));
+  const storedOld = h.storage.peek().events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(event.rules_version));
   h.client.dispose();
-  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'free_play_v4', scoreModelVersion: 'exponential_v3', appRelease: 'free-play-v4' });
+  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v5', scoreModelVersion: 'four_core_v5', appRelease: 'opening-build-v5' });
   await upgraded.ready; await upgraded.flush();
-  const deliveredOld = h.requests.at(-1).body.events.filter(event => ['free_play_v2', 'free_play_v3'].includes(event.rules_version));
+  const deliveredOld = h.requests.at(-1).body.events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(event.rules_version));
   assert.deepEqual(deliveredOld, storedOld);
   upgraded.dispose();
 });

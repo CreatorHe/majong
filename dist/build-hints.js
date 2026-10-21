@@ -1,12 +1,13 @@
 import { RELICS, currentSettlementPreview } from './engine.js';
+import { BALANCE } from './balance.js';
 import { suit, rank, groupType } from './hand-rules.js';
 
-const SUPPORT = new Set(['ink', 'wind', 'single_seal', 'rank_brush', 'suit_ribbon', 'wild_jade']);
+const SUPPORT = new Set(['ink', 'wind', 'single_seal', 'rank_brush', 'suit_ribbon', 'wild_jade', 'high_rescue']);
 const SUITS = ['万', '筒', '索'];
 const unique = values => [...new Set(values)];
 const ids = tiles => tiles.map(t => t.id);
 const number = value => Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 6 });
-const gainEffective = gain => ['base', 'addMult'].includes(gain.kind) ? gain.value > 0 : ['mult', 'unlock'].includes(gain.kind) && gain.value > 1;
+const gainEffective = gain => ['base','addMult','retrigger'].includes(gain.kind) ? gain.value > 0 : ['mult','unlock','core'].includes(gain.kind) && gain.value > 1;
 
 // Only formed, fixed-face material is counted before settlement. A wild in a declared
 // kong is fixed; every other wild waits for the scorer's actual best assignment.
@@ -59,10 +60,20 @@ function partialRows(state, m) {
   const wildNote = m.wildCount ? `另有 ${m.wildCount} 张未定色万能牌，暂不计花色和成组进度。` : '';
   const pairs = pairMaterial(m, state.mode), pairCount = Math.min(7, pairs.length);
   const chows = SUITS.flatMap((_, st) => packSuit(m.byFace, st, false));
+  const melds = [...m.kongs.map(k=>k.tileIds), ...SUITS.flatMap((_,st)=>packSuit(m.byFace,st)),
+    ...m.byFace.slice(27).flatMap(tiles=>Array.from({length:Math.floor(tiles.length/3)},(_,i)=>ids(tiles.slice(i*3,i*3+3))))];
   const swaps = state.swaps || 0, ink = state.ink || 0;
-  add('jade', '等待合法和牌', '底分 +35', '完整和牌后计入整手底分。');
+  const held = (state.hand || []).filter(t=>t.face>=27 || [1,9].includes(rank(t)));
+  add('core_high','提高最终牌型番值','牌型倍率进入大番曲线','同一手先判番，再按大番核心曲线计算；其余奇物不会被再次指数化。');
+  add('core_pung',`刻／杠材料 ${m.pungGroups.length} 组`,`每次面子事件 ×${BALANCE.pungFactor}`,pending,m.pungGroups.flat());
+  add('core_held',`当前候选有 ${held.length} 张幺九`,`前${BALANCE.heldBaseCount}张 ×${BALANCE.heldFactor}；其后 ×${BALANCE.heldBurstFactor}`,`${Math.min(held.length,BALANCE.heldBaseCount)} 张基础档＋${Math.max(0,held.length-BALANCE.heldBaseCount)} 张爆发档；每张触发 ${(state.relics||[]).includes('retrigger_held')?2:1} 次。须合法和牌，以最终候选为准；重触发不增加合格张数。`,ids(held));
+  add('core_growth',`已储存 ${number(state.growth?.coreGrowth)} 底分`,`每次顺子事件 ×${BALANCE.growthRate}`,'只有合法结算才写入永久成长；本手处理完成长后，加入底分一次。',chows.flat());
+  add('retrigger_meld',`当前面子材料 ${melds.length} 组`,'对应面子额外触发1次','可重复面子底分、刻子倍率和顺子成长，不重复金币，也不递归生成触发。',melds.flat());
+  add('retrigger_held',`当前候选有 ${held.length} 张幺九`,'留牌计分额外触发1次','需与留牌核心配合，最终快照中每张符合条件的牌额外计分一次。',ids(held));
+  add('high_rescue',state.rescueUsed?'本关已使用':'本关尚未使用','组牌时一次补缺',`需同时装备大番核心、且成型区未满14。可换最多${BALANCE.highRescueSize}张，或花墨改1张点数／花色；共用一次额度。`,[],'support');
+  add('jade', '等待合法和牌', `底分 +${BALANCE.jadeBase}`, '完整和牌后计入整手底分。');
   add('river', `顺子材料 ${chows.length} 组`, `已累计 ${number(state.growth?.river)} 底分；每顺子再成长 8`, pending + wildNote, chows.flat());
-  add('stone', `刻／杠材料 ${m.pungGroups.length} 组`, '每组底分 +60，并得 1 铜钱', pending + wildNote, m.pungGroups.flat());
+  add('stone', `刻／杠材料 ${m.pungGroups.length} 组`, `每次底分 +${BALANCE.stoneBase}，每组得 1 铜钱`, pending + wildNote, m.pungGroups.flat());
   for (const [id, st] of [['seal', 0], ['mirror', 1], ['bamboo', 2]]) {
     const tiles = m.fixed.filter(t => suit(t) === st);
     add(id, `已入 ${tiles.length} 张${SUITS[st]}子`, '每张有效同色牌底分 +10', pending + wildNote, ids(tiles));
@@ -98,15 +109,25 @@ function partialRows(state, m) {
   add('ink', `剩余 ${ink} 墨`, '每关额外 2 墨已计入资源', '提供改牌资源，不直接增加结算分数。', [], 'support');
   add('wind', `剩余 ${swaps} 次换牌`, '每关额外 2 次已计入资源', '候选换牌与成型替换共用次数，不直接增加结算倍率。', [], 'support');
   add('single_seal', `本关已触发 ${state.singleCount || 0}/4 次`, `已得 ${(state.singleCount || 0) * 20} 过程分`, '有效单张首次入区即得分；过程分不再随最终和牌倍率重复放大。', [], 'support');
-  add('rank_brush', `剩余 ${ink} 墨`, '每次 1 墨：数牌点数 ±1', '可调整候选或非杠成型数牌，点数限 1～9；不承诺改后一定能和。', [], 'support');
-  add('suit_ribbon', `剩余 ${ink} 墨`, '每次 1 墨：保持点数换花色', '可调整候选或非杠成型数牌；字牌不能改，万能牌可定色。', [], 'support');
-  add('wild_jade', state.wildUsed ? '本关生成机会已用' : `未生成 · 剩余 ${ink} 墨`, '每关一次，2 墨生成花色万能牌', '保持点数，只在万／筒／索中取色；最终花色由真实结算最佳解释决定。', [], 'support');
+  add('rank_brush', `剩余 ${ink} 墨`, '每次 1 墨：数牌点数 ±1', '仅起手准备阶段可改候选数牌，点数限1～9，不保证和牌。', [], 'support');
+  add('suit_ribbon', `剩余 ${ink} 墨`, '每次 1 墨：保持点数换花色', '仅起手准备阶段可改候选数牌；字牌不能改，万能牌可定色。', [], 'support');
+  add('wild_jade', state.wildUsed ? '本关生成机会已用' : `未生成 · 剩余 ${ink} 墨`, '每关一次，2 墨生成花色万能牌', '仅起手准备阶段制作；保留点数，最终花色由真实结算最佳解释决定。', [], 'support');
   return rows;
 }
 
 function gainText(gains) {
-  return gains.map(gain => gain.kind === 'base' ? `底分 +${number(gain.value)}` :
-    gain.kind === 'addMult' ? `倍率 +${number(gain.value)}` : `和牌分 ×${number(gain.value)}`).join('；');
+  const parts=[];
+  const base=gains.filter(g=>g.kind==='base').reduce((n,g)=>n+g.value,0);
+  const mult=gains.filter(g=>['mult','unlock'].includes(g.kind)).reduce((n,g)=>n*g.value,1);
+  const added=gains.filter(g=>g.kind==='addMult').reduce((n,g)=>n+g.value,0);
+  const repeat=gains.filter(g=>g.kind==='retrigger').reduce((n,g)=>n+g.value,0);
+  const core=gains.find(g=>g.kind==='core');
+  if(base)parts.push(`底分 +${number(base)}`);
+  if(mult!==1)parts.push(`共 ×${number(mult)}`);
+  if(added)parts.push(`倍率 +${number(added)}`);
+  if(repeat)parts.push(`额外触发 ${repeat} 次`);
+  if(core)parts.push(`牌型倍率 ×${number(core.value)}`);
+  return parts.join('；');
 }
 
 function finalTileIds(id, preview) {
@@ -136,13 +157,13 @@ export function buildHints(state, preview) {
   const gains = legal ? (result.gains || []).filter(gain => owned.has(gain.id) && gainEffective(gain)) : [];
   const activeIds = unique(gains.map(gain => gain.id));
   const rows = RELICS.filter(relic => owned.has(relic.id)).map(relic => {
-    const row = { id: relic.id, name: relic.name, ...candidates.get(relic.id) };
+    const row = { id: relic.id, name: relic.name, state:'progress',progress:'等待合法和牌',effect:relic.kind,detail:relic.desc,tileIds:[], ...candidates.get(relic.id) };
     if (!complete) return row;
-    if (legal === false) return SUPPORT.has(relic.id) ? row : { ...row, state: 'inactive', progress: '先修复牌形', effect: '当前结算将炸胡', detail: '当前 14 个结构位置尚未组成合法牌型；可先换牌、改牌或声明杠调整。已有过程分保留。', tileIds: [] };
+    if (legal === false) return SUPPORT.has(relic.id) ? row : { ...row, state: 'inactive', progress: '先修复牌形', effect: '当前结算将诈胡', detail: '当前14个结构位置尚未组成合法牌型。普通改牌与替换已关闭；若有合法杠仍可声明。已有过程分保留。', tileIds: [] };
     if (legal === null) return { ...row, state: 'inactive', progress: '等待结算验证', detail: result?.reason || '未取得有效结算预览，暂不确认联动。', tileIds: [] };
     const ownGains = gains.filter(gain => gain.id === relic.id);
     if (ownGains.length) return { ...row, state: 'active', progress: '本次已触发', effect: gainText(ownGains),
-      detail: `已计入当前最佳解释。${relic.id === 'stone' && result.coinGain ? `结算另得 ${result.coinGain} 铜钱。` : ''}${ownGains.some(gain => gain.kind === 'unlock') ? `已满足${ownGains.find(gain => gain.kind === 'unlock').name}。` : ''}`,
+      detail: `已计入当前最佳解释。${relic.id === 'core_held' ? row.detail : ''}${relic.id === 'stone' && result.coinGain ? `结算另得 ${result.coinGain} 铜钱。` : ''}${ownGains.some(gain => gain.kind === 'unlock') ? `已满足${ownGains.find(gain => gain.kind === 'unlock').name}。` : ''}`,
       tileIds: finalTileIds(relic.id, result) };
     if (SUPPORT.has(relic.id)) return row;
     return { ...row, state: 'inactive', progress: '本次未触发', effect: '当前最佳解释未计入此项',
