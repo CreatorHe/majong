@@ -10,6 +10,9 @@ const EVENT_LABELS = Object.freeze({ hand_reveal: '构筑成型', tile_score: '�
 const VALUE_FIELDS = ['beforeText', 'deltaText', 'afterText', 'detailText'];
 const TOTAL_FIELDS = ['baseText', 'multiplierText', 'handScoreText', 'runScoreText', 'targetText'];
 const cleanText = value => typeof value === 'string' ? value : '';
+const presentationText = (snapshot, key, fallback) => typeof snapshot.presentation?.[key] === 'string' ? snapshot.presentation[key] : fallback;
+const copyPresentation = input => ({ effectId: cleanText(input?.effectId) || 'normal', label: cleanText(input?.label), seal: cleanText(input?.seal), ...Object.fromEntries(['baseLabel', 'multiplierLabel', 'formulaNote'].filter(key => typeof input?.[key] === 'string').map(key => [key, input[key]])) });
+const eventLabel = (snapshot, event) => event === 'tile_score' ? presentationText(snapshot, 'baseLabel', EVENT_LABELS[event]) : event === 'multiplier_update' ? presentationText(snapshot, 'multiplierLabel', EVENT_LABELS[event]) : EVENT_LABELS[event];
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 const freeze = value => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
@@ -46,7 +49,7 @@ export function createBurstPlan(input, { durationMs = BURST_DURATION } = {}) {
   if (steps.some(s => s.tileIds.some(id => !tileIds.has(id)))) throw new TypeError('步骤引用了不存在的牌实例。');
   const snapshot = {
     settlementId: input.settlementId, handResult: 'agari', mode: cleanText(input.mode), rulesVersion: cleanText(input.rulesVersion),
-    presentation: { effectId: cleanText(input.presentation?.effectId) || 'normal', label: cleanText(input.presentation?.label), seal: cleanText(input.presentation?.seal) },
+    presentation: copyPresentation(input.presentation),
     hand: { tiles, heldTiles, decomposition: (input.hand?.decomposition || []).map(g => ({ label: cleanText(g.label), description: cleanText(g.description), tileIds: [...(g.tileIds || [])] })) }, patterns: (input.patterns || []).map(p => ({ id: cleanText(p.id), label: cleanText(p.label), valueText: cleanText(p.valueText) })),
     tiers: { scoreTier: clamp(Number(input.tiers?.scoreTier) || 0, 0, 2), multiplierTier: clamp(Number(input.tiers?.multiplierTier) || 0, 0, 2), patternTier: clamp(Number(input.tiers?.patternTier) || 0, 0, 2) },
     relics: (input.relics || []).map(r => ({ id: cleanText(r.id), label: cleanText(r.label), imageUrl: cleanText(r.imageUrl) })), totals, steps,
@@ -72,7 +75,7 @@ function safeImageUrl(value) {
 // authoritative final strings are intact, keep them visible without an intro.
 function finalOnlyPlan(input, error) {
   if (!input || input.handResult !== 'agari' || !cleanText(input.settlementId) || typeof input.totals?.passed !== 'boolean' || TOTAL_FIELDS.some(key => !cleanText(input.totals?.[key]))) throw error;
-  return freeze({ snapshot: { settlementId: input.settlementId, handResult: 'agari', mode: cleanText(input.mode), rulesVersion: cleanText(input.rulesVersion), presentation: { effectId: cleanText(input.presentation?.effectId) || 'normal', label: cleanText(input.presentation?.label), seal: cleanText(input.presentation?.seal) }, hand: { tiles: [] }, relics: [], patterns: [], steps: [], totals: { ...Object.fromEntries(TOTAL_FIELDS.map(key => [key, input.totals[key]])), passed: input.totals.passed } }, cues: [], introMs: 1400, impactMs: 4500, durationMs: BURST_DURATION, fallbackReason: error.message });
+  return freeze({ snapshot: { settlementId: input.settlementId, handResult: 'agari', mode: cleanText(input.mode), rulesVersion: cleanText(input.rulesVersion), presentation: copyPresentation(input.presentation), hand: { tiles: [] }, relics: [], patterns: [], steps: [], totals: { ...Object.fromEntries(TOTAL_FIELDS.map(key => [key, input.totals[key]])), passed: input.totals.passed } }, cues: [], introMs: 1400, impactMs: 4500, durationMs: BURST_DURATION, fallbackReason: error.message });
 }
 
 /** A presentation-only player. The host remains the sole owner of settled state. */
@@ -94,7 +97,8 @@ export function createBurstPlayer(root, options = {}) {
   const hub = make('div', 'jr-burst-hub');
   const baseWrap = make('div', 'jr-burst-number'), baseLabel = make('span', '', '底分'), base = make('strong', 'jr-burst-base', '—'); baseWrap.append(baseLabel, base);
   const multWrap = make('div', 'jr-burst-number'), multLabel = make('span', '', '倍率'), multiplier = make('strong', 'jr-burst-multiplier', '—'); multWrap.append(multLabel, multiplier);
-  hub.append(baseWrap, make('span', 'jr-burst-times', '×'), multWrap);
+  const formulaNote = make('p', 'jr-burst-formula-note'); formulaNote.hidden = true;
+  hub.append(baseWrap, make('span', 'jr-burst-times', '×'), multWrap, formulaNote);
   const scoreWrap = make('div', 'jr-burst-score-wrap'), scoreLabel = make('span', 'jr-burst-score-label', '本次和牌'), score = make('strong', 'jr-burst-score', '—'), result = make('p', 'jr-burst-result', ''); scoreWrap.append(scoreLabel, score, result);
   const patterns = make('div', 'jr-burst-patterns'), relics = make('div', 'jr-burst-relics'), hand = make('div', 'jr-burst-hand');
   const footer = make('div', 'jr-burst-footer'); footer.append(patterns, relics, hand);
@@ -120,6 +124,9 @@ export function createBurstPlayer(root, options = {}) {
     catch { warning.textContent = '部分素材路径暂不可用，结算明细仍完整显示。'; return ''; }
   }
   function populate(snapshot) {
+    baseLabel.textContent = presentationText(snapshot, 'baseLabel', '底分');
+    multLabel.textContent = presentationText(snapshot, 'multiplierLabel', '倍率');
+    formulaNote.textContent = presentationText(snapshot, 'formulaNote', ''); formulaNote.hidden = !formulaNote.textContent;
     tileNodes.clear(); relicNodes.clear(); patternNodes.clear(); hand.replaceChildren(); relics.replaceChildren(); patterns.replaceChildren();
     const tileById = new Map(snapshot.hand.tiles.map(tile => [tile.id, tile]));
     const addTile = (tile, parent) => {
@@ -147,7 +154,7 @@ export function createBurstPlayer(root, options = {}) {
       const row = make('li'), pattern = snapshot.patterns.find(p => p.id === step.sourceId), relic = snapshot.relics.find(r => r.id === step.relicId);
       const prefix = step.operation === 'multiply' ? '×' : step.operation === 'add' ? '+' : '';
       const change = step.deltaText && step.operation !== 'set' ? `${prefix}${step.deltaText} → ` : '';
-      row.append(make('span', '', step.label || pattern?.label || relic?.label || EVENT_LABELS[step.event]), make('strong', '', `${change}${step.afterText || pattern?.valueText || ''}`)); ledger.append(row);
+      row.append(make('span', '', step.label || pattern?.label || relic?.label || eventLabel(snapshot, step.event)), make('strong', '', `${change}${step.afterText || pattern?.valueText || ''}`)); ledger.append(row);
     }
     for (const relic of snapshot.relics) {
       const node = make('div', 'jr-burst-relic'); node.dataset.relicId = relic.id;
@@ -207,9 +214,9 @@ export function createBurstPlayer(root, options = {}) {
   }
   function applyCue(cue, sound = true) {
     const s = current.plan.snapshot, step = cue.step; clearEffects(); clearHighlights();
-    shell.dataset.event = step.event; shell.dataset.step = step.id; phase.textContent = EVENT_LABELS[step.event];
+    shell.dataset.event = step.event; shell.dataset.step = step.id; phase.textContent = eventLabel(s, step.event);
     const pattern = s.patterns.find(p => p.id === step.sourceId), relic = s.relics.find(r => r.id === step.relicId);
-    source.textContent = step.label || pattern?.label || relic?.label || step.sourceId || EVENT_LABELS[step.event];
+    source.textContent = step.label || pattern?.label || relic?.label || step.sourceId || eventLabel(s, step.event);
     const symbol = ({ add: '+', multiply: '×', subtract: '−', set: '→' })[step.operation] || '';
     operation.textContent = step.detailText || (step.operation === 'set' ? `${symbol} ${step.afterText || ''}` : step.deltaText ? `${symbol} ${step.deltaText}` : pattern?.valueText || '');
     for (const id of step.tileIds) tileNodes.get(id)?.classList.add('is-active');
@@ -234,7 +241,7 @@ export function createBurstPlayer(root, options = {}) {
     if (!current) return;
     const s = current.plan.snapshot; clearEffects(); clearHighlights();
     shell.classList.add('jr-burst-gathering', 'jr-burst-landed'); shell.dataset.event = 'round_result';
-    phase.textContent = '一手落定'; source.textContent = '底分与倍率已汇聚'; operation.textContent = '本次结算结果';
+    phase.textContent = '一手落定'; source.textContent = presentationText(s, 'formulaNote', '底分与倍率已汇聚'); operation.textContent = '本次结算结果';
     setValue(base, s.totals.baseText); setValue(multiplier, s.totals.multiplierText); setValue(score, s.totals.handScoreText); showResult(s);
     for (const map of [relicNodes, patternNodes]) for (const node of map.values()) node.classList.add('is-seen');
     progress.style.width = '100%'; drawBase(current.plan.durationMs);
@@ -277,7 +284,7 @@ export function createBurstPlayer(root, options = {}) {
     if (history.size > 32) history.delete(history.keys().next().value);
     shell.classList.remove('jr-burst-gathering', 'jr-burst-landed', 'jr-burst-impact'); shell.dataset.state = 'loading'; shell.dataset.event = 'hand_reveal';
     art.replaceChildren(); // A new settlement must never inherit the previous theme frame.
-    setValue(base, '—'); setValue(multiplier, '—'); setValue(score, '—'); result.textContent = ''; live.textContent = ''; operation.textContent = ''; warning.textContent = ''; phase.textContent = '正在加载演出 · 可随时跳过'; source.textContent = '牌面与奇物，汇成一手'; progress.style.width = '0%';
+    setValue(base, '—'); setValue(multiplier, '—'); setValue(score, '—'); result.textContent = ''; live.textContent = ''; operation.textContent = ''; warning.textContent = ''; phase.textContent = '正在加载演出 · 可随时跳过'; source.textContent = presentationText(plan.snapshot, 'formulaNote', '牌面与奇物，汇成一手'); progress.style.width = '0%';
     const scene = populate(plan.snapshot);
     if (plan.fallbackReason) { title.textContent = '本次结算'; seal.textContent = '和牌'; warning.textContent = `步骤未完整提供，直接展示冻结结果。${plan.fallbackReason}`; showFinal(); settle('fallback', plan.fallbackReason); return promise; }
     // One wall-clock deadline covers scripts, renderer, font, effects and theme.

@@ -1,58 +1,57 @@
-# 自由出牌 v2 玩法埋点接入任务
+# 九张整批 v9 玩法埋点接入任务
 
-状态：下文保留v2初始接入任务记录。当前接入v8准备阶段改牌、跨阶段共用5次普通换牌及分阶段补缺，沿用v7成型弃除和天机算筹万能、v6计分公式，版本组合为opening_build_v8/four_core_v6。以[当前字段契约](FREE_PLAY_ANALYTICS_CONTRACT.md)和[接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md)为准；旧版成型替换、商店、版本2等约定不作为v8实现依据。由用户指定会话 `01a15d2c-14e7-7071-855d-7f04072d8ef2` 执行；主玩法会话负责引擎、界面与最终统一发布。
+状态：本页已由 v2 初始任务更新为用户最新 V9 修正，优先于 `V9_PLAN` 旧稿。当前 pair 为 `nine_batch_v9/fan_score_v9`；详细字段以 [采集契约](FREE_PLAY_ANALYTICS_CONTRACT.md) 和 [接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md) 为准。由用户指定会话 `01a15d2c-14e7-7071-855d-7f04072d8ef2` 适配，主玩法会话负责引擎、UI、结算、浏览器验收与统一发布。
 
-规则依据：[自由出牌与结算计划](FREE_PLAY_AND_SETTLEMENT_PLAN.md)。复用已上线 SDK、Worker、D1、同意开关及正式／测试隔离，不另建采集系统。
+复用已上线 SDK、Worker、D1、偏好开关及 production/sandbox 隔离，不另建系统。终局沿用原字段和表，无新迁移；V2～V8 与 legacy 目录、旧队列、原信封和历史指标保持版本隔离。V9 统计代码与文档已冻结，98 项统计回归及同一工作区全项目测试通过，实际结果见 [实现说明](ANALYTICS_IMPLEMENTATION.md)。
 
-## 关键事实
+## 玩法事实
 
-- 实体牌有稳定 ID，支持任意批次入区、成型区替换、声明杠、改点数／花色／万能。
-- 14 指结构张数；有 k 杠则终局实际 14+k 张。每关一次终局，普通／七对由系统择优。
-- 分数跨关累计，过关不扣门槛。过程分实时入账，终局仅追加和牌分或扣罚分。
-- 牌型是否合法与是否累计达标独立；诈胡扣分后累计仍 >= 门槛也过关。不能把诈胡记成功和牌，不能把诈胡固定算失败。
-- 提醒、选牌预览、渲染不产生计分／奇物已触发事件。成长、扣分、过关奖励和数据发送都需按真实结果去重。
+- 所有玩家用固定基数 1000×highFanMultiplier(mode,fans) 的番型计分；无核心、计分类奇物、过程分或发币。采集直接读取冻结终局，不重算公式。
+- newRun 直接创建第一关 prepare 和 9 张候选，不再选核心。commit 入选中牌、未选候选全部弃掉，再刷新最多 9 张；kong 使用候选则刷新，纯成型区 kong 不刷新。
+- 普通换牌 prepare/play 共 5 次、每次 1～5 张，beginPlay 保留剩余次数，满 14 后禁止。prepare 改牌共一次 2 墨。
+- 仅 rank_brush/suit_ribbon/wild_jade/high_rescue 四件工具；补缺无需核心。补缺每关一次，prepare 改点/换色共用墨，play 未满 14 可额外换≤3 张。整趟一次 1～2 张非杠成型弃除保留。
+- 14 指结构数；有 k 杠则完整终局为 14+k 实体。牌型、结果类型与累计达标独立，过关不扣门槛。
+- 预览、提示、render 和计分演出不生成计分事实。重试、重播、跳过和刷新不能重复终局或罚分。
 
-## 实现归属与适配接口
+## 归属与接口
 
-埋点会话负责 `dist/analytics/` 下新增 `game-adapter.js`、SDK、服务端 schema／目录／统计、必要 DB 迁移、analytics 测试与接入文档。不要编辑 `dist/app.js`、`dist/engine.js`、`dist/tiles.js`、玩法 CSS、结算素材，不单独发布或提交混合工作区；由主会话统一构建发布。
-
-请提供稳定、容错的浏览器接口：
+埋点范围为 dist/analytics、服务端校验/目录/统计、现有 analytics 测试与分析文档。不要编辑 dist/app.js、dist/engine.js、玩法/结算素材、build/package，不单独发布或提交混合工作区。
 
 ```js
 import { captureGameState, trackGameAction } from './analytics/game-adapter.js';
 const before = captureGameState(game);
 const result = performAction();
-trackGameAction(action, before, game, result, context);
+void trackGameAction(action, before, game, result, context);
 ```
 
-适配器负责从提供的状态抽取白名单证据，复用 `boot.js` 的 SDK 实例，不能每次操作另建客户端。接口即使采集关闭、存储失败、网络异常也不能向游戏抛错。`captureGameState(null)` 支持新开局前快照；若接口有更合理的调整，请写入文档供主会话接入。当前正式游戏无已存偏好时默认开启，既有关闭保留；sandbox 主动启用，详见 [SDK 开关规则](ANALYTICS_CLIENT.md)。
+在真实动作前 capture，动作后、任何 await 或动画前 track。适配器同步抽取不可变白名单，复用 runtime/boot 的同一 SDK；关闭、存储或网络失败不能向游戏抛错。context 保留选中实体、操作参数、工具来源和稳定拒绝码，不传全量对象。正式游戏无已存偏好默认匿名开启，既有关闭保持；sandbox 主动启用，详见 [SDK 开关规则](ANALYTICS_CLIENT.md)。
 
-主会话会在用户动作入口调用，不在 render、预览和提示计算中调用。动作名：`start / starter / select / commit / kong / exchange / replace / transform / settle / settlement_skip / settlement_complete / reward / buy / sell / refresh_shop / next_round / retire / resume`。context 可含选中实体 ID、改牌类型/目标、奇物 ID、来源区域、操作拒绝原因；实现时固定有界白名单，不直接上传整个游戏对象。
+## 必须覆盖的事实
 
-## 引擎契约
-
-引擎版本 2，`game.runId / roundId / settlementId` 持久稳定。牌实体：`{id,original,face,wild,entered}`；区域 `hand / formed / deck / discard`；声明杠 `kongs:[{id,tileIds,face}]`。
-
-状态分数：`totalScore` 当前累计，`score` 本关净分，`processScore` 本关过程分，`roundStartScore` 进关累计，`roundTarget` 本关冻结门槛。
-
-终局 `game.last` 或 `settle()` 返回：`{valid,legal,resultType:'win'|'false_win',base,fans,patterns,gains,mult,total,penalty,delta,cumulativeBefore,cumulativeAfter,target,passed,decomposition,tiers,...}`。`total` 是和牌分，`resultType='win'` 只表示合法和牌，不能代替 `passed`。新玩法与计分版本使用明确新字符串，不能沿用 split_legacy_v1。
-
-## 必须覆盖的事件与统计
-
-| 事实 | 关键字段／约束 |
+| 事实 | V9 约束 |
 | --- | --- |
-| 开局、续玩、进关、主动结束 | run/round ID、模式、版本、终止原因；刷新不重复新建关卡 |
-| 单／多张入区 | 批次实体数量、牌面、过程收益、结构数前后、资源前后、被拒绝原因 |
-| 换牌、成型替换、杠、三种改牌 | 操作类型、实例身份、前后牌面、杠数、真实资源花费；只成功操作记收益 |
-| 奇物选择、买卖、刷新 | 奇物 ID、来源、真实铜钱变化；试算不算触发 |
-| 合法和牌 | 只 `legal=true` 产生 hand_completed，包含合法未达标；实际最终拆解、计分番型、万能定色 |
-| 每关终局 | 独立的牌型结果与 passed；过程分、和牌分、罚分、本关净分、进关/终局累计、门槛、稳定结算 ID |
-| 播放完成／跳过 | 只作为展示行为，不二次增加和牌数、分数、罚分或奖励 |
+| start / round_started | newRun 已真实进入首关 prepare，一次 start 建立 run 与 round 完整观测；不造 starter |
+| begin_play / next_round / resume | begin_play 不重置观测；下一关从 prepare 起算；恢复只记录已知状态，不补历史 |
+| commit / kong | 保留选中入区、未选弃牌和新批实体；有候选参与 kong 才刷新，不上传虚构过程分 |
+| exchange / transform / high_rescue | 真实前后资源、来源区域、实体变化和拒绝结果；V9 wild 归 wild_jade，补缺无核心要求 |
+| formed_discard | 整趟一次记录跨关保留，0 基关号+1；只计成功动作，不累加后续快照 |
+| reward / skip_reward | 只有实际四件工具变化，无铜钱或计分加赏；字段别名与历史兼容保留 |
+| round_settled | 四类结果、独立 passed、真实拆解/定色、分数与稳定结算 ID |
+| hand_completed | 仅 V9 win；和同结算 round_settled 合并为一条事实 |
+| 播放完成 / 跳过 / 继续 | 展示行为与阶段迁移分开，不二次记终局 |
+| run_ended | 无役/未成型未过关分别使用 no_yaku_below_target/incomplete_below_target，不混成诈胡 |
 
-最高和牌分、本关净分、累计分必须分开。新版本番型分母为对应可判定的合法完整和牌，不包括诈胡；诈胡过关计入关卡过关率。去除“玩家预选路线”的语义，普通／七对只表示最终拆解。新版本目标比较使用累计分，而不是 round_score >= target_score。负净分／负累计分允许，其他数量、费用仍按各自范围校验。
+## 四类终局口径
 
-## 验收
+- win：analytics legal=true，完整拆解和基础番型，实际正和牌收益、0 罚分，完整观测进入番型分母。
+- no_yaku：仅日麻；引擎 legal=true 只代表结构成立，适配器必须规范化 analytics legal=false。保留真实完整拆解与万能定色，空番型、0 收益、0 罚分，不发 hand_completed。
+- false_win：满 14 但没有有效结构，shape/decomposition=null、空番型、0 收益，扣 ceil(target×10%)。
+- incomplete：牌山和候选都空、结构不足 14，保留 0～13+k 实体与已声明杠；无拆解、空番型、0 收益，扣同样罚分。适配器核对真实耗尽状态，终局不新增状态字段。
 
-复用既有测试与测试样本通道验证：正常和牌过关、合法未达标、诈胡过关、诈胡失败、扣后恰好等于门槛、单张阶段分不重复、杠15/18实牌、万能定色、刷新/重播/重试去重、中途开启时观测质量不伪造、数据关闭不阻断游戏。现实实战对照及自动解题统计不在本次范围。
+所有类型按 cumulative_after>=target_score 判断 passed，无役、未成型或诈胡也可能过关。过程分恒 0，净分与累计可负。服务端分开聚合四类及其 passed，不能用 1-legal 统计诈胡。番型分母仅同模式/完整版本 pair 下 complete 的唯一 win；三项最高分分别取和牌分、本关净分、累计分，不合并或重算。
 
-请完成源文件和测试后在本会话报告适配器最终接口、关键文件、测试结果及待主会话接入的位置。不要把测试记录投到 production；统一发布由主会话完成。
+## 验收范围
+
+仅补现有 P0 核心回归：直接首关完整观测、九张整批刷新及两种 kong、普通换牌共用次数与满 14 拒绝、编辑/补缺资源、wild 来源、无役有效拆解、空手/带杠 incomplete、四类过关边界、刷新/重试/回放去重、中途开启 partial、偏好和存储故障不阻断游戏、旧 V2～V8 原队列/字典及完整版本隔离。真实链路需验证引擎→SDK→API→SQLite，测试只写 sandbox。
+
+V9 统计回归 98/98 通过；在既有适配器测试文件新增两项终局核心用例，无新脚本。未进行 V9 浏览器验收、构建、提交或部署；浏览器试玩、音画及统一发布由主会话完成。现实胡率基线、自动解题和新的资源图表不在本轮范围。

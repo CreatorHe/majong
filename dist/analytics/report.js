@@ -1,4 +1,4 @@
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
+import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
 
 const $ = selector => document.querySelector(selector);
 const params = new URLSearchParams(globalThis.location?.search || '');
@@ -18,7 +18,7 @@ const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '
 export const versionKey = version => version ? JSON.stringify([version.rules_version, version.score_model_version]) : '';
 export const sampleVersions = Object.freeze({ rules_version: GAME_RULES_VERSION, score_model_version: GAME_SCORE_MODEL_VERSION });
 const sampleRelease = GAME_RULES_VERSION.replaceAll('_', '-');
-const sampleStorageKey = mode => `jade-run:analytics:sandbox:last-fixture-v8:${mode}`;
+const sampleStorageKey = mode => `jade-run:analytics:sandbox:last-fixture-v9:${mode}`;
 let testClientPromise = null;
 
 export function reportPresentation(data) {
@@ -29,22 +29,30 @@ export function reportPresentation(data) {
   const v6 = data.rules_version === V6_RULES_VERSION && data.score_model_version === V6_SCORE_MODEL_VERSION;
   const v7 = data.rules_version === V7_RULES_VERSION && data.score_model_version === V7_SCORE_MODEL_VERSION;
   const v8 = data.rules_version === V8_RULES_VERSION && data.score_model_version === V8_SCORE_MODEL_VERSION;
+  const v9 = data.rules_version === V9_RULES_VERSION && data.score_model_version === V9_SCORE_MODEL_VERSION;
   const fourCore = v5 || v6 || v7 || v8;
   const exponential = v3 || v4;
-  const extendedShapes = exponential || fourCore;
+  const extendedShapes = exponential || fourCore || v9;
   const freePlay = isSupportedGameVersion(data.rules_version, data.score_model_version);
   const summary = data.summary || {};
   const settlements = data.settlements || {};
   return {
-    v2, v3, v4, v5, v6, v7, v8, freePlay,
-    handLabel: freePlay ? '合法完整和牌' : '旧版完整成型',
+    v2, v3, v4, v5, v6, v7, v8, v9, freePlay,
+    handLabel: v9 ? '有番型的完整和牌' : freePlay ? '合法完整和牌' : '旧版完整成型',
     scoreLabel: freePlay ? '最高和牌分' : '旧版最高整关分',
     maxScore: freePlay ? summary.max_win_score ?? null : summary.max_round_score ?? null,
     maxNet: freePlay ? settlements.max_round_score ?? null : null,
     maxCumulative: freePlay ? settlements.max_cumulative_score ?? null : null,
     passRate: freePlay ? settlements.pass_rate ?? null : null,
-    subtitle: freePlay ? '按可判定的合法完整和牌统计' : '旧版口径 · 按预选路线分别统计',
-    notice: v8
+    subtitle: v9 ? '按有番型的完整和牌统计' : freePlay ? '按可判定的合法完整和牌统计' : '旧版口径 · 按预选路线分别统计',
+    noYaku: v9 ? settlements.no_yaku ?? 0 : null,
+    incomplete: v9 ? settlements.incomplete ?? 0 : null,
+    terminalNotice: v9
+      ? '过关按终局累计分判断。日麻无役为 0 分且无罚分，未完成扣目标的 10%；两者都不计诈胡或合法和牌分母。'
+      : '过关按终局累计分判断；诈胡仍达标计入过关，始终不计入番型。',
+    notice: v9
+      ? '九张成批 v9 · 无核心，每批 9 张候选，出牌后余牌全弃并刷新。按固定基数 1000 与番数档位倍率结算，没有过程分或发币；改点、换色、万能与补缺工具按实际持有记录。'
+      : v8
       ? '起手构筑 v8 · 改点、换色和万能仅在准备阶段可用。每关 5 次普通换牌，准备与组牌共用，每次 1～5 张；满 14 未结算也可换候选，最终留牌参与结算。高番补缺每关一次：准备阶段改点或换色共耗 2 墨，组牌阶段未满 14 可弃换至多 3 张。'
       : v7
       ? '起手构筑 v7 · 整趟挑战可弃牌一次，弃去 1～2 张非杠成型牌，不立即摸牌、得分或耗墨。天机算筹自带固定点数、三花色万能，仍共用每关一次的 2 墨改牌额度。沿用 v6 四核心计分，两个规则版本独立统计。'
@@ -58,7 +66,9 @@ export function reportPresentation(data) {
       ? '自由出牌 v3 · 指数计分。基础番型与奇物番型分别记账；未开放番型不进入统计。合法未达标计入番型，诈胡仍达标只计入过关。'
       : v2 ? '自由出牌 v2 · 累计计分。合法未达标计入番型，诈胡仍达标只计入过关；与 v3 / v4 指数计分分别统计。'
       : '旧版记录 · 按当时的预选路线与整关得分统计，不与自由出牌版本合并。',
-    explanation: freePlay
+    explanation: v9
+      ? '出现率 = 含该计分番型的和牌手数 ÷ 同模式、同版本的有番型完整和牌手数。只有完整观测的 win 进入分母；无役、未完成、诈胡和不完整观测均排除。普通、七对和特殊牌形是系统最终拆解，不按拆解另分分母。合法未过关仍计入，每手同番型最多一次，多番占比之和可超过 100%。最高和牌分只计和牌收益；本关净分计收益或罚分；累计分含此前各关。各纪录分别取最大值，不一定来自同一手。按当前番数档位结算，不直接累计番数作分数；报告只展示实际上报的总分，不重新计算。'
+      : freePlay
       ? `出现率 = 含该计分番型的手数 ÷ 可判定的合法完整和牌手数。${extendedShapes ? '普通、七对和特殊牌形都是系统最终拆解' : '普通与七对是系统最终拆解'}，分母不按拆解筛选。合法未过关也计入；诈胡与不完整观测不计入。每手同番型最多一次，多番占比之和可超过 100%。最高和牌分只计终局和牌收益；本关净分含过程分、和牌分与罚分；累计分含此前各关。各项纪录分别取最高值，不一定来自同一手，也不是番型单独贡献。${extendedShapes ? `只纳入已开放的基础与奇物番型；${fourCore ? '四核心' : '指数'}计分纪录仅在同一规则和计分版本内比较。` : ''}${v6 || v7 || v8 ? '本页直接展示实际上报的总分，不再次放大或重算。' : ''}`
       : '旧版出现率 = 含该计分番型的手数 ÷ 适用预选路线的有效完整成型手数。各行分母可能不同；完整成型但未过关仍计入。每手同番型最多一次，多番占比之和可超过 100%。旧版整关得分沿用历史口径，不能拆分或对比新版和牌分、本关净分与累计分。',
   };
@@ -101,7 +111,7 @@ function updateControls() {
   $('#repeat-button').disabled = state.scope !== 'sandbox' || state.sampleBusy || !previousFixture(state.mode);
   if (!testClientPromise) $('#stop-button').hidden = !previousFixture('mcr') && !previousFixture('riichi');
   $('#test-scope-hint').textContent = state.scope === 'sandbox'
-    ? '写入起手构筑 v8 样本；v7、v6、v5、v4、v3、v2 与旧版测试记录仍按版本保留。'
+    ? '写入九张成批 v9 样本；v8、v7、v6、v5、v4、v3、v2 与旧版测试记录仍按版本保留。'
     : '切换到“测试样本”后可写入验收记录。';
 }
 
@@ -109,7 +119,7 @@ function renderVersions(data) {
   const select = $('#version-select');
   const versions = Array.isArray(data.versions) ? data.versions.filter(v => typeof v.rules_version === 'string' && typeof v.score_model_version === 'string') : [];
   if (state.version && !versions.some(v => versionKey(v) === versionKey(state.version))) versions.push(state.version);
-  select.replaceChildren(new Option('当前玩法 · 起手构筑 v8', ''));
+  select.replaceChildren(new Option('当前玩法 · 九张成批 v9', ''));
   for (const version of versions) select.add(new Option(`${version.rules_version} / ${version.score_model_version}`, versionKey(version)));
   select.value = versionKey(state.version);
   $('#version-caption').textContent = data.rules_version && data.score_model_version
@@ -160,16 +170,20 @@ function renderReport(data) {
   const view = reportPresentation(data);
   $('.summary-strip').dataset.model = view.freePlay ? 'cumulative' : 'legacy';
   document.querySelectorAll('[data-free-play]').forEach(element => { element.hidden = !view.freePlay; });
+  document.querySelectorAll('[data-v9]').forEach(element => { element.hidden = !view.v9; });
   $('#summary-hands-label').textContent = view.handLabel;
   $('#summary-max-label').textContent = view.scoreLabel;
   $('#summary-max').textContent = integer(view.maxScore);
   $('#summary-net').textContent = integer(view.maxNet);
   $('#summary-cumulative').textContent = integer(view.maxCumulative);
   $('#summary-pass-rate').textContent = Number.isFinite(view.passRate) ? percentFormat.format(view.passRate) : '—';
-  $('#summary-passed').textContent = data.settlements?.total > 0 ? `${integer(data.settlements.passed)} / ${integer(data.settlements.total)} 关达标` : '暂无完整终局';
+  $('#summary-passed').textContent = data.settlements?.total > 0 ? `${integer(data.settlements.passed)} / ${integer(data.settlements.total)} 关达标` : '暂无完整观测终局';
   $('#summary-terminals').textContent = integer(data.settlements?.total);
   $('#summary-false-wins').textContent = integer(data.settlements?.false_win);
   $('#summary-false-passed').textContent = integer(data.settlements?.false_win_passed);
+  $('#summary-no-yaku').textContent = integer(view.noYaku);
+  $('#summary-incomplete').textContent = integer(view.incomplete);
+  $('#terminal-explanation').textContent = view.terminalNotice;
   $('#ledger-subtitle').textContent = view.subtitle;
   $('#collection-copy').textContent = view.notice;
   $('#metric-explanation').textContent = view.explanation;
@@ -182,13 +196,13 @@ function renderReport(data) {
   $('#empty-title').textContent = state.scope === 'sandbox' ? '先记一批测试牌局' : view.freePlay ? '等待第一手合法和牌' : '当前旧版暂无完整成型记录';
   $('#empty-copy').textContent = state.scope === 'sandbox'
     ? '当前筛选尚无有效样本。展开下方“采集链路验收”可写入测试数据，检查统计与重复发送。'
-    : (view.freePlay ? '当前筛选尚无可判定的合法完整和牌。开启游戏的数据采集并完成和牌后，计分番型将在这里积累；诈胡终局仅出现在上方过关统计中。' : '当前筛选没有旧版完整成型记录。切换玩法版本可查看自由出牌记录，各版本分别记账。');
+    : (view.v9 ? '当前筛选尚无完整观测的有番型和牌。无役、未完成和诈胡仅计入终局摘要，不进入番型分母。' : view.freePlay ? '当前筛选尚无可判定的合法完整和牌。开启游戏的数据采集并完成和牌后，计分番型将在这里积累；诈胡终局仅出现在上方过关统计中。' : '当前筛选没有旧版完整成型记录。切换玩法版本可查看自由出牌记录，各版本分别记账。');
   renderRows();
 }
 
 function clearReport() {
   state.data = null;
-  ['#summary-hands', '#summary-occurrences', '#summary-max', '#summary-net', '#summary-cumulative', '#summary-pass-rate', '#summary-terminals', '#summary-false-wins', '#summary-false-passed'].forEach(selector => { $(selector).textContent = '—'; });
+  ['#summary-hands', '#summary-occurrences', '#summary-max', '#summary-net', '#summary-cumulative', '#summary-pass-rate', '#summary-terminals', '#summary-false-wins', '#summary-false-passed', '#summary-no-yaku', '#summary-incomplete'].forEach(selector => { $(selector).textContent = '—'; });
   $('#summary-passed').textContent = '正在读取终局记录';
   $('#pattern-rows').replaceChildren();
   $('#pattern-total').textContent = '';
@@ -258,19 +272,25 @@ export function makeFixture(mode, makeId = () => crypto.randomUUID()) {
   if (!['mcr', 'riichi'].includes(mode)) throw new Error('unsupported_fixture_mode');
   const fullFlush = `${mode}.full_flush`;
   const sevenPairs = `${mode}.seven_pairs`;
+  const highWin = mode === 'mcr' ? 1024000 : 768000;
+  const lowWin = mode === 'mcr' ? 4000 : 12000;
+  const target = 32000;
   const examples = [
-    { shape: 'pairs', legal: true, start: 0, process: 80, win: 1800, patterns: [fullFlush, sevenPairs], quality: 'complete' },
-    { shape: 'normal', legal: true, start: 0, process: 0, win: 80, patterns: [], quality: 'complete' },
-    { shape: null, legal: false, start: 5000, process: 0, win: 0, patterns: [], quality: 'complete' },
-    { shape: null, legal: false, start: 50, process: 0, win: 0, patterns: [], quality: 'complete' },
-    { shape: null, legal: false, start: 1100, process: 0, win: 0, patterns: [], quality: 'complete' },
-    { shape: 'pairs', legal: true, start: 0, process: 0, win: 9999, patterns: [fullFlush, sevenPairs], quality: 'partial' },
+    { shape: 'pairs', result: 'win', start: 0, win: highWin, patterns: [fullFlush, sevenPairs], quality: 'complete' },
+    { shape: 'normal', result: 'win', start: 0, win: lowWin, patterns: [`${mode}.all_simples`], quality: 'complete' },
+    { shape: null, result: 'false_win', start: 35200, win: 0, patterns: [], quality: 'complete' },
+    { shape: mode === 'riichi' ? 'normal' : null, result: mode === 'riichi' ? 'no_yaku' : 'false_win', start: mode === 'riichi' ? 32000 : 35200, win: 0, patterns: [], quality: 'complete' },
+    { shape: null, result: 'incomplete', start: 100, win: 0, patterns: [], quality: 'complete' },
+    { shape: 'pairs', result: 'win', start: 0, win: highWin, patterns: [fullFlush, sevenPairs], quality: 'partial' },
   ];
   return examples.flatMap(example => {
     const settlement_id = makeId();
+    const legal = example.result === 'win';
     const faces = example.shape === 'pairs'
       ? [0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 7, 7, 8, 8]
-      : example.legal ? [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 27, 27, 31, 31]
+      : example.result === 'no_yaku' ? [0, 1, 2, 12, 13, 14, 24, 25, 26, 6, 6, 6, 27, 27]
+      : legal ? [1, 2, 3, 10, 11, 12, 19, 20, 21, 4, 4, 4, 6, 6]
+      : example.result === 'incomplete' ? [0, 1, 3, 4, 6, 7, 9, 10, 12]
       : [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 27, 28];
     const tiles = faces.map((face, i) => ({ id: `sample-tile-${i + 1}`, original: face, face, effective_face: face, wild: false }));
     const tileIds = (start, length) => tiles.slice(start, start + length).map(tile => tile.id);
@@ -278,21 +298,21 @@ export function makeFixture(mode, makeId = () => crypto.randomUUID()) {
       ? Array.from({ length: 7 }, (_, i) => ({ type: 'pair', tile_ids: tileIds(i * 2, 2) }))
       : [0, 3, 6].map(start => ({ type: 'chow', tile_ids: tileIds(start, 3) }))
         .concat([{ type: 'pung', tile_ids: tileIds(9, 3) }, { type: 'pair', tile_ids: tileIds(12, 2) }]);
-    const penalty = example.legal ? 0 : 100;
+    const penalty = ['false_win', 'incomplete'].includes(example.result) ? Math.ceil(target / 10) : 0;
     const delta = example.win - penalty;
-    const cumulative = example.start + example.process + delta;
+    const cumulative = example.start + delta;
     const payload = {
-      settlement_id, round_no: 1, legal: example.legal, result_type: example.legal ? 'win' : 'false_win',
-      passed: cumulative >= 1000, process_score: example.process, win_score: example.win,
-      penalty_score: penalty, score_delta: delta, round_score: example.process + delta,
-      round_start_score: example.start, cumulative_before: example.start + example.process,
-      cumulative_after: cumulative, target_score: 1000, record_quality: example.quality,
-      shape: example.shape, tiles, declared_kongs: [], decomposition: example.legal ? { groups } : null,
-      credited_pattern_ids: example.patterns, unlock_pattern_ids: [], owned_relic_ids: ['core_high', 'rank_brush'],
+      settlement_id, round_no: 1, legal, result_type: example.result,
+      passed: cumulative >= target, process_score: 0, win_score: example.win,
+      penalty_score: penalty, score_delta: delta, round_score: delta,
+      round_start_score: example.start, cumulative_before: example.start,
+      cumulative_after: cumulative, target_score: target, record_quality: example.quality,
+      shape: example.shape, tiles, declared_kongs: [], decomposition: example.shape ? { groups } : null,
+      credited_pattern_ids: example.patterns, unlock_pattern_ids: [], owned_relic_ids: ['rank_brush'],
     };
     const context = { mode, ...sampleVersions, app_release: sampleRelease, run_id: makeId(), round_attempt_id: makeId(), hand_id: settlement_id };
     const events = [{ event_name: 'round_settled', payload, context }];
-    if (example.legal) events.push({ event_name: 'hand_completed', payload: structuredClone(payload), context: { ...context } });
+    if (legal) events.push({ event_name: 'hand_completed', payload: structuredClone(payload), context: { ...context } });
     return events;
   });
 }
@@ -341,7 +361,7 @@ async function sendSamples(repeat) {
     }
     const accepted = ack.accepted.length;
     const duplicate = ack.duplicate.length;
-    deliveryMessage(`服务器已确认：新接收 ${accepted} 条事件，已合并或重复 ${duplicate} 条，拒绝 ${ack.rejected.length} 条。\n本批含 5 次完整终局：2 手合法和牌，3 次诈胡，其中 2 次仍达标；另 1 次不完整观测不入统计。首次采集还会包含会话事件。${fixtureSaved ? '\n可重复发送或刷新页面，检查手数与纪录是否保持。' : '\n浏览器未能保存本批编号，重载后无法重复发送这一批。'}`, 'success');
+    deliveryMessage(`服务器已确认：新接收 ${accepted} 条事件，已合并或重复 ${duplicate} 条，拒绝 ${ack.rejected.length} 条。\n本批含 5 次完整观测终局：2 手有番型和牌、${state.mode === 'riichi' ? '1 次诈胡、1 次无役' : '2 次诈胡'}、1 次未完成；另 1 次不完整观测不入统计。首次采集还会包含会话事件。${fixtureSaved ? '\n可重复发送或刷新页面，检查手数与纪录是否保持。' : '\n浏览器未能保存本批编号，重载后无法重复发送这一批。'}`, 'success');
     state.version = { ...sampleVersions };
     await loadReport();
   } catch (error) {

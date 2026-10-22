@@ -227,7 +227,15 @@ async function reportGame(db, values, context) {
   const [totals, counts, settled] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS completed_hands, MAX(s.win_score) AS max_win_score, MAX(s.round_score) AS max_round_score, MAX(s.cumulative_after) AS max_cumulative_score, MIN(s.received_at) AS first_received_at, MAX(s.received_at) AS last_received_at FROM round_settlements s WHERE ${where} AND s.legal = 1`).bind(...values),
     db.prepare(`SELECT p.pattern_id, COUNT(*) AS count, MAX(s.win_score) AS max_win_score, MAX(s.round_score) AS max_round_score, MAX(s.cumulative_after) AS max_cumulative_score FROM settlement_patterns p JOIN round_settlements s ON s.scope = p.scope AND s.client_id = p.client_id AND s.settlement_id = p.settlement_id WHERE ${where} AND s.legal = 1 GROUP BY p.pattern_id`).bind(...values),
-    db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(s.legal), 0) AS legal, COALESCE(SUM(1 - s.legal), 0) AS false_win, COALESCE(SUM(s.passed), 0) AS passed, COALESCE(SUM(CASE WHEN s.legal = 0 AND s.passed = 1 THEN 1 ELSE 0 END), 0) AS false_win_passed, MAX(s.round_score) AS max_round_score, MAX(s.cumulative_after) AS max_cumulative_score FROM round_settlements s WHERE ${where}`).bind(...values),
+    db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(s.legal), 0) AS legal,
+      COALESCE(SUM(s.result_type = 'false_win'), 0) AS false_win,
+      COALESCE(SUM(s.result_type = 'no_yaku'), 0) AS no_yaku,
+      COALESCE(SUM(s.result_type = 'incomplete'), 0) AS incomplete,
+      COALESCE(SUM(s.passed), 0) AS passed,
+      COALESCE(SUM(s.result_type = 'false_win' AND s.passed = 1), 0) AS false_win_passed,
+      COALESCE(SUM(s.result_type = 'no_yaku' AND s.passed = 1), 0) AS no_yaku_passed,
+      COALESCE(SUM(s.result_type = 'incomplete' AND s.passed = 1), 0) AS incomplete_passed,
+      MAX(s.round_score) AS max_round_score, MAX(s.cumulative_after) AS max_cumulative_score FROM round_settlements s WHERE ${where}`).bind(...values),
   ]);
   const summary = totals.results[0];
   const byPattern = new Map(counts.results.map(row => [row.pattern_id, row]));

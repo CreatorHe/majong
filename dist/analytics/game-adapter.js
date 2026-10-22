@@ -1,5 +1,5 @@
 import { getGameAnalytics } from './runtime.js';
-import { GAME_ACTIONS, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, gamePatternCatalog, relicIdsForVersion, patternIdForName, validateGamePayload } from './game-schema.js';
+import { GAME_ACTIONS, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, gamePatternCatalog, relicIdsForVersion, patternIdForName, validateGamePayload } from './game-schema.js';
 
 // This module observes committed engine transitions. It never scores, mutates a
 // game/save, repairs a hand, or reads an unplayed wall's faces.
@@ -17,7 +17,8 @@ function gameVersions(game) {
     : game?.version === 5 ? [V5_RULES_VERSION, V5_SCORE_MODEL_VERSION]
     : game?.version === 6 ? [V6_RULES_VERSION, V6_SCORE_MODEL_VERSION]
     : game?.version === 7 ? [V7_RULES_VERSION, V7_SCORE_MODEL_VERSION]
-    : game?.version === 8 ? [V8_RULES_VERSION, V8_SCORE_MODEL_VERSION] : null;
+    : game?.version === 8 ? [V8_RULES_VERSION, V8_SCORE_MODEL_VERSION]
+    : game?.version === 9 ? [V9_RULES_VERSION, V9_SCORE_MODEL_VERSION] : null;
   if (!versions || game.rulesVersion?.replaceAll('-', '_') !== versions[0] || game.scoreVersion?.replaceAll('-', '_') !== versions[1]) return null;
   return { rulesVersion: versions[0], scoreVersion: versions[1] };
 }
@@ -36,8 +37,8 @@ function stateSummary(game, rulesVersion) {
     total_score: integer(game.totalScore), round_score: integer(game.score), process_score: integer(game.processScore),
     round_start_score: integer(game.roundStartScore), target_score: Number.isSafeInteger(game.roundTarget) ? game.roundTarget : null,
     relic_ids: relics(game.relics, rulesVersion), single_count: integer(game.singleCount), wild_used: game.wildUsed === true || game.wildUsed === 1,
-    ...([5,6,7,8].includes(game.version) ? { rescue_used: game.rescueUsed === true || game.rescueUsed === 1 } : {}),
-    ...([7,8].includes(game.version) ? { formed_discard: game.formedDiscard == null ? null : {
+    ...([5,6,7,8,9].includes(game.version) ? { rescue_used: game.rescueUsed === true || game.rescueUsed === 1 } : {}),
+    ...([7,8,9].includes(game.version) ? { formed_discard: game.formedDiscard == null ? null : {
       round_no: game.formedDiscard.round + 1, tile_ids: [...game.formedDiscard.tileIds],
     } } : {}),
   };
@@ -101,27 +102,31 @@ function rejectionCode(result, context) {
   return 'engine_rejected';
 }
 function settlementPayload(game, result, quality, rulesVersion) {
-  const legal = result?.legal;
-  if (typeof legal !== 'boolean' || !id(game.settlementId)) return null;
+  const v9 = rulesVersion === V9_RULES_VERSION;
+  if (typeof result?.legal !== 'boolean' || !id(game.settlementId)) return null;
+  const legal = v9 ? result.resultType === 'win' : result.legal;
+  const structured = legal || (v9 && result.resultType === 'no_yaku');
+  if (v9 && (!['win','false_win','no_yaku','incomplete'].includes(result.resultType) || result.legal !== structured)) return null;
+  if (v9 && result.resultType === 'incomplete' && (game.hand?.length !== 0 || game.deck?.length !== 0 || game.formed.length - game.kongs.length >= 14)) return null;
   const decomposition = result.decomposition;
   const effective = new Map((decomposition?.tiles ?? []).map(tile => [tile.id, tile.face]));
   const kongs = (game.kongs ?? []).map(kong => ({ id: kong.id, tile_ids: [...kong.tileIds], face: kong.face }));
   const locked = new Map(kongs.flatMap(kong => kong.tile_ids.map(tileId => [tileId, kong.face])));
   const tiles = (game.formed ?? []).map(tile => ({
     id: tile.id, original: tile.original, face: tile.face, wild: tile.wild === true,
-    effective_face: legal ? effective.get(tile.id) ?? (tile.wild ? null : tile.face) : locked.get(tile.id) ?? (tile.wild ? null : tile.face),
+    effective_face: structured ? effective.get(tile.id) ?? (tile.wild ? null : tile.face) : locked.get(tile.id) ?? (tile.wild ? null : tile.face),
   }));
   let groups = null;
-  if (legal && decomposition && Array.isArray(decomposition.groups) && Array.isArray(decomposition.groupTileIds)) {
+  if (structured && decomposition && Array.isArray(decomposition.groups) && Array.isArray(decomposition.groupTileIds)) {
     groups = decomposition.groups.map((group, index) => ({ type: groupKind(group, decomposition.shape), tile_ids: [...decomposition.groupTileIds[index]] }));
     if (decomposition.pair?.length) groups.push({ type: 'pair', tile_ids: [...decomposition.pairTileIds] });
   }
-  const patterns = legal ? patternIds(game.mode, result.patterns, rulesVersion) : { credited: [], unlocks: [] };
-  if (!patterns || (legal && !groups)) return null;
+  const patterns = structured ? patternIds(game.mode, result.patterns, rulesVersion) : { credited: [], unlocks: [] };
+  if (!patterns || (structured && !groups)) return null;
   const unlocks = [...patterns.unlocks];
   for (const gain of legal ? result.gains ?? [] : []) {
     if (gain.kind !== 'unlock') continue;
-    if (['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION].includes(rulesVersion)) {
+    if (['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION].includes(rulesVersion)) {
       const patternId = patternIdForName(game.mode, gain.name, rulesVersion);
       const entry = gamePatternCatalog(rulesVersion).find(row => row.pattern_id === patternId && row.kind === 'unlock');
       if (!entry) return null; // Relic bonuses have distinct IDs from their base patterns.
@@ -138,8 +143,8 @@ function settlementPayload(game, result, quality, rulesVersion) {
     process_score: game.processScore, win_score: result.total, penalty_score: result.penalty,
     score_delta: result.delta, round_score: game.score, round_start_score: game.roundStartScore,
     cumulative_before: result.cumulativeBefore, cumulative_after: result.cumulativeAfter, target_score: result.target,
-    record_quality: quality, shape: legal ? decomposition.shape : null, tiles, declared_kongs: kongs,
-    decomposition: legal ? { groups } : null, credited_pattern_ids: patterns.credited,
+    record_quality: quality, shape: structured ? decomposition.shape : null, tiles, declared_kongs: kongs,
+    decomposition: structured ? { groups } : null, credited_pattern_ids: patterns.credited,
     unlock_pattern_ids: [...new Set(unlocks)].sort(), owned_relic_ids: relics(game.relics, rulesVersion),
   };
 }
@@ -190,8 +195,12 @@ export function createGameAdapter({ getClient = getGameAnalytics, now = Date.now
       const changed = !same(before?.state, after.state) || !same(before?.hand, after.hand) || !same(before?.formed, after.formed);
       const refused = result === false || result?.valid === false || result?.ok === false;
       const success = !refused && (changed || ['start','resume','select','settlement_skip','settlement_complete'].includes(action));
-      const newRound = ['starter','next_round','start'].includes(action) && success && after.roundId && before?.roundId !== after.roundId && after.state.phase === ([5,6,7,8].includes(game.version) ? 'prepare' : 'play');
-      if (newRound && before?.observing && before.generation === status.collectionGeneration) boundedSet(observations, keyOf(after), { generation: status.collectionGeneration, dropped: status.dropped ?? 0 });
+      const newRound = ['starter','next_round','start'].includes(action) && success && after.roundId && before?.roundId !== after.roundId && after.state.phase === ([5,6,7,8,9].includes(game.version) ? 'prepare' : 'play');
+      // V9 starts its first round directly. A fresh start observed synchronously
+      // under allowed consent needs no fictitious starter action; resume never
+      // qualifies and an explicitly unobserved before-snapshot stays partial.
+      const freshStart = game.version === 9 && action === 'start' && before == null;
+      if (newRound && (freshStart || (before?.observing && before.generation === status.collectionGeneration))) boundedSet(observations, keyOf(after), { generation: status.collectionGeneration, dropped: status.dropped ?? 0 });
       let recordQuality = quality(after, status);
       const actionId = id(context.action_id) && context.action_id.length >= 8 ? context.action_id : `action.${before?.captureId ?? newId()}.${action}`.slice(0, 100);
       let changes = before?.runId === after.runId && before?.roundId === after.roundId ? tileChanges(before, after) : [];
@@ -209,7 +218,7 @@ export function createGameAdapter({ getClient = getGameAnalytics, now = Date.now
         transform_kind: transformAction && ['rank','suit','wild'].includes(transformKind) ? transformKind : null,
         transform_value: transformAction ? context.transform_value ?? context.value ?? context.arg ?? null : null,
         relic_id: members(relicIdsForVersion(after.rulesVersion), context.relic_id ?? context.relicId ?? context.id) ? context.relic_id ?? context.relicId ?? context.id : null,
-        ...([5,6,7,8].includes(game.version) ? {
+        ...([5,6,7,8,9].includes(game.version) ? {
           rescue_type: rescueType,
           replace_relic_id: action === 'reward' && members(relicIdsForVersion(after.rulesVersion), replacedRelic) ? replacedRelic : null,
         } : {}),
@@ -218,6 +227,7 @@ export function createGameAdapter({ getClient = getGameAnalytics, now = Date.now
       // ordinary edit context has no relic ID; rejected attempts use the same
       // ability source without claiming the player owns that core.
       if ([7,8].includes(game.version) && action === 'transform' && actionContext.transform_kind === 'wild') actionContext.relic_id = 'core_high';
+      if (game.version === 9 && action === 'transform' && actionContext.transform_kind === 'wild') actionContext.relic_id = 'wild_jade';
       if (!actionContext.transform_kind || actionContext.transform_kind === 'wild') actionContext.transform_value = null;
       // A new-version action cannot validate an old-version hand/resource limit.
       // Preserve the old snapshot in its separately versioned superseded event.
@@ -251,7 +261,8 @@ export function createGameAdapter({ getClient = getGameAnalytics, now = Date.now
       }
       const terminalTransition = ['settle','settlement_skip','settlement_complete','settlement_continue'].includes(action) && before?.state.phase !== after.state.phase && ['defeat','victory'].includes(after.state.phase);
       if (success && ((action === 'retire') || terminalTransition)) {
-        const reason = action === 'retire' ? 'retired' : after.state.phase === 'victory' ? 'victory' : game.last?.legal ? 'completed_below_target' : 'false_win_below_target';
+        const outcomeReason = game.version === 9 && ['no_yaku','incomplete'].includes(game.last?.resultType) ? `${game.last.resultType}_below_target` : game.last?.legal ? 'completed_below_target' : 'false_win_below_target';
+        const reason = action === 'retire' ? 'retired' : after.state.phase === 'victory' ? 'victory' : outcomeReason;
         add('run_ended', { state: after.state, record_quality: recordQuality, reason }, `ended.${after.runId}`);
       }
       const outcomes = [];

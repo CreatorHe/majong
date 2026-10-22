@@ -22,7 +22,8 @@ test('real engine results in both modes can play without adapter-side scoring', 
     assert.equal(snapshot.totals.handScoreText, new Intl.NumberFormat('zh-CN').format(outcome.total));
     assert.equal(snapshot.totals.passed, outcome.passed);
     assert.equal(snapshot.hand.tiles.length, 14);
-    assert.ok(snapshot.relics.some(relic => relic.id === 'core_growth'));
+    assert.deepEqual(snapshot.relics, []);
+    assert.equal(snapshot.presentation.baseLabel, '固定基数');
     assert.equal(JSON.stringify(game), before);
   }
 });
@@ -375,4 +376,87 @@ test('V4 maps only supported patterns and keeps held-trigger references separate
   const bad = structuredClone(snapshot); bad.steps[2].tileIds = ['not-seen'];
   assert.throws(() => createBurstPlan(bad), /不存在/);
   assert.throws(() => createBurstPlan(buildSettlementSnapshot({}, result({ falseHu: true }))), /诈胡/);
+});
+
+test('V9 no-yaku and incomplete preserve frozen outcomes through playback, skip and fallback without a victory renderer', async () => {
+  const keys = ['document', 'requestAnimationFrame', 'cancelAnimationFrame'];
+  const previous = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const frames = new Map(), sounds = []; let frameId = 0, rendererCalls = 0;
+  globalThis.document = { createElement: () => new Element(), createElementNS: () => new Element() };
+  globalThis.requestAnimationFrame = callback => { frames.set(++frameId, callback); return frameId; };
+  globalThis.cancelAnimationFrame = id => frames.delete(id);
+  const root = new Element(), audio = { setMuted() {}, stopAll() {}, play(name) { sounds.push(name); }, unlock: async () => true };
+  const player = createSettlementPlayer(root, { audio, libraryFactory: () => { rendererCalls++; throw Error('must not load victory art'); } });
+  try {
+    for (const state of ['no_yaku', 'incomplete']) for (const passed of [true, false]) {
+      const snapshot = structuredClone(buildSettlementSnapshot({}, result()));
+      snapshot.handResult = state;
+      snapshot.presentation = { effectId: 'chuuren', baseLabel: '固定基数', multiplierLabel: '牌型倍率', formulaNote: '固定基数 × 牌型倍率' };
+      snapshot.tiers = { scoreTier: 2, multiplierTier: 2, patternTier: 2 };
+      if (state === 'incomplete') { snapshot.hand.tiles = snapshot.hand.tiles.slice(0, passed ? 10 : 0); snapshot.hand.decomposition = []; }
+      snapshot.steps = ['hand_reveal', state, 'round_result'].map((event, index) => ({ id: String(index), event, tileIds: [], target: 'score', operation: 'set', afterText: '0' }));
+      Object.assign(snapshot.totals, { handScoreText: '0', penaltyText: state === 'incomplete' ? '500' : '0', runScoreBeforeText: '1,500', runScoreText: state === 'incomplete' ? '1,000' : '1,500', passed });
+      const before = JSON.stringify(snapshot);
+      assert.equal(validateSnapshot(snapshot), true); assert.equal(getEffect(snapshot).id, state);
+      assert.throws(() => createBurstPlan(snapshot), /只接受/);
+      const wrongOrder = structuredClone(snapshot); wrongOrder.steps[1].event = 'false_hu';
+      assert.throws(() => validateSnapshot(wrongOrder), /顺序/);
+      if (state === 'no_yaku') { const bad = structuredClone(snapshot); bad.hand.decomposition = []; assert.throws(() => validateSnapshot(bad), /完整覆盖/); }
+      for (const skip of [false, true]) {
+        let completions = 0; const seen = [];
+        const pending = player.play(snapshot, { durationMs: 30, reducedMotion: true, onComplete: () => completions++, onStep: step => seen.push(step.event) });
+        if (skip) { player.skip(); player.skip(); }
+        else { const callback = [...frames.values()].at(-1); frames.clear(); callback(performance.now() + 100); }
+        assert.equal((await pending).status, skip ? 'skipped' : 'completed');
+        assert.equal(completions, 1); assert.equal(frames.size, 0);
+        assert.equal(player.heroLabel.textContent, state === 'no_yaku' ? '无役' : '未完成');
+        assert.equal(player.score.textContent, state === 'no_yaku' ? '0' : '−500');
+        assert.equal(player.round.textContent, snapshot.totals.runScoreText);
+        assert.equal(player.result.dataset.passed, String(passed));
+        assert.equal(player.formula.hidden, true); assert.equal(player.patternHero.classes.has('is-emphasis'), false);
+        assert.ok(!root.textContent.includes('诈胡')); assert.ok(!root.textContent.includes('和牌分'));
+        if (state === 'incomplete') assert.ok(!root.textContent.includes('成型 14 / 14'));
+        if (!skip) assert.deepEqual(seen, ['hand_reveal', state, 'round_result']);
+      }
+      const broken = structuredClone(snapshot); broken.steps = [];
+      assert.equal((await player.play(broken)).status, 'fallback');
+      assert.ok(root.textContent.includes(state === 'no_yaku' ? '无役结算' : '未完成结算'));
+      assert.ok(root.textContent.includes(snapshot.totals.runScoreText)); assert.ok(!root.textContent.includes('诈胡'));
+      assert.equal(JSON.stringify(snapshot), before);
+    }
+    assert.equal(rendererCalls, 0); assert.ok(sounds.every(name => name === 'hand_check'));
+  } finally {
+    player.dispose();
+    for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
+  }
+});
+
+test('V9 fixed-base labels survive V4 plans, skip and final-only fallback while old snapshots keep their defaults', async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  globalThis.document = { createElement: () => new Element() };
+  const root = new Element(), audio = { setMuted() {}, stopAll() {}, play() {}, unlock: async () => true, dispose() {}, getState: () => ({}) };
+  const player = createBurstPlayer(root, { audioFactory: () => audio, clock: { now: () => 0, request: () => 1, cancel() {} }, libraryFactory: async () => ({ canvas: new Element(), setScene: async () => {}, render() {}, reset() {}, dispose() {} }) });
+  const snapshot = structuredClone(buildSettlementSnapshot({}, result()));
+  Object.assign(snapshot.presentation, { baseLabel: '固定基数', multiplierLabel: '牌型倍率', formulaNote: '固定基数 × 牌型倍率' });
+  const before = JSON.stringify(snapshot), find = (node, cls) => node.className === cls ? node : node.children.map(child => find(child, cls)).find(Boolean);
+  try {
+    const plan = createBurstPlan(snapshot);
+    assert.equal(plan.snapshot.presentation.baseLabel, '固定基数'); assert.equal(plan.snapshot.presentation.multiplierLabel, '牌型倍率'); assert.equal(plan.snapshot.presentation.formulaNote, '固定基数 × 牌型倍率');
+    assert.ok(Object.isFrozen(plan.snapshot.presentation));
+    const playing = player.play(snapshot); player.skip(); assert.equal((await playing).status, 'skipped');
+    assert.equal(find(root, 'jr-burst-hub').children[0].children[0].textContent, '固定基数');
+    assert.equal(find(root, 'jr-burst-hub').children[2].children[0].textContent, '牌型倍率');
+    assert.ok(find(root, 'jr-burst-latest').textContent.includes('固定基数 × 牌型倍率'));
+    assert.equal(find(root, 'jr-burst-formula-note').textContent, '固定基数 × 牌型倍率'); assert.equal(find(root, 'jr-burst-formula-note').hidden, false);
+    const broken = structuredClone(snapshot); broken.settlementId += ':fallback'; broken.steps = [];
+    assert.equal((await player.play(broken)).status, 'fallback');
+    assert.equal(find(root, 'jr-burst-hub').children[0].children[0].textContent, '固定基数');
+    assert.ok(find(root, 'jr-burst-latest').textContent.includes('固定基数 × 牌型倍率'));
+    const old = structuredClone(snapshot); old.settlementId += ':legacy'; delete old.presentation.baseLabel; delete old.presentation.multiplierLabel; delete old.presentation.formulaNote;
+    const legacy = player.play(old); player.skip(); await legacy;
+    assert.equal(find(root, 'jr-burst-hub').children[0].children[0].textContent, '底分'); assert.equal(find(root, 'jr-burst-hub').children[2].children[0].textContent, '倍率');
+    assert.ok(find(root, 'jr-burst-latest').textContent.includes('底分与倍率已汇聚'));
+    assert.equal(find(root, 'jr-burst-formula-note').hidden, true);
+    assert.equal(JSON.stringify(snapshot), before);
+  } finally { player.destroy(); if (previous) Object.defineProperty(globalThis, 'document', previous); else delete globalThis.document; }
 });

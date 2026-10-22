@@ -19,14 +19,13 @@ function harness() {
   };
   return { events, status, client, adapter, act };
 }
-async function prepared(h, mode = 'mcr', starter = 'core_high') {
+async function prepared(h, mode = 'mcr') {
   const s = engine.newRun(mode, 1234);
   await h.adapter.trackGameAction('start', null, s, s);
-  await h.act('starter', s, () => engine.chooseStarter(s, starter), { relic_id: starter });
   return s;
 }
-async function started(h, mode = 'mcr', starter = 'core_high') {
-  const s = await prepared(h, mode, starter);
+async function started(h, mode = 'mcr') {
+  const s = await prepared(h, mode);
   await h.act('begin_play', s, () => engine.beginPlay(s));
   return s;
 }
@@ -40,7 +39,7 @@ function arrange(s, faces, kongFaces = []) {
     return { ...pool.splice(index, 1)[0], entered: true };
   });
   s.kongs = kongFaces.map((face, i) => ({ id: `${s.roundId}:kong:${i}`, face, tileIds: s.formed.filter(tile => tile.face === face).slice(0,4).map(tile => tile.id) }));
-  s.hand = pool.splice(0, s.version >= 4 ? 12 : s.version === 3 ? 10 : 18); s.deck = pool; s.discard = [];
+  s.hand = pool.splice(0, s.version === 9 ? 9 : s.version >= 4 ? 12 : s.version === 3 ? 10 : 18); s.deck = pool; s.discard = [];
 }
 function stageCandidates(s, faces) {
   const pool = [...s.hand, ...s.deck];
@@ -49,13 +48,13 @@ function stageCandidates(s, faces) {
     assert.ok(index >= 0, `candidate fixture tile ${face} exists`);
     return pool.splice(index, 1)[0];
   });
-  s.hand = tiles.slice(0, 12);
-  s.deck = [...pool, ...tiles.slice(12).reverse()];
+  s.hand = tiles.slice(0, 9);
+  s.deck = [...pool, ...tiles.slice(9).reverse()];
   return tiles.map(t => t.id);
 }
 async function commitStaged(h, s, ids) {
   await h.act('begin_play', s, () => engine.beginPlay(s));
-  for (const selected of [ids.slice(0,12), ids.slice(12)]) {
+  for (const selected of [ids.slice(0,9), ids.slice(9)]) {
     if (selected.length) await h.act('commit', s, () => engine.commit(s, selected), {selected_tile_ids:selected});
   }
 }
@@ -72,35 +71,33 @@ test('snapshot is immutable, null-safe, contains no deck faces and never mutates
   assert.notEqual(before.hand[0].face, s.hand[0].face);
 });
 
-test('single-tile process gain is a real delta and duplicate callbacks do not duplicate it', async () => {
-  const h = harness(), s = await started(h, 'mcr', 'core_growth');
-  s.relics.push('single_seal');
+test('nine-tile batches discard unselected candidates without process gain or duplicate callbacks', async () => {
+  const h = harness(), s = await started(h);
   const tileId = s.hand[0].id;
   const { before, result } = await h.act('commit', s, () => engine.commit(s, [tileId]), { selected_tile_ids: [tileId] });
   await h.adapter.trackGameAction('commit', before, s, result, { selected_tile_ids: [tileId] });
   const commits = h.events.filter(e => e.name === 'game_action' && e.payload.action === 'commit');
   assert.equal(commits.length, 1);
-  assert.equal(commits[0].payload.after.process_score - commits[0].payload.before.process_score, 200);
+  assert.equal(commits[0].payload.after.process_score, 0);
   assert.ok(commits[0].payload.tile_changes.some(t => t[0] === tileId && t[1] === 'hand' && t[2] === 'formed'));
   const { before: prior, after: next, tile_changes: changes } = commits[0].payload;
-  assert.equal(prior.hand_count, 12); assert.equal(next.hand_count, 12);
-  assert.equal(136 - prior.deck_count, 12); assert.equal(136 - next.deck_count, 13);
+  assert.equal(prior.hand_count, 9); assert.equal(next.hand_count, 9);
+  assert.equal(136 - prior.deck_count, 9); assert.equal(136 - next.deck_count, 18);
   assert.equal(next.swaps, 5); assert.equal(prior.swaps, next.swaps);
-  assert.equal(prior.discard_count, next.discard_count);
-  assert.equal(changes.filter(t => t[1] === 'deck' && t[2] === 'hand').length, 1);
-  assert.equal(changes.length, 2, 'retained candidates do not become fake discard or draw events');
+  assert.equal(next.discard_count - prior.discard_count, 8);
+  assert.equal(changes.filter(t => t[1] === 'deck' && t[2] === 'hand').length, 9);
+  assert.equal(changes.filter(t => t[1] === 'hand' && t[2] === 'discard').length, 8);
+  assert.equal(changes.length, 18);
   await h.act('commit', s, () => engine.commit(s, [tileId]), { selected_tile_ids: [tileId], reason_code: 'tile_not_in_hand' });
-  assert.equal(s.totalScore, 200);
+  assert.equal(s.totalScore, 0);
   assert.equal(h.events.at(-1).payload.outcome, 'rejected');
   assert.equal(h.events.at(-1).payload.before.process_score, h.events.at(-1).payload.after.process_score);
   assert.equal(h.events.filter(e => e.name === 'hand_completed').length, 0);
 });
 
 test('legal win emits identical terminal facts once; skip/complete only display lifecycle', async () => {
-  for (const core of ['core_high', 'core_pung', 'core_held', 'core_growth']) {
-  const h = harness(), s = await started(h, 'mcr', core);
-  const retrigger = core === 'core_held' ? 'retrigger_held' : 'retrigger_meld';
-  s.relics.push(retrigger);
+  for (const mode of ['mcr', 'riichi']) {
+  const h = harness(), s = await started(h, mode);
   arrange(s, ordinary);
   const { before, result } = await h.act('settle', s, () => engine.settle(s));
   assert.equal(result.legal, true);
@@ -110,8 +107,10 @@ test('legal win emits identical terminal facts once; skip/complete only display 
   assert.equal(terminal[0].payload.record_quality, 'complete');
   assert.equal(terminal[0].payload.settlement_id, s.settlementId);
   assert.equal(terminal[0].payload.win_score, result.total);
-  assert.ok(terminal[0].payload.owned_relic_ids.includes(core));
-  assert.ok(terminal[0].payload.owned_relic_ids.includes(retrigger));
+  assert.deepEqual(terminal[0].payload.owned_relic_ids, ['rank_brush']);
+  assert.equal(result.base, 1000);
+  assert.equal(result.total, 1000 * engine.fanMultiplier(mode, result.fans));
+  assert.equal(terminal[0].payload.process_score, 0); assert.equal(s.coins, 0);
   assert.equal('steps' in terminal[0].payload, false);
   await h.adapter.trackGameAction('settle', before, s, result);
   await h.act('settle', s, () => engine.settle(s));
@@ -136,19 +135,20 @@ test('legal below-target remains a hand; terminal failure is recorded after play
   assert.equal(h.events.at(-1).payload.reason, 'completed_below_target');
 });
 
-test('v8 aliases normalize while v2 through v7 snapshots and superseded runs retain their original version', async () => {
+test('v9 aliases normalize while v2 through v8 snapshots and superseded runs retain their original version', async () => {
   for (const [version, rulesVersion, scoreVersion, handCount] of [
     [2, 'free-play-v2', 'cumulative-v2', 18], [3, 'free-play-v3', 'exponential-v3', 10],
     [4, 'free-play-v4', 'exponential-v3', 12],
     [5, 'opening-build-v5', 'four-core-v5', 12],
     [6, 'opening-build-v6', 'four-core-v6', 12],
     [7, 'opening-build-v7', 'four-core-v6', 12],
+    [8, 'opening-build-v8', 'four-core-v6', 12],
   ]) {
     const h = harness(), s = await started(h);
-    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v8');
-    assert.equal(h.events.at(-1).context.score_model_version, 'four_core_v6');
+    assert.equal(h.events.at(-1).context.rules_version, 'nine_batch_v9');
+    assert.equal(h.events.at(-1).context.score_model_version, 'fan_score_v9');
     const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, ink: version >= 6 ? 2 : 4, swaps:0,
-      relics: version === 7 ? ['core_high', 'rank_brush'] : version >= 5 ? ['core_high', 'wild_jade'] : ['jade'] };
+      relics: version >= 7 ? ['core_high', 'rank_brush'] : version >= 5 ? ['core_high', 'wild_jade'] : ['jade'] };
     if (old.hand.length < handCount) old.hand.push(...old.deck.splice(0, handCount - old.hand.length));
     else old.deck.push(...old.hand.splice(handCount));
     const oldSnapshot = h.adapter.captureGameState(old);
@@ -161,11 +161,11 @@ test('v8 aliases normalize while v2 through v7 snapshots and superseded runs ret
     assert.equal(superseded.context.score_model_version, scoreVersion.replaceAll('-', '_'));
     assert.equal(superseded.payload.state.hand_count, handCount);
     assert.equal(h.events.filter(e => e.name === 'game_action').at(-1).payload.before, null);
-    assert.equal(superseded.payload.state.ink, old.ink, 'old resource amounts are not rewritten as V8');
-    assert.equal('formed_discard' in superseded.payload.state, version === 7);
+    assert.equal(superseded.payload.state.ink, old.ink, 'old resource amounts are not rewritten as V9');
+    assert.equal('formed_discard' in superseded.payload.state, version >= 7);
     if ([5,6].includes(version)) assert.ok(superseded.payload.state.relic_ids.includes('wild_jade'));
-    s.rulesVersion = 'opening_build_v8'; s.scoreVersion = 'four_core_v6';
-    assert.equal(h.adapter.captureGameState(s).scoreVersion, 'four_core_v6');
+    s.rulesVersion = 'nine_batch_v9'; s.scoreVersion = 'fan_score_v9';
+    assert.equal(h.adapter.captureGameState(s).scoreVersion, 'fan_score_v9');
     const before = h.adapter.captureGameState(s), count = h.events.length;
     s.scoreVersion = 'four-core-v5';
     assert.equal(h.adapter.captureGameState(s), null);
@@ -222,36 +222,36 @@ for (const k of [1,4]) test(`${k} declared kongs preserve ${14+k} physical tiles
   assert.equal(fact.decomposition.groups.filter(g => g.type === 'kong').length, k);
 });
 
-test('wildcard effective face and unlock patterns come from actual terminal result', async () => {
+test('wildcard effective face comes from the real result and its V9 source is wild_jade', async () => {
   const h = harness(), s = await prepared(h, 'riichi');
-  const ids = stageCandidates(s, [1,10,11,11,12,12,13,13,14,14,15,15,16,16]);
-  s.relics.push('wheel');
+  const ids = stageCandidates(s, [1,10,12,12,14,14,18,18,21,21,26,26,31,31]);
+  s.relics.push('wild_jade');
   await h.act('transform', s, () => engine.transform(s, [ids[0]], 'wild'), {
     selected_tile_ids:[ids[0]], transform_kind:'wild',
   });
-  assert.equal(h.events.at(-1).payload.context.relic_id, 'core_high');
+  assert.equal(h.events.at(-1).payload.context.relic_id, 'wild_jade');
   await commitStaged(h, s, ids);
   await h.act('settle', s, () => engine.settle(s));
   const fact = h.events.find(e => e.name === 'hand_completed').payload;
   const wild = fact.tiles.find(t => t.wild);
   assert.equal(wild.face, 1); assert.equal(wild.effective_face, 10);
-  assert.deepEqual(fact.unlock_pattern_ids, ['riichi.big_wheel']);
+  assert.deepEqual(fact.unlock_pattern_ids, []);
+  assert.ok(fact.credited_pattern_ids.includes('riichi.seven_pairs'));
   assert.equal(fact.shape, 'pairs');
 });
 
-test('current MCR relic bonuses keep separate IDs without hiding their base patterns', async () => {
-  for (const [relicId, faces, baseId, bonusId] of [
-    ['wheel', [10,10,11,11,12,12,13,13,14,14,15,15,16,16], 'mcr.seven_shifted_pairs', 'mcr.seven_shifted_pairs_bonus'],
-    ['mountain', [0,0,0,1,1,1,2,2,2,12,13,14,31,31], 'mcr.pure_shifted_pungs', 'mcr.pure_shifted_pungs_bonus'],
+test('V9 base patterns remain available without historical scoring relics or bonus IDs', async () => {
+  for (const [faces, baseId] of [
+    [[10,10,11,11,12,12,13,13,14,14,15,15,16,16], 'mcr.seven_shifted_pairs'],
+    [[0,0,0,1,1,1,2,2,2,12,13,14,31,31], 'mcr.pure_shifted_pungs'],
   ]) {
     const h = harness(), s = await started(h);
-    arrange(s, faces); s.relics.push(relicId);
+    arrange(s, faces);
     await h.act('settle', s, () => engine.settle(s));
     const fact = h.events.find(e => e.name === 'hand_completed')?.payload;
-    assert.ok(fact, bonusId);
+    assert.ok(fact, baseId);
     assert.ok(fact.credited_pattern_ids.includes(baseId));
-    assert.ok(!fact.credited_pattern_ids.includes(bonusId));
-    assert.deepEqual(fact.unlock_pattern_ids, [bonusId]);
+    assert.deepEqual(fact.unlock_pattern_ids, []);
   }
 });
 
@@ -271,7 +271,7 @@ test('mid-prepare/play consent, revoked/reallowed consent and fresh reload stay 
 });
 
 test('resume does not manufacture a start, round start or previously saved settlement', async () => {
-  const s = engine.newRun('mcr', 1234); engine.chooseStarter(s, 'core_high'); engine.beginPlay(s); arrange(s, ordinary); engine.settle(s);
+  const s = engine.newRun('mcr', 1234); engine.beginPlay(s); arrange(s, ordinary); engine.settle(s);
   const h = harness();
   await h.adapter.trackGameAction('resume', null, s, true, { source: 'save' });
   assert.deepEqual(h.events.map(e => e.name), ['game_action','run_resumed']);
@@ -311,7 +311,10 @@ test('prepare records real resources and begin_play starts no duplicate round or
   assert.equal(round.payload.state.phase, 'prepare');
   assert.equal(round.payload.state.swaps, 5);
   assert.equal(round.payload.state.ink, 2);
-  assert.deepEqual(round.payload.state.relic_ids, ['core_high', 'rank_brush']);
+  assert.deepEqual(round.payload.state.relic_ids, ['rank_brush']);
+  assert.equal(round.payload.state.hand_count, 9);
+  assert.equal(h.events.filter(e => e.name === 'run_started').length, 1);
+  assert.equal(h.events.some(e => e.name === 'game_action' && e.payload.action === 'starter'), false);
   assert.equal(round.payload.record_quality, 'complete');
   s.relics.push('high_rescue');
   const tile = s.hand.find(t => t.face < 27 && t.face % 9 < 8);
@@ -426,9 +429,9 @@ test('real app rescue contexts preserve the single rescue and its actual exchang
   }
 });
 
-test('V8 edits only in prepare; full hands may refresh candidates and settle the final held score', async () => {
+test('V9 edits only in prepare and complete structures reject candidate exchanges', async () => {
   for (const [kind, damagedFace, arg, tool] of [
-    ['rank', 3, 1, 'rank_brush'], ['suit', 13, 0, 'suit_ribbon'], ['wild', 13, undefined, 'core_high'],
+    ['rank', 3, 1, 'rank_brush'], ['suit', 13, 0, 'suit_ribbon'], ['wild', 13, undefined, 'wild_jade'],
   ]) {
     const h = harness(), s = await prepared(h);
     if (!s.relics.includes(tool)) s.relics.push(tool);
@@ -439,7 +442,7 @@ test('V8 edits only in prepare; full hands may refresh candidates and settle the
     await h.act('transform', s, () => engine.transform(s, [tileId], kind, arg), context);
     const repair = h.events.at(-1).payload;
     assert.equal(repair.outcome, 'applied'); assert.equal(repair.context.source_zone, 'hand');
-    if (kind === 'wild') assert.equal(repair.context.relic_id, 'core_high');
+    if (kind === 'wild') assert.equal(repair.context.relic_id, 'wild_jade');
     assert.equal(repair.before.structure_count, 0); assert.equal(repair.after.structure_count, 0);
     assert.equal(repair.before.ink, 2); assert.equal(repair.after.ink, 0);
     assert.equal(repair.before.rescue_used, false); assert.equal(repair.after.rescue_used, false);
@@ -467,40 +470,34 @@ test('V8 edits only in prepare; full hands may refresh candidates and settle the
     assert.equal(fact.tiles.find(t => t.id === tileId).effective_face, 4);
     assert.equal(h.events.filter(e => e.name === 'round_settled').length, 1);
   }
-  for (const core of ['core_pung', 'core_held', 'core_growth']) {
-    const h = harness(), s = await prepared(h, 'mcr', core);
+  for (const mode of ['mcr', 'riichi']) {
+    const h = harness(), s = await prepared(h, mode);
     const tileId = s.hand.find(t => t.face < 27).id;
     await h.act('transform', s, () => engine.transform(s, [tileId], 'wild'), {
       selected_tile_ids:[tileId], transform_kind:'wild', relic_id:'wild_jade',
     });
     const rejected = h.events.at(-1).payload;
-    assert.equal(rejected.context.relic_id, 'core_high');
+    assert.equal(rejected.context.relic_id, 'wild_jade');
     assert.equal(rejected.outcome, 'rejected'); assert.equal(rejected.reason_code, 'missing_relic');
     assert.deepEqual(rejected.before, rejected.after); assert.deepEqual(rejected.tile_changes, []);
   }
-  const h = harness(), s = await started(h, 'mcr', 'core_held');
+  const h = harness(), s = await started(h);
+  s.relics.push('suit_ribbon', 'wild_jade', 'high_rescue');
   arrange(s, ordinary);
-  stageCandidates(s, [1,2,3,4,5,6,10,11,12,13,14,15]);
-  for (const face of [27,28,29,30,31]) {
-    const index = s.deck.findIndex(t => t.face === face);
-    s.deck.push(s.deck.splice(index,1)[0]);
-  }
   const previousPreview = engine.currentSettlementPreview(s), ids = s.hand.slice(0,5).map(t => t.id);
   await h.act('exchange', s, () => engine.exchange(s, ids), {selected_tile_ids:ids});
   const refresh = h.events.at(-1).payload;
-  assert.equal(refresh.outcome, 'applied');
+  assert.equal(refresh.outcome, 'rejected');
   assert.equal(refresh.before.structure_count, 14); assert.equal(refresh.after.structure_count, 14);
-  assert.equal(refresh.after.swaps, 4); assert.equal(refresh.after.ink, 2);
-  assert.equal(refresh.before.total_score, refresh.after.total_score);
-  assert.equal(refresh.tile_changes.filter(t => t[1] === 'hand' && t[2] === 'discard').length, 5);
-  assert.ok(engine.restore(JSON.stringify(s)), 'full-hand exchange preserves a valid save');
+  assert.deepEqual(refresh.before, refresh.after); assert.deepEqual(refresh.tile_changes, []);
+  assert.ok(engine.restore(JSON.stringify(s)), 'rejected full-hand exchange preserves a valid save');
   const finalPreview = engine.currentSettlementPreview(s);
-  assert.ok(finalPreview.total > previousPreview.total, 'new held honors affect the actual final score');
+  assert.equal(finalPreview.total, previousPreview.total);
   const {result} = await h.act('settle', s, () => engine.settle(s));
   const terminal = h.events.find(e => e.name === 'hand_completed').payload;
   assert.equal(terminal.win_score, result.total); assert.equal(result.total, finalPreview.total);
-  assert.deepEqual(result.heldTiles, s.hand);
-  assert.equal(result.heldTiles.some(t => ids.includes(t.id)), false);
+  assert.equal(result.total, 1000 * engine.fanMultiplier(s.mode, result.fans));
+  assert.deepEqual(result.gains, [], 'auxiliary relics do not contribute scoring gains');
   assert.equal(h.events.filter(e => e.name === 'hand_completed').length, 1);
   await h.act('exchange', s, () => engine.exchange(s, [s.hand[0].id]), {selected_tile_ids:[s.hand[0].id]});
   assert.equal(h.events.at(-1).payload.outcome, 'rejected');
@@ -581,38 +578,110 @@ test('formed discard records one use per run, survives resume and joins later le
   }
 });
 
-test('full-slot reward replacement, skip_reward and next prepare use actual app field names', async () => {
+test('only unowned auxiliary rewards can be chosen; exhausted rewards and skips advance normally', async () => {
   const h = harness(), s = await started(h);
-  s.relics.push('jade', 'stone');
-  arrange(s, ordinary); s.roundTarget = 1;
-  await h.act('settle', s, () => engine.settle(s));
-  await h.act('settlement_continue', s, () => engine.finishSettlement(s));
-  const reward = s.offers[0];
-  await h.act('reward', s, () => engine.chooseReward(s, reward), {relic_id:reward});
-  assert.equal(h.events.at(-1).payload.outcome, 'rejected');
-  await h.act('reward', s, () => engine.chooseReward(s, reward, 'jade'), {relic_id:reward, replaced_relic_id:'jade'});
-  let action = h.events.at(-1).payload;
-  assert.equal(action.context.replace_relic_id, 'jade');
-  assert.equal(action.context.relic_id, reward);
-  assert.equal(action.after.relic_ids.length, 4);
-  assert.ok(action.after.relic_ids.includes(reward));
-  assert.ok(!action.after.relic_ids.includes('jade'));
-  assert.equal(action.after.coins, action.before.coins);
-  await h.act('next_round', s, () => engine.nextRound(s));
-  assert.equal(h.events.at(-1).name, 'round_started');
-  assert.equal(h.events.at(-1).payload.state.phase, 'prepare');
-  assert.equal(h.events.at(-1).payload.state.rescue_used, false);
-  assert.equal(h.events.at(-1).payload.state.ink, 2);
-  await h.act('begin_play', s, () => engine.beginPlay(s));
-  arrange(s, ordinary); s.roundTarget = 1;
-  await h.act('settle', s, () => engine.settle(s));
-  await h.act('settlement_continue', s, () => engine.finishSettlement(s));
-  await h.act('skip_reward', s, () => engine.skipReward(s));
-  action = h.events.at(-1).payload;
+  for (let round = 0; round < 4; round++) {
+    arrange(s, ordinary); s.roundTarget = 1;
+    await h.act('settle', s, () => engine.settle(s));
+    await h.act('settlement_continue', s, () => engine.finishSettlement(s));
+    assert.equal(s.offers.length, 3 - round);
+    if (round === 3) {
+      assert.equal(s.phase, 'shop', 'an exhausted pool skips the reward phase');
+      assert.equal(h.events.at(-1).payload.after.phase, 'shop');
+      break;
+    }
+    assert.ok(s.offers.every(id => ['suit_ribbon','wild_jade','high_rescue'].includes(id) && !s.relics.includes(id)));
+    const reward = s.offers[0];
+    await h.act('reward', s, () => engine.chooseReward(s, reward, 'rank_brush'), {relic_id:reward, replaced_relic_id:'rank_brush'});
+    assert.equal(h.events.at(-1).payload.outcome, 'rejected');
+    assert.equal(h.events.at(-1).payload.context.replace_relic_id, 'rank_brush');
+    assert.deepEqual(h.events.at(-1).payload.before, h.events.at(-1).payload.after);
+    await h.act('reward', s, () => engine.chooseReward(s, reward), {relic_id:reward});
+    const action = h.events.at(-1).payload;
+    assert.equal(action.outcome, 'applied'); assert.equal(action.context.relic_id, reward);
+    assert.equal(action.context.replace_relic_id, null);
+    assert.equal(action.after.relic_ids.length, round + 2);
+    assert.ok(action.after.relic_ids.includes(reward)); assert.ok(action.after.relic_ids.includes('rank_brush'));
+    assert.equal(action.after.coins, 0); assert.equal(action.before.coins, 0);
+    await h.act('reward', s, () => engine.chooseReward(s, reward), {relic_id:reward});
+    assert.equal(h.events.at(-1).payload.outcome, 'rejected');
+    await h.act('next_round', s, () => engine.nextRound(s));
+    assert.equal(h.events.at(-1).name, 'round_started');
+    assert.equal(h.events.at(-1).payload.state.phase, 'prepare');
+    assert.equal(h.events.at(-1).payload.state.rescue_used, false);
+    assert.equal(h.events.at(-1).payload.state.ink, 2);
+    await h.act('begin_play', s, () => engine.beginPlay(s));
+  }
+  assert.deepEqual([...s.relics].sort(), ['rank_brush','suit_ribbon','wild_jade','high_rescue'].sort());
+  assert.equal(h.events.filter(e => e.name === 'round_started').length, 4);
+  assert.equal(h.events.filter(e => e.name === 'round_settled').length, 4);
+  const skip = harness(), other = await started(skip);
+  arrange(other, ordinary); other.roundTarget = 1;
+  await skip.act('settle', other, () => engine.settle(other));
+  await skip.act('settlement_continue', other, () => engine.finishSettlement(other));
+  await skip.act('skip_reward', other, () => engine.skipReward(other));
+  const action = skip.events.at(-1).payload;
   assert.equal(action.action, 'skip_reward'); assert.equal(action.outcome, 'applied');
   assert.equal(action.before.phase, 'reward'); assert.equal(action.after.phase, 'shop');
   assert.deepEqual(action.after.relic_ids, action.before.relic_ids);
   assert.equal(action.after.coins, action.before.coins);
-  assert.equal(h.events.filter(e => e.name === 'round_started').length, 2);
-  assert.equal(h.events.filter(e => e.name === 'round_settled').length, 2);
+});
+
+test('V9 no-yaku keeps the real decomposition but never becomes a credited hand or a false win', async () => {
+  for (const start of [999, 1000]) {
+    const h = harness(), s = await started(h, 'riichi');
+    arrange(s, [0,1,2,9,10,11,21,22,23,15,16,17,4,4]);
+    s.roundTarget = 1000; s.roundStartScore = start; s.totalScore = start;
+    const {before, result} = await h.act('settle', s, () => engine.settle(s));
+    assert.equal(result.legal, true); assert.equal(result.resultType, 'no_yaku');
+    const fact = h.events.find(e => e.name === 'round_settled').payload;
+    assert.equal(fact.result_type, 'no_yaku'); assert.equal(fact.legal, false);
+    assert.equal(fact.record_quality, 'complete'); assert.equal(fact.passed, start === 1000);
+    assert.equal(fact.shape, 'normal'); assert.equal(fact.tiles.length, 14);
+    assert.equal(fact.decomposition.groups.flatMap(g => g.tile_ids).length, 14);
+    assert.deepEqual(fact.credited_pattern_ids, []); assert.deepEqual(fact.unlock_pattern_ids, []);
+    for (const key of ['win_score','penalty_score','process_score','score_delta','round_score']) assert.equal(fact[key], 0, key);
+    assert.equal(fact.cumulative_after, start);
+    await h.adapter.trackGameAction('settle', before, s, result);
+    await h.act('settle', s, () => engine.settle(s));
+    assert.equal(h.events.filter(e => e.name === 'round_settled').length, 1);
+    assert.equal(h.events.filter(e => e.name === 'hand_completed').length, 0);
+    await h.act('settlement_continue', s, () => engine.finishSettlement(s));
+    if (start === 999) assert.equal(h.events.at(-1).payload.reason, 'no_yaku_below_target');
+    else assert.equal(s.phase, 'reward');
+  }
+});
+
+test('V9 exhausted short hands retain their penalty and lifecycle without becoming false wins', async () => {
+  for (const mode of ['mcr', 'riichi']) for (const passed of [false, true]) {
+    const h = harness(), s = await started(h, mode);
+    for (let i = 0; i < 5; i++) {
+      const ids = s.hand.slice(0,5).map(t => t.id);
+      await h.act('exchange', s, () => engine.exchange(s, ids), {selected_tile_ids:ids});
+    }
+    let shortBatch = false;
+    while (s.hand.length) {
+      shortBatch ||= s.hand.length < 9;
+      const ids = [s.hand[0].id];
+      await h.act('commit', s, () => engine.commit(s, ids), {selected_tile_ids:ids});
+    }
+    assert.ok(shortBatch); assert.equal(s.deck.length, 0); assert.ok(s.formed.length < 14);
+    s.roundTarget = 1001; s.roundStartScore = passed ? 1102 : 1101; s.totalScore = s.roundStartScore;
+    const {before, result} = await h.act('settle', s, () => engine.settle(s));
+    assert.equal(result.resultType, 'incomplete');
+    const fact = h.events.find(e => e.name === 'round_settled').payload;
+    assert.equal(fact.result_type, 'incomplete'); assert.equal(fact.legal, false); assert.equal(fact.passed, passed);
+    assert.equal(fact.record_quality, 'complete'); assert.equal(fact.shape, null); assert.equal(fact.decomposition, null);
+    assert.equal(fact.tiles.length, s.formed.length); assert.equal(fact.penalty_score, 101);
+    assert.equal(fact.process_score, 0); assert.equal(fact.win_score, 0); assert.equal(fact.round_score, -101);
+    assert.equal(fact.cumulative_after, passed ? 1001 : 1000);
+    assert.deepEqual(fact.credited_pattern_ids, []); assert.deepEqual(fact.unlock_pattern_ids, []);
+    await h.adapter.trackGameAction('settle', before, s, result);
+    await h.act('settle', s, () => engine.settle(s));
+    assert.equal(h.events.filter(e => e.name === 'round_settled').length, 1);
+    assert.equal(h.events.filter(e => e.name === 'hand_completed').length, 0);
+    await h.act('settlement_continue', s, () => engine.finishSettlement(s));
+    if (!passed) assert.equal(h.events.at(-1).payload.reason, 'incomplete_below_target');
+    else assert.equal(s.phase, 'reward');
+  }
 });

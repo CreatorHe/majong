@@ -1,6 +1,6 @@
 /**
  * Presentation themes only. No hand recognition, scoring or payment conventions.
- * A false_hu result always blocks success themes. Otherwise presentation.effectId chooses
+ * Non-winning outcomes always block success themes. Otherwise presentation.effectId chooses
  * the theme; actual matching pattern classification
  * and mode choose its rarity wording. Visual variants never imply double-yakuman payment.
  */
@@ -10,6 +10,8 @@ const definitions = [
   ['score', '高分落定', 'heaven', '#e6be6e', '#fff1c8', 'cosmos', '高分落定 · 记下这一手'],
   ['multiplier', '倍率升华', 'wheel', '#76d3c7', '#e5ffed', 'lotus', '倍率攀升 · 连锁收束'],
   ['false_hu', '诈胡', 'normal', '#b88e78', '#e5d2bc', null, '牌型未成立 · 扣分后核对累计门槛'],
+  ['no_yaku', '无役', 'normal', '#a6b7ad', '#dce2d4', null, '牌形成立但无役 · 本手 0 翻、0 分'],
+  ['incomplete', '未完成', 'normal', '#b5a28c', '#e5d8c5', null, '牌山与候选耗尽 · 未满十四个结构位置'],
   ['kokushi', '国士无双', 'orphans', '#dbb067', '#fff0c3', 'sovereign', '十三门并立 · 一线归一'],
   ['daisangen', '大三元', 'dragons', '#de7864', '#f4d58c', 'cosmos', '三曜归一 · 星轨共鸣'],
   ['shousuushii', '小四喜', 'winds', '#a8d9d4', '#f9e7b9', 'phoenix', '三风起 · 一风归'],
@@ -54,11 +56,12 @@ const VARIANTS = Object.freeze({
 
 const BONUS_IDS = new Set(['score', 'multiplier']);
 const SECRET_IDS = new Set(['daisharin', 'all_jiang']);
-const BASIC_IDS = new Set(['normal', 'false_hu', ...BONUS_IDS]);
+const NON_WINNING_IDS = new Set(['false_hu', 'no_yaku', 'incomplete']);
+const BASIC_IDS = new Set(['normal', ...NON_WINNING_IDS, ...BONUS_IDS]);
 
 export const EFFECTS = Object.freeze(definitions.map(([id, label, family, color, accent, image, subtitle]) =>
   Object.freeze({ id, label, family, color, accent, art: art(image),
-    introMs: id === 'normal' || id === 'false_hu' ? 1600 : 3200,
+    introMs: id === 'normal' || NON_WINNING_IDS.has(id) ? 1600 : 3200,
     rarity: SECRET_IDS.has(id) ? '秘卷' : BASIC_IDS.has(id) ? '普通' : '大番',
     subtitle, ...(VARIANTS[id] ? { variants: VARIANTS[id] } : {}),
   })));
@@ -130,9 +133,9 @@ export function getEffect(snapshot = {}) {
   const patterns = Array.isArray(safe.patterns) ? safe.patterns : [];
   const hasExplicitId = typeof presentation.effectId === 'string' && presentation.effectId.length > 0;
   let id;
-  if (safe.handResult === 'false_hu') {
-    // Invalid hands may still pass a cumulative gate, but can never announce a successful hand.
-    id = 'false_hu';
+  if (NON_WINNING_IDS.has(safe.handResult)) {
+    // Passing the cumulative gate does not turn this hand into a winning one.
+    id = safe.handResult;
   } else if (hasExplicitId) {
     id = BY_ID.has(presentation.effectId) ? presentation.effectId : 'normal';
   } else {

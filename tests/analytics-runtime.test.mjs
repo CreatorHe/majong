@@ -9,7 +9,7 @@ test('runtime import and ordinary SSR access have no side effects', () => {
   assert.equal(getGameAnalytics(), null);
 });
 
-test('boot and adapter share a lazy v8 client; only production defaults collection on', () => {
+test('boot and adapter share a lazy v9 client; only production defaults collection on', () => {
   for (const [clientOptions, expectedDefault] of [[{}, true], [{ scope: 'sandbox', defaultEnabled: true }, false], [{ defaultEnabled: false }, false]]) {
     let calls = 0, disposed = 0, received;
     const client = { dispose() { disposed++; } };
@@ -21,9 +21,9 @@ test('boot and adapter share a lazy v8 client; only production defaults collecti
     assert.equal(calls, 1);
     assert.equal(received.scope, clientOptions.scope ?? 'production');
     assert.equal(received.defaultEnabled, expectedDefault);
-    assert.equal(received.rulesVersion, 'opening_build_v8');
-    assert.equal(received.scoreModelVersion, 'four_core_v6');
-    assert.equal(received.appRelease, 'opening-build-v8');
+    assert.equal(received.rulesVersion, 'nine_batch_v9');
+    assert.equal(received.scoreModelVersion, 'fan_score_v9');
+    assert.equal(received.appRelease, 'nine-batch-v9');
     assert.equal(disposed, 0);
     resetGameAnalytics();
     assert.equal(disposed, 1);

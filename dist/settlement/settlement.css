@@ -16,3 +16,4 @@
 
 .jr-settlement .jr-hand-score{font-size:min(var(--score-size,64px),calc((100cqw - 64px) / var(--score-ch,8) / .62));letter-spacing:-1px}.jr-settlement.jr-long-values .jr-formula{flex-wrap:wrap;gap:10px 20px}.jr-settlement.jr-long-values .jr-base-box{flex-basis:100%;max-width:100%}.jr-settlement.jr-long-values .jr-base-box strong{font-size:min(26px,calc((100cqw - 64px) / var(--base-ch,19) / .62))}.jr-settlement.jr-long-values .jr-multi-box{min-width:80px}
 .jr-settlement .jr-group-description{display:block;max-width:12em;margin:2px auto 0;font-size:10px;line-height:1.45;letter-spacing:0;text-align:center;color:#c3d4cb;overflow-wrap:anywhere}
+.jr-settlement.jr-incomplete .jr-hand{gap:9px}.jr-settlement.jr-incomplete .jr-group-label{display:none}.jr-settlement.jr-check-result .jr-pattern-list,.jr-settlement.jr-check-result .jr-relic-list{display:none}.jr-settlement.jr-check-result .jr-pattern-hero strong,.jr-settlement.jr-check-result .jr-hand-score{color:#dcaa93}

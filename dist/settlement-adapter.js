@@ -17,6 +17,8 @@ const OLD_RELICS = ['jade', 'river', 'stone', 'bamboo', 'mirror', 'seal', 'echo'
 const NEW_RELICS = ['single_seal', 'kong_cauldron', 'rank_brush', 'suit_ribbon', 'wild_jade'];
 const numberFormat = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 12 });
 function presentationFor(result) {
+  if (result.handResult === 'incomplete') return { effectId: 'incomplete', label: '未完成', seal: '耗尽' };
+  if (result.handResult === 'no_yaku') return { effectId: 'no_yaku', label: '无役', seal: '零分' };
   if (result.resultType === 'false_win') return { effectId: 'false_hu', label: '诈胡', seal: '未和' };
   const mappings = PATTERN_ANIMATIONS[result.mode] || {};
   // Catalogue availability gates animation only; actual recognition stays in engine.
@@ -82,7 +84,7 @@ export function buildSettlementSnapshot(game, result = game?.last) {
   const r = result || {};
   const d = r.decomposition || {};
   const settlementId = r.settlementId ?? game?.settlementId;
-  const handResult = r.resultType === 'false_win' ? 'false_hu' : r.resultType === 'win' ? 'agari' : undefined;
+  const handResult = r.handResult ?? (r.resultType === 'false_win' ? 'false_hu' : r.resultType === 'win' ? 'agari' : undefined);
   const sourceTiles = d.tiles || r.tiles || game?.formed || [];
   const tiles = sourceTiles.map(t => ({ id: t.id, face: FACES[t.face], label: labelForFace(t.face), wildcard: !!t.wild }));
   const heldTiles = (r.heldTiles || []).map(t => ({ id: t.id, face: FACES[t.face], label: labelForFace(t.face), wildcard: !!t.wild }));
@@ -99,7 +101,7 @@ export function buildSettlementSnapshot(game, result = game?.last) {
     label: labelForFace(a.face),
   }));
   const patterns = (r.patterns || []).map(p => ({
-    id: p.id, label: p.name, valueText: `${display(p.fan)}${r.mode === 'riichi' ? ' 翻' : ' 番'}`,
+    id: p.id, label: p.name, valueText: p.classification==='yakuman'?(p.yakumanMultiplier===2?'双倍役满':'役满'):`${display(p.fan)}${r.mode === 'riichi' ? ' 翻' : ' 番'}`,
     tier: p.tier || 0,
     ...(p.classification === 'yakuman' && r.mode === 'riichi' ? {
       classification: 'yakuman', ...(p.yakumanMultiplier === 2 ? { yakumanMultiplier: 2 } : {}),
@@ -139,7 +141,7 @@ export function buildSettlementSnapshot(game, result = game?.last) {
     relics,
     steps,
     tiers: { ...r.tiers },
-    presentation: presentationFor(r),
+    presentation: {...presentationFor(r),...(r.scoreVersion==='fan-score-v9'?{baseLabel:'固定基数',multiplierLabel:'牌型倍率',formulaNote:'固定基数 × 牌型倍率，向下取整得分'}:{})},
     totals: {
       baseText: display(r.base),
       multiplierText: display(r.mult),

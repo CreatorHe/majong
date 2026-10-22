@@ -7,7 +7,7 @@ const unavailable = (name, fan, condition, reason, extra = {}) => base(name, fan
 const yakuman = (name, condition, extra = {}) => base(name, 13, condition, { category: '役满', classification: 'yakuman', ...extra });
 const history = '本作没有立直、巡目或他家鸣牌的对局记录。';
 const method = '本作自由组牌，不区分自摸与荣和，也没有对应和牌时机。';
-const concealed = '本作不区分每组刻子或杠的明暗及和牌来源；若自动视为暗刻会降低难度并虚增奖励，因此暂不计分。';
+const concealed = '本作不区分每组刻子或杠的明暗及和牌来源；没有足够事实判定暗刻，因此暂不计分。';
 const wait = '本作没有指定最终和牌张及和牌前听牌形，不能从最终牌面推断待牌。';
 
 export const RIICHI_CATALOG = [
@@ -57,7 +57,7 @@ export const RIICHI_CATALOG = [
   yakuman('四暗刻单骑', '四组暗刻已经完成，以雀头单骑待牌和牌。', { fan: 26, category: '双倍役满', status: 'unavailable', reason: `${concealed}${wait}` }),
   yakuman('大四喜', '东、南、西、北分别组成刻子或杠；采用雀魂的双倍役满口径。', { fan: 26, category: '双倍役满', excludes: ['小四喜'] }),
   yakuman('纯正九莲宝灯', '在同花色 1112345678999 的九面听牌形上和牌。', { fan: 26, category: '双倍役满', status: 'unavailable', reason: wait }),
-  unavailable('累计役满', 13, '普通役与宝牌累计达到 13 翻时采用的传统得分档位，并非独立役。', '本作按实际翻数指数计分，不追加“累计役满”翻数，也不把高倍率冒充牌型役满。', { category: '役满', valueText: '计分档位' }),
+  unavailable('累计役满', 13, '普通役与宝牌累计达到 13 翻时采用的传统得分档位，并非独立役。', '本作按实际翻数查牌型倍率表计分，不追加“累计役满”翻数，也不把高倍率冒充牌型役满。', { category: '役满', valueText: '计分档位' }),
   unavailable('宝牌', 1, '按宝牌指示牌确定，每张额外一翻；不是役，不能单独提供和牌资格。', '本作未设置宝牌指示牌；开杠也不会自动生成杠宝牌。', { category: '宝牌' }),
   unavailable('赤宝牌', 1, '赤五作为额外宝牌计翻；不是役。', '本作没有赤五牌面与赤宝牌标记。', { category: '宝牌' }),
   unavailable('里宝牌', 1, '立直和牌后按里宝牌指示牌追加翻数；不是役。', '本作没有立直与里宝牌指示牌；也不设置杠里宝牌。', { category: '宝牌' }),

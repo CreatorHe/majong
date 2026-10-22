@@ -18,7 +18,7 @@ const tiles = [...['Man', 'Pin', 'Sou'].flatMap(suit => Array.from({ length: 9 }
 for (const name of tiles) add(`art/tiles/${name}.svg`, true);
 for (const path of Object.values(artwork.relics)) add(path);
 for (const path of Object.values(artwork.backgrounds)) add(path);
-for (const name of ['core_high', 'core_pung', 'core_held', 'core_growth', 'rank_brush']) {
+for (const name of ['rank_brush']) {
   if (!artwork.relics[name]) throw new Error(`Missing initial relic art: ${name}`);
   add(artwork.relics[name], true);
 }

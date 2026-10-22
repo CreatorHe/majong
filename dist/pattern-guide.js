@@ -3,7 +3,7 @@ import { BALANCE } from './balance.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const modes = { mcr: '国标番型', riichi: '日麻役种' };
-const filters = { all: '全部', base: '基础可用', relic: '奇物解锁', unavailable: '当前不适用' };
+const filters = { all: '全部', base: '基础可用', unavailable: '当前不适用' };
 const statusOrder = { base: 0, relic: 1, unavailable: 2 };
 const basicTerms = [
   ['数牌／花色', '带 1～9 点数的万、筒、条；条也叫索。点数相同、花色不同也是不同牌，例如三万与三筒。'],
@@ -38,8 +38,8 @@ const options = ({ mode = 'mcr', filter = 'all', query = '', relics = [] } = {})
 
 function valueLabel(pattern, mode) {
   if (pattern.valueText) return pattern.valueText;
-  if (pattern.category === '双倍役满') return '双倍役满 · 26 翻';
-  if (pattern.classification === 'yakuman') return '役满 · 13 翻';
+  if (pattern.category === '双倍役满') return '双倍役满';
+  if (pattern.classification === 'yakuman') return '役满';
   return `${pattern.fan} ${mode === 'mcr' ? '番' : '翻'}`;
 }
 
@@ -86,25 +86,25 @@ export function renderPatternGuide(input = {}) {
   return `<section class="pattern-guide" aria-labelledby="pattern-guide-title">
     <div class="section-kicker">知牌成局 · 番型图鉴</div>
     <h2 id="pattern-guide-title">这一手，还能怎么叠？</h2>
-    <p class="pattern-guide-intro">${modes[mode]} · 查看本作的成立条件、组合限制与奇物要求。</p>
+    <p class="pattern-guide-intro">${modes[mode]} · 查看本作的成立条件、组合限制与计分档位。</p>
     <div class="pattern-summary" aria-label="役种支持情况">
       <div><strong>${count('base')}</strong><span>基础可计分</span></div>
-      <div><strong>${count('relic')}</strong><span>奇物扩展 · 已持有 ${held}</span></div>
+
       <div><strong>${count('unavailable')}</strong><span>当前不适用</span></div>
     </div>
     <p class="pattern-mode-note">${mode === 'riichi'
-      ? '牌面役暂按门清翻数计奖，后续依试玩调档；不自动赠送门清、暗刻奖励。役满覆盖普通役；未记录的自摸、荣和、暗刻与听牌条件不作推断。宝牌与累计役满档位单独说明，不冒充独立役。'
-      : '国标 81 番种逐项列明。基础番型不需要奇物；车轮、连山提供额外加赏。涉及时机、明暗和听牌记录的番型会说明当前不适用原因。'}</p>
+      ? '牌面役按图鉴所列翻数计奖；不自动赠送门清、暗刻奖励。役满覆盖普通役；未记录的自摸、荣和、暗刻与听牌条件不作推断。宝牌与累计役满档位单独说明，不冒充独立役。'
+      : '国标 81 番种逐项列明。番型不需要奇物；奇物只辅助组牌，不提供额外计分。涉及时机、明暗和听牌记录的番型会说明当前不适用原因。'}</p>
     <section class="pattern-terms" aria-labelledby="pattern-terms-title">
       <h3 id="pattern-terms-title">先认识这些牌型词语</h3>
       <dl>${basicTerms.map(([term, description]) => `<div><dt>${esc(term)}</dt><dd>${esc(description)}</dd></div>`).join('')}</dl>
       <p>“番型／役种”是可计分的牌型条件，番／翻是其计分数值；本作再按对应模式的公式换算倍率。传统麻将的时机术语会在相关条目旁说明，是否可用以条目标记为准。</p>
     </section>
     <details class="pattern-score-guide">
-      <summary>本作计分与大番核心倍率</summary>
-      <p>普通牌型倍率为${mode === 'mcr' ? '1＋总番数÷8' : '1＋总翻数'}，再叠奇物效果。持有天机算筹时改用下表阶梯倍率，两档之间取已达到的档位；基础番型本身不需要核心解锁。</p>
-      <table><thead><tr><th scope="col">总${mode === 'mcr' ? '番' : '翻'}数下限</th><th scope="col">大番核心倍率</th></tr></thead><tbody>${anchors.map(([fan, multiplier]) => `<tr><th scope="row">${fan}</th><td>×${formatted(multiplier)}</td></tr>`).join('')}</tbody></table>
-      <p>超过${lastFan}${mode === 'mcr' ? '番' : '翻'}后，倍率按 ${formatted(lastMultiplier)} × 实际${mode === 'mcr' ? '番' : '翻'}数 ÷ ${lastFan} 线性延伸。合法和牌分＝底分×最终倍率，向下取整；预览按实际牌形与奇物择优。</p>
+      <summary>本作计分与牌型倍率</summary>
+      <p>所有玩家都按下表计分：固定基数1,000 × 牌型倍率，向下取整。两档之间取已达到的档位，不叠加奇物计分。日麻无役为0分；役满每倍用13翻当量查表，只作本作计分换算。</p>
+      <table><thead><tr><th scope="col">总${mode === 'mcr' ? '番' : '翻'}数下限</th><th scope="col">牌型倍率</th></tr></thead><tbody>${anchors.map(([fan, multiplier]) => `<tr><th scope="row">${fan}</th><td>×${formatted(multiplier)}</td></tr>`).join('')}</tbody></table>
+      <p>超过${lastFan}${mode === 'mcr' ? '番' : '翻'}后，倍率按 ${formatted(lastMultiplier)} × 实际${mode === 'mcr' ? '番' : '翻'}数 ÷ ${lastFan} 线性延伸。预览按实际牌形择优；役满覆盖普通役，普通13翻不额外追加役满奖励。</p>
     </details>
     <div class="pattern-toolbar">
       <div class="pattern-filters" aria-label="役种筛选">${Object.entries(filters).map(([key, label]) => `<button type="button" data-act="guide-filter" data-filter="${key}" class="${filter === key ? 'active' : ''}" aria-pressed="${filter === key}">${label}</button>`).join('')}</div>

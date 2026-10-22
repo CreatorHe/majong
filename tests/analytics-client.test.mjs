@@ -666,13 +666,32 @@ test('versioned lifecycle and actions preserve rule limits and old outboxes acro
     assert.equal((await h.client.track('round_started', { state: { ...state, hand_count: state.hand_count + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
     assert.equal((await h.client.track('round_started', { state: { ...state, total_score: Number.MAX_SAFE_INTEGER + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
   }
-  const oldVersions = ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5', 'opening_build_v6', 'opening_build_v7'];
+  const v9Context = { ...gameContext, rules_version: 'nine_batch_v9', score_model_version: 'fan_score_v9' };
+  const v9State = { ...v8State, hand_count: 9, deck_count: 127, coins: 0, total_score: 0, round_start_score: 0, relic_ids: ['rank_brush', 'suit_ribbon', 'wild_jade', 'high_rescue'] };
+  assert.equal((await h.client.track('round_started', { state: v9State, record_quality: 'complete' }, v9Context)).queued, true);
+  for (const changed of [{ hand_count: 10 }, { coins: 1 }, { process_score: 1 }, { relic_ids: ['core_high'] }]) {
+    assert.equal((await h.client.track('round_started', { state: { ...v9State, ...changed }, record_quality: 'complete' }, v9Context)).reason, 'invalid_event');
+  }
+  const v9Wild = {
+    ...prepareEdit, before: v9State, after: { ...v9State, ink: 0, wild_used: true },
+    tile_changes: [['tile-1', 'hand', 'hand', 0, 0, false, true, false, false]],
+    context: { ...prepareEdit.context, transform_kind: 'wild', transform_value: null, relic_id: 'wild_jade' },
+  };
+  assert.equal((await h.client.track('game_action', v9Wild, v9Context)).queued, true);
+  const v9Exchange = {
+    ...exchange, before: { ...v9State, phase: 'play' },
+    after: { ...v9State, phase: 'play', deck_count: 126, discard_count: 1, swaps: 4 },
+  };
+  assert.equal((await h.client.track('game_action', v9Exchange, v9Context)).queued, true);
+  assert.equal((await h.client.track('game_action', { ...v9Exchange, before: { ...v9Exchange.before, formed_count: 14, structure_count: 14 }, after: { ...v9Exchange.after, formed_count: 14, structure_count: 14 } }, v9Context)).reason, 'invalid_event', 'v9 blocks ordinary exchange at full structure');
+  const oldVersions = ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5', 'opening_build_v6', 'opening_build_v7', 'opening_build_v8'];
   const storedOld = h.storage.peek().events.filter(event => oldVersions.includes(event.rules_version));
   assert.ok(storedOld.some(event => event.rules_version === 'opening_build_v6'));
   assert.ok(storedOld.some(event => event.rules_version === 'opening_build_v7' && event.payload.action === 'transform' && event.payload.before.phase === 'play'));
+  assert.ok(storedOld.some(event => event.rules_version === 'opening_build_v8' && event.payload.action === 'exchange' && event.payload.before.structure_count === 14));
   assert.ok(storedOld.filter(event => event.rules_version === 'opening_build_v6').every(event => !Object.hasOwn(event.payload.state ?? event.payload.after, 'formed_discard')));
   h.client.dispose();
-  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v8', scoreModelVersion: 'four_core_v6', appRelease: 'opening-build-v8' });
+  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'nine_batch_v9', scoreModelVersion: 'fan_score_v9', appRelease: 'nine-batch-v9' });
   await upgraded.ready;
   for (let batch = 0; batch < 5 && upgraded.getStatus().queued; batch++) await upgraded.flush();
   assert.equal(upgraded.getStatus().queued, 0);

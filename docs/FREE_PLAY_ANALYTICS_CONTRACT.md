@@ -1,121 +1,128 @@
-# 起手构筑 v8 采集契约（保留 v7 / v6 / v5 / v4 / v3 / v2）
+# 九张整批 v9 采集契约（保留 v2～v8 与 legacy）
 
-状态：公共信封仍为 schema_version=1；当前版本成对使用 `rules_version=opening_build_v8`、`score_model_version=four_core_v6`。旧版 `opening_build_v7/four_core_v6`、`opening_build_v6/four_core_v6`、`opening_build_v5/four_core_v5`、`free_play_v4/exponential_v3`、`free_play_v3/exponential_v3`、`free_play_v2/cumulative_v2` 与 legacy 原契约继续接受、分别统计；不能交叉组合版本。V8改变动作时机，沿用V6计分公式，不新建计分版本。以下 payload 均严格白名单，未列字段拒绝；null 明确表示未知，不上传自由文本或游戏全量对象。
+状态：本轮按用户最新 V9 修正接入，优先于 `V9_PLAN` 旧稿。公共信封仍为 `schema_version=1`；当前版本必须成对使用 `rules_version=nine_batch_v9`、`score_model_version=fan_score_v9`。终局沿用现有字段和表，无数据库迁移。V9 回归尚在收尾，本页不引用旧版通过数量作为本轮验收结果。
 
-V8沿用V7全部字段、事件与动作，不增加数据库迁移。改点/换色/万能仅prepare，每关2墨共一次；普通候选exchange在prepare/play共用5次，每次1～5张，begin_play不清零，满14未结算仍可刷新候选并影响留牌核心最终收益。补缺符每关一次：prepare仅rank/suit编辑并共用2墨，play仅exchange≤3张且结构未满14，编辑与弃换共用rescue_used。V7整趟一次非杠成型弃除、core_high自带固定点数三花色万能、禁装备wild_jade均保留。不新增transform_used或opening_swaps_used；V5～V7历史动作时机不套用V8限制。
+V9 面向所有玩家使用固定基数 `1000 × highFanMultiplier(mode, fans)` 的番型计分，没有核心、计分类奇物、过程分或发币。新旅程直接进入 prepare，首批 9 张候选；commit 把选中牌放入成型区，未选候选全部弃置，再从牌山补到最多 9 张。kong 使用了候选牌时同样刷新整批，纯成型区 kong 不刷新。普通换牌在 prepare/play 共用 5 次，每次 1～5 张，满 14 个结构位置后禁止。prepare 改点、换色、万能与补缺编辑共用每关一次 2 墨额度。仅保留 `rank_brush/suit_ribbon/wild_jade/high_rescue` 四件工具，补缺无需核心；整趟一次非杠成型弃除保留。
 
-采集开关不新增事件或信封字段：正式游戏 runtime 使用 `defaultEnabled:true`，仅在 production 偏好可读且没有已存选择时默认开启；已有 denied 保持关闭。通用 SDK 的该选项默认 false，sandbox 不默认启用；普通模块导入与 SSR 无副作用。关闭保存 denied、清空未发队列并同步同 scope 标签页，已接收数据不自动删除。偏好不可读时不默认开启。默认启用也不放宽 complete/partial 连续观测要求，仍不补报缺失历史。
+旧版 `opening_build_v8/four_core_v6`、`opening_build_v7/four_core_v6`、`opening_build_v6/four_core_v6`、`opening_build_v5/four_core_v5`、`free_play_v4/exponential_v3`、`free_play_v3/exponential_v3`、`free_play_v2/cumulative_v2` 与 legacy 继续接受、分别统计。不能重标旧队列、套用 V9 字典或交叉组合版本。
 
-## 共享模块
+采集开关不新增事件或信封字段：正式 runtime 使用 `defaultEnabled:true`，仅在 production 偏好可读且没有已存选择时默认开启；已有 denied 保持关闭。通用 SDK 默认 false，sandbox 主动启用；普通导入与 SSR 无副作用。关闭保存 denied、清空未发队列并同步同 scope 标签页，已接收数据不自动删除。偏好不可读时不默认开启；开启不补报缺失历史，也不放宽 complete/partial 要求。
 
-`dist/analytics/game-schema.js` 导出当前版本常量、明确的 `V8_RULES_VERSION/V8_SCORE_MODEL_VERSION` 与保留的V7/V6/V5常量、事件/动作白名单、`isSupportedGameVersion(rules, score)`、`gamePatternCatalog(rulesVersion)`、`relicIdsForVersion(rulesVersion)`、`patternIdForName(mode, name, rulesVersion)`、`isGameEvent(name, context)` 和 `validateGamePayload(name, payload, context)`。目录接口省略版本时选择v8。`V8_SCORE_MODEL_VERSION`仍是four_core_v6。`GAME_PATTERN_CATALOG/RELIC_IDS` 为当前版视图，v2使用冻结番型目录，v2～v4使用冻结的21件奇物集合。名字映射将“役牌 · 白/發/中”等归并同一父番型；不认识的名字返回null。
+## 共享模块与目录
 
-v3～v8从生产 `pattern-catalog.js` 获取番型说明、状态和奇物要求，通过 `analytics/game-catalog-v3.js` 的显式映射生成稳定英文统计ID。仅base/relic进入统计目录；unavailable不作为已支持番型。v5引入四核心计分，奇物目录增加 `core_high/core_pung/core_held/core_growth/retrigger_meld/retrigger_held/high_rescue`；v6沿用这28件ID，v7/v8装备证据白名单排除wild_jade后为27件，状态和终局仍最多4件且不重复、最多1核心。引擎历史展示目录中的wild_jade不代表V7/V8允许装备；V2～V6原字典保留。v2～v4不接收新增的7个核心/联动ID。墨泉等停投不改写历史状态。原有番型ID保持不变，新增可计分番型必须补齐映射。
+`dist/analytics/game-schema.js` 导出当前版本常量、V5～V9 显式版本常量、事件/动作白名单，以及 `isSupportedGameVersion(rules, score)`、`gamePatternCatalog(rulesVersion)`、`relicIdsForVersion(rulesVersion)`、`patternIdForName(mode, name, rulesVersion)`、`isGameEvent(name, context)`、`validateGamePayload(name, payload, context)`。使用带版本的目录接口；省略版本时选择 V9。验证返回 `{ok:true,payload:规范化副本}` 或 `{ok:false,reason:稳定错误码}`。
 
-`context={rules_version,score_model_version,mode,run_id,round_attempt_id,hand_id}`；验证返回 `{ok:true,payload:规范化副本}` 或 `{ok:false,reason:稳定错误码}`。`isGameEvent` 对新增事件名始终 true，v2～v8 的 hand_completed 使用本契约。通用旧事件继续走原校验。
+V9 番型目录只含当前可计分基础番型，`unlock_pattern_ids` 必须为空；没有奇物解锁番型、核心或联动计分。`analytics/game-catalog-v3.js` 已冻结 V3～V8 的显式英文 ID、说明、形状和奇物要求，避免生产 `pattern-catalog.js` 删除奇物后重写历史；V9 取其中基础番型集合，与当前生产可计分基础番型保持一致。unavailable 不进入支持目录。名字映射把“役牌 · 白/發/中”等归并父番型；未知或 V9 已移除的奇物加赏返回 null，不能静默漏记。
 
-ID 是 8～100 位 ASCII 字母数字及 `_.:-`；实体牌与杠 ID 是 1～64 位同字符。v3～v8 分数为 Number 安全整数，绝对值最多 `Number.MAX_SAFE_INTEGER`；v2 仍最多 10^12。计分等式用精确整数比较，避免超出安全区间的中间加法掩盖错误。数量使用更小上限。发生时间、匿名身份、scope 与字节限制沿用现有服务端。单事件 <= 8 KiB、整批 <= 32 KiB、<=20 条。
+V2～V8 保留各自番型与装备目录：V2 用冻结番型目录；V3～V8 保留 base/unlock 和原 bonus ID。V2～V4 的 21 件奇物、V5/V6 的 28 件、V7/V8 排除 wild_jade 后的 27 件均按原版本解释。V9 仅接受上述四件工具、最多 4 件且不重复；V7/V8 禁用 wild_jade 不影响 V9 恢复它，V9 删除核心也不影响旧队列。
+
+`context={rules_version,score_model_version,mode,run_id,round_attempt_id,hand_id}`。`isGameEvent` 对新增事件名始终 true，V2～V9 的 hand_completed 使用对应游戏契约；通用旧事件继续走原校验。payload 均严格白名单，未列字段拒绝；null 表示未知，不上传自由文本或游戏全量对象。
+
+ID 是 8～100 位 ASCII 字母数字及 `_.:-`；实体牌与杠 ID 是 1～64 位同字符。V3～V9 分数为 Number 安全整数，绝对值最多 `Number.MAX_SAFE_INTEGER`；V2 仍最多 10^12。计分等式用精确整数比较，数量另有限幅。单事件 ≤8 KiB、整批 ≤32 KiB、≤20 条；匿名身份、scope、时间与存储规则不变。
 
 ## 终局：round_settled / hand_completed
 
-两个事件使用**完全相同的 payload**，不因事件名改变字段。envelope `hand_id=payload.settlement_id`，`run_id/round_attempt_id/mode` 必须存在。`round_settled` 表示一次终局；只有 legal=true 才能发 `hand_completed`。服务端将两者合并为同一结算事实，事件先后顺序不影响去重；第二个业务重复的事件 ACK duplicate，但原事件仍保存。牌型统计基于唯一合法完整结算，不要求两个网络请求同时抵达。
+两个事件使用相同 payload。envelope `hand_id=payload.settlement_id`，`run_id/round_attempt_id/mode` 必须存在。`round_settled` 表示一次终局；V9 只有 `result_type=win` 且规范化 `legal=true` 才发 `hand_completed`。服务端将两个事件合并为同一结算事实，先后顺序不影响去重；业务重复 ACK duplicate，原事件仍保存。番型统计不要求两个请求同时抵达。
+
+V9 区分四类结果；不能从 `!legal` 推断诈胡：
+
+| result_type | analytics legal | 结构与拆解 | 和牌分 / 罚分 | 番型统计 |
+| --- | --- | --- | --- | --- |
+| win | true | 完整有效拆解，14+k 实体 | 实际正收益 / 0 | 发 hand_completed，完整观测进入分母 |
+| false_win | false | 结构数 14，但没有有效拆解；shape/decomposition=null | 0 / ceil(target_score×10%) | 不进入 |
+| no_yaku | false | 仅日麻，保留真实完整拆解和万能有效定色，14+k 实体 | 0 / 0 | 不发 hand_completed，番型数组为空 |
+| incomplete | false | 牌山和候选都空、结构不足 14；0～13+k 实体，shape/decomposition=null | 0 / ceil(target_score×10%) | 不进入 |
+
+引擎 `no_yaku` 的 `legal=true` 只表示结构成立，适配器必须按 resultType 规范化为 analytics `legal=false`，同时保留拆解。`incomplete` 的空牌山/候选前置条件由适配器核对真实引擎状态，终局不新增重复状态字段。四类结果的 passed 均独立取 `cumulative_after >= target_score`，等于门槛即通过；无役、未成型及诈胡均可能依靠此前累计分过关。
 
 ```js
 {
-  settlement_id: '稳定结算ID', round_no: 1, // 1..6
-  legal: true, result_type: 'win', // win | false_win，与legal严格一致
-  passed: true, // cumulative_after >= target_score
-  process_score: 80, win_score: 1200, penalty_score: 0,
-  score_delta: 1200, // win_score - penalty_score；只表示终局追加
-  round_score: 1280, round_start_score: 0,
-  cumulative_before: 80, cumulative_after: 1280, target_score: 1000,
-  record_quality: 'complete', // complete | partial；中途开启/未连续观测用partial
-  shape: 'normal', // normal | pairs | orphans | knitted | unconnected；诈胡必须null
-  tiles: [{id:'tile-1',original:0,face:0,effective_face:0,wild:false}], // 14+k个，<=18
-  declared_kongs: [{id:'kong-1',tile_ids:['t1','t2','t3','t4'],face:0}], // <=4
-  decomposition: {groups:[{type:'chow',tile_ids:['t1','t2','t3']},{type:'pair',tile_ids:['t4','t5']}]},
-  // 上面仅示意：normal必须4面子+1雀头；pairs必须7对；诈胡decomposition=null
-  credited_pattern_ids: ['mcr.full_flush'],
-  unlock_pattern_ids: [],
-  owned_relic_ids: ['jade']
-}
+  settlement_id:'稳定结算ID', round_no:1, // 1..6
+  legal:true, result_type:'win', passed:true,
+  process_score:0, win_score:2000, penalty_score:0,
+  score_delta:2000, round_score:2000, round_start_score:0,
+  cumulative_before:0, cumulative_after:2000, target_score:1000,
+  record_quality:'complete', // complete | partial
+  shape:'normal', // normal | pairs | orphans | knitted | unconnected | null
+  tiles:[/* {id,original,face,effective_face,wild}，真实实体 */],
+  declared_kongs:[/* {id,tile_ids:[四个实体ID],face} */],
+  decomposition:{groups:[/* {type,tile_ids}，覆盖全部实体的真实拆解 */]},
+  credited_pattern_ids:['mcr.full_flush'],
+  unlock_pattern_ids:[], owned_relic_ids:['rank_brush']
+} // 数字与数组仅示意字段，不能作为一手可发送的测试牌
 ```
 
-- `round_score = process_score + win_score - penalty_score`；`cumulative_before = round_start_score + process_score`；`cumulative_after = cumulative_before + score_delta = round_start_score + round_score`。净分和累计可负；过程分/和牌分/罚分非负。合法必须 penalty_score=0；诈胡 win_score=0，形状/拆解为null、两套番型数组为空；允许诈胡且passed=true，等于门槛也算通过。
-- tiles 实体 ID 唯一；original/face/effective_face 都是0..33。合法必须每张有 effective_face；诈胡有效花色未知时可null。非万能 effective_face 必须等于 face；万能只可数牌，effective_face 保留 face 的点数且只换三色。
-- 实牌数 = 14 + declared_kongs.length；杠各4个不同实体、不能重叠，声明face须与它们有效牌面相同。普通拆解顺/刻/杠各3/3/4张及一对；日麻七对须7种不同对子且无杠，v3～v8 国标可用同牌四张作两对，v2 仍须7种不同对子。每张实体在拆解中恰好使用一次；声明杠与拆解杠必须对应。
-- v3～v8 特殊拆解：`orphans`（双模式）为一个14张的同名组，无独立pair；`knitted`（国标）为一个9张 knitted 组、一个普通顺/刻/声明杠及一对；`unconnected`（国标）为一个14张同名组，无独立pair。各结构校验实际有效牌面，不能仅凭shape标签通过。v2 不接受这些新形状。
-- 父级番型按手去重、排序；base 进入 credited_pattern_ids，relic 进入 unlock_pattern_ids，解锁项需拥有目录指定奇物。兼容已有 gains.kind=unlock：将将胡需 `jiang`、日麻大车轮需 `wheel`、日麻三连刻需 `mountain`。v3～v8 国标车轮/连山加赏分别记 `mcr.seven_shifted_pairs_bonus` / `mcr.pure_shifted_pungs_bonus`，与基础番型独立；v2 保持原来只记录基础番型的口径。
-- 这是客户端事实及算术/形状一致性校验，并非完整服务器重算全部奇物计分；不得宣传防作弊或官方竞技成绩。
+- `score_delta = win_score - penalty_score`；`round_score = process_score + score_delta`；`cumulative_before = round_start_score + process_score`；`cumulative_after = cumulative_before + score_delta = round_start_score + round_score`。V9 process_score 固定为 0，净分和累计可负。V2～V8 保留各自实际过程分与罚分规则，终局仍只接受 win/false_win。
+- 实体 ID 唯一；original/face/effective_face 为 0..33。win/no_yaku 每张必须有 effective_face；false_win/incomplete 的未知万能有效牌面可 null。非万能有效牌面等于 face；万能只可数牌，保留点数且只换三色。
+- 完整终局实牌数为 `14 + declared_kongs.length`，incomplete 的实牌数减杠数为 0..13。杠各有 4 个不同实体、不能重叠，声明 face 须与实际有效牌面一致。incomplete 虽无整体拆解，仍保留已声明杠及其有效定色。
+- normal 为四个顺/刻/杠及一对；日麻 pairs 为七种不同对子且无杠；V3～V9 国标可用同牌四张作两对，V2 仍要求七种。每张实体在完整拆解中恰好使用一次，声明杠与拆解杠一致。
+- V3～V9 特殊拆解：orphans（双模式）为一个 14 张同名组；knitted（国标）为一个 9 张 knitted 组、一个普通面子及一对；unconnected（国标）为一个 14 张同名组。校验实际有效牌面，不能仅凭 shape 标签通过；V2 不接受这些新形状。
+- 番型按手去重并排序。V9 仅 win 可带 credited_pattern_ids；其余三类两套数组均为空。V3～V8 奇物解锁仍需拥有指定奇物，国标车轮/连山加赏沿用独立 `mcr.seven_shifted_pairs_bonus` / `mcr.pure_shifted_pungs_bonus`，不改写历史基础番型。
+- 这是客户端事实及算术/结构一致性校验，不是服务器重算全部番型，不宣传防作弊或官方竞技成绩。
 
-## game_action
+## game_action 与 State
 
 ```js
 {
- action_id:'唯一动作ID', action:'commit', // GAME_ACTIONS白名单
- input_method:'pointer', // pointer | keyboard | programmatic
- outcome:'applied', // applied | rejected | noop | blocked
- reason_code:null, // null 或 <=64 位稳定ASCII标签；不可放toast文案
- before:null, after:State,
- selected_tile_ids:[], // <=18个不同实体ID
- tile_changes:[], // <=36项，紧凑tuple见下
- evidence_truncated:false,
- context:{source_zone:null,transform_kind:null,transform_value:null,relic_id:null,
-   rescue_type:null,replace_relic_id:null} // 后两键仅v5/v6/v7/v8；v2～v4保持原4键
+  action_id:'唯一动作ID', action:'commit',
+  input_method:'pointer', // pointer | keyboard | programmatic
+  outcome:'applied', // applied | rejected | noop | blocked
+  reason_code:null, // 稳定 ASCII 标签，不能放 toast 文案
+  before:null, after:State,
+  selected_tile_ids:[], tile_changes:[], evidence_truncated:false,
+  context:{source_zone:null,transform_kind:null,transform_value:null,relic_id:null,
+    rescue_type:null,replace_relic_id:null}
 }
 ```
 
-共用动作枚举：start/starter/select/commit/kong/exchange/replace/transform/settle/settlement_skip/settlement_complete/settlement_continue/reward/buy/sell/refresh_shop/next_round/retire/resume。v5/v6/v7/v8额外接受begin_play/high_rescue/skip_reward，v2～v4拒绝这些动作。v5/v6/v7/v8不开放成型替换和商店买卖；若实际调用被引擎拒绝，只记rejected。settlement_skip/complete仅表示播放跳过／自然完成；settlement_continue表示玩家继续并调用finishSettlement的阶段迁移，两者不合并为同一次complete。
+共用动作保留 start/starter/select/commit/kong/exchange/replace/transform/settle/settlement_skip/settlement_complete/settlement_continue/reward/buy/sell/refresh_shop/next_round/retire/resume；V5～V9 额外接受 begin_play/high_rescue/skip_reward，V7～V9 接受 formed_discard。兼容动作名不代表 V9 重新开放选核心、成型替换或商店；只有真实调用才记录，失败不能合成成功。
 
-formed_discard仅V7/V8接受，更早版本动作白名单不扩张。成功动作记录null→本关使用记录，selected_tile_ids须与记录相同，成型/结构数减少1～2、弃牌数相应增加，候选与牌墙数量、积分、墨等资源不变。tile_changes记录实体formed→discard；拒绝操作不能改动记录，以字段值比较而非对象引用比较。
+V9 成功 transform 前后必须 prepare，选择 1 张；普通 exchange 前后保持 prepare 或 play，执行前结构<14，选择 1～5 张；high_rescue 的 rank/suit 仅 prepare，exchange 仅 play、执行前结构<14、选择 1～3 张。补缺只需 high_rescue 工具，两个阶段共用一次 rescue_used；编辑共享 2 墨，补缺弃换不耗墨或普通换牌次数。begin_play 保留剩余 swaps。实际越阶段或资源不足而被引擎拒绝的操作仍可采集。V8 满 14 后普通换牌以及 V6/V7 play 编辑的历史事件不套用 V9 限制。
 
-V8仅对成功动作新增时机校验：transform的前后阶段须为prepare；exchange须保持在prepare或play，选择1～5张；high_rescue的rank/suit仅prepare、exchange仅play且执行前结构<14并选择1～3张。实际被引擎拒绝的越阶段操作仍可采集。begin_play保留实际剩余swaps，不能为了兼容旧规则写成0；墨与补缺次数只记录实际前后差值，不另算玩法或计分。
-
-`State` 精确字段：
+commit 的变化证据必须含选中 hand→formed、未选 hand→discard、新批 deck→hand；kong 有候选参与才发生整批刷新。普通 exchange 只替换选择的候选，不能与 commit 刷新混为一类。被拒绝的操作不伪造资源或分数变化。
 
 ```js
+// V9 首关已发牌的 State 示例
 {phase:'prepare',round_no:1,formed_count:0,structure_count:0,kong_count:0,
- hand_count:12,deck_count:124,discard_count:0,coins:8,ink:2,swaps:5,
+ hand_count:9,deck_count:127,discard_count:0,coins:0,ink:2,swaps:5,
  total_score:0,round_score:0,process_score:0,round_start_score:0,target_score:1000,
- relic_ids:['core_high','rank_brush'],single_count:0,wild_used:false,rescue_used:false,
- formed_discard:null} // 仅V7/V8；已使用时为{round_no:1,tile_ids:['tile-1']}
+ relic_ids:['rank_brush'],single_count:0,wild_used:false,rescue_used:false,
+ formed_discard:null}
 ```
 
-phase为home/starter/play/settlement/reward/shop/victory/defeat，v5/v6/v7/v8另有prepare；rescue_used仅v5/v6/v7/v8接受且必须为布尔。round_no 1..6；formed<=18、structure<=14、kong<=4；v4/v5/v6/v7/v8 hand<=12，v3 hand<=10（末批可6），v2 hand<=18；deck/discard<=136；coins<=10^9、ink/swaps<=1000、single_count<=4。target_score可null（starter/home）否则正数。before/after均可null，但不能同时null。拒绝操作不伪造收益或消耗救援次数。total_score/round_score/round_start_score可负，process_score非负。v4/v5/v6/v7/v8出几张补几张、未选候选保留，沿用commit/kong的真实前后快照与tile_changes；v3保留10张整批轮换口径。构筑建议属于只读预览，不产生动作、得分或render埋点。
+State 字段不新增。phase 白名单保留 home/starter/play/settlement/reward/shop/victory/defeat，V5～V9 另有 prepare；V9 正常新旅程直接 prepare，不生成 starter 过程。round_no 1..6；formed≤18、structure≤14、kong≤4；hand 上限 V9=9、V4～V8=12、V3=10、V2=18。deck/discard≤136；V9 coins/process_score/single_count 固定 0；其余历史范围保留。target_score 可 null（未发牌）否则正数。before/after 可 null 但不能同时 null；total_score/round_score/round_start_score 可负，process_score 非负。
 
-V7/V8的formed_discard必须存在：未使用为null；已使用为{round_no,tile_ids}，关号1..6且不超过当前关，牌ID为1～2个不重复实体ID。适配器把引擎formedDiscard.round的0基关号加1。该记录跨关保留；恢复存档只保存已知状态，不伪造一次使用事件。使用次数统计仅计applied formed_discard，每趟去重一次；张数取tile_ids.length，不取页面context.count，避免后续快照重复累计。可按run_id/round_attempt_id关联本关终局，再按run_id和关号关联后续合法/诈胡结算；partial样本不冒充完整观测。
+rescue_used 仅 V5～V9 接受且为布尔。formed_discard 仅 V7～V9 必须存在：未用为 null，已用为 `{round_no,tile_ids}`，关号不超过当前关，1～2 个不同实体。适配器把引擎 0 基 round 加 1；记录跨关保留。成功 formed_discard 限 play，成型/结构减 1～2、discard 相增，候选、牌山、分数、墨和其他资源不变；tile_changes 精确记录 formed→discard。使用次数只计 applied 动作并按 run_id 去重，不累计后续快照；恢复不追补一次使用。
 
-V8已进关快照的普通换牌已用次数为5-swaps；引擎内部openingSwapsUsed仍沿用旧名，现表示准备+组牌总使用次数，存档由引擎保证swaps+openingSwapsUsed=5，不要求play swaps=0。采集不新增这一冗余字段，starter/home未发牌时不推导。V5～V7在begin_play清零swaps的旧快照原样保留。
+仅已发牌且存在 round_attempt_id 时，V9 `136-deck_count` 表示已摸实体数（含初始 9 张），同关前后之差表示本动作补牌数；`5-swaps` 表示普通换牌已用次数。内部 openingSwapsUsed 不上传，不新增 transform_used 等冗余字段。V8 同样跨阶段共用 5 次，V5～V7 begin_play 清零 swaps 的旧状态保持原样。
 
-v5 在 prepare 可普通换牌5次、每次最多5张，普通改牌也只在prepare；begin_play进入play并将剩余普通换牌归零，不能返回准备。大番核心和补缺符共同解锁每关一次 high_rescue，可换最多3张或花墨改1张数牌，rescue_used记录是否实际消耗。relic_ids及终局owned_relic_ids记录当前核心与联动物；只记录冻结终局结果，不上传每步steps或另算重触发收益。shop保留历史阶段名，v5中仅为无商店的关间过渡。
+`tile_changes` 每项是 `[id,from,to,face_before,face_after,wild_before,wild_after,entered_before,entered_after]`；区域 hand/formed/deck/discard 或 null，牌面 0..33 或 null，布尔或 null。只传变化实体，最多 36 项；selected_tile_ids 最多 18 个不同实体。超长动作证据可裁减并设置 evidence_truncated=true，终局事实不可裁减后冒充完整。
 
-v4 复用已有字段进行资源分层：只有已发牌、存在 round_attempt_id 的本关状态可将 `136 - deck_count` 解释为本关已摸实体数（包含初始12张，不是不同牌面数）；同关前后之差是本动作补牌数。starter/home 未发牌状态不推导。`swaps` 是剩余换牌次数，exchange 与 replace 共用；每关基础7次，第三关减2，借东风加2，以引擎实际快照为准。`relic_ids` 与终局 `owned_relic_ids` 支持按当时拥有奇物分层。这里不新增持久字段、事件、汇总筛选接口或数据库迁移；需要资源分层报告时从已有事实计算。
+context V2～V4 保持四键，V5～V9 保持六键，所有键必须齐全。source_zone=hand/formed/null；transform_kind=rank/suit/wild/null；transform_value=-1/1（rank）、0/1/2（suit）、其他为 null。rescue_type=exchange/rank/suit/null，仅 high_rescue 可非 null，成功必须明确；replace_relic_id 仅 reward 可非 null。页面 rescue_kind/replaced_relic_id 分别归一化到这两个字段。relic_id 按对应版本目录验证。V9 transform/wild 来源为 wild_jade，成功前后必须持有；V7/V8 仍为 core_high，旧来源不重标。失败可记录能力来源而不宣称已拥有。high_rescue 编辑复用 transform_kind/value，弃换时两者均 null。
 
-`tile_changes` 每项为 `[id,from,to,face_before,face_after,wild_before,wild_after,entered_before,entered_after]`，zone 是 hand/formed/deck/discard 或 null；牌面0..33或null，布尔或null。只保留实际变化实体，不上传未变整副牌；被限幅时 evidence_truncated=true。
+## 生命周期与观测质量
 
-context的v2～v4四个键、v5/v6/v7/v8六个键必须齐全：source_zone=hand/formed/null；transform_kind=rank/suit/wild/null；transform_value=-1/1（rank）、0/1/2（suit）、null（其他）；relic_id是对应版本允许目录或null。v5引入且v6/v7/v8沿用rescue_type=exchange/rank/suit/null（仅high_rescue可非null，成功必须明确类型），replace_relic_id=被替换奇物ID/null（仅reward可非null）。页面的rescue_kind、replaced_relic_id由适配器分别归一化为这两个字段。V7/V8 transform/wild的relic_id统一为core_high，成功时before/after都必须持有该核心；拒绝尝试同样标记能力来源，不代表已拥有。旧版本不重标来源。high_rescue改牌复用transform_kind/value，换牌时两者均null；其他非transform动作也为null。数组/快照均有上限；若超8KiB，适配器可按顺序裁减tile_changes并标记truncated，不可裁减终局事实。
-
-## 生命周期
-
-所有生命周期要求 run_id、mode；round_started 还要求 round_attempt_id。hand_id=null。
+所有生命周期要求 run_id、mode；round_started 还要求 round_attempt_id；hand_id=null。
 
 ```js
-run_started: {state:State,record_quality:'complete'}
-run_resumed: {state:State,record_quality:'partial',source:'save'} // source=save|memory|consent
-round_started: {state:State,record_quality:'complete'}
-run_ended: {state:State,record_quality:'complete',reason:'retired'}
+run_started:{state:State,record_quality:'complete'}
+run_resumed:{state:State,record_quality:'partial',source:'save'} // save|memory|consent
+round_started:{state:State,record_quality:'complete'}
+run_ended:{state:State,record_quality:'complete',reason:'retired'}
 ```
 
-record_quality均可complete/partial；reason=victory/completed_below_target/false_win_below_target/retired/superseded。v5/v6/v7/v8的round_started在选核心或next_round实际进入prepare时产生，完整观测从此开始；begin_play只记动作，不再次进关或重置质量。准备中途开启采集、刷新续玩仍为partial。按稳定事件ID去重；SDK/适配器不能在刷新时伪造run_started或round_started。用户主动结束是独立生命周期，不伪造round_settled或合法和牌。
+record_quality 可 complete/partial；reason 保留 victory/completed_below_target/false_win_below_target/retired/superseded，仅 V9 增加 no_yaku_below_target/incomplete_below_target。失败终止原因按终局类型分类，不能将无役归合法未达标或把未成型归诈胡。
 
-## 报告
+V9 start 在 newRun 实际建立 run 和第一关 prepare 后产生 run_started+round_started，从该同步动作建立完整观测，不伪造 starter。next_round 成功建立后续 prepare 时发 round_started；begin_play 只记动作，不再进关或重置质量。V5～V8 保留选核心后开始首次 prepare 的旧路径。准备中途开启、撤回重开、刷新续玩均为 partial；仅持续同一采集代次、无队列丢失的整关可 complete。刷新不补报 run_started/round_started，主动结束不伪造终局。
 
-`GET /api/reports/patterns`默认选择v8（`opening_build_v8/four_core_v6`），v7/v6/v5/v4/v3/v2/legacy需显式版本。v2～v8共用结算表但查询严格按版本隔离，无新迁移。即使v6/v7/v8或v3/v4计分版本相同也不合并样本；仅传score_model_version=four_core_v6时选最新规则v8，显式rules_version=opening_build_v7或opening_build_v6可查历史版本；exponential_v3仍选历史v4，four_core_v5仅选历史v5。返回旧字段并扩展：
+## 报告与历史隔离
 
-- `denominator_basis='legal_complete_settlements'`（legacy为eligible_routes）；v2～v8各行分母均为同模式/版本 `legal && record_quality=complete` 的唯一结算数，不按最终拆解形状筛掉其他合法手。
-- patterns每行保留count/denominator/rate/max_round_score，新增`max_win_score/max_cumulative_score`、`kind=base|unlock`。routes仅描述形状适用性，不作为v2～v8分母过滤条件。
-- summary新增 `max_win_score/max_cumulative_score`；summary.completed_hands只合法完整观测，诈胡不进分母。
-- `settlements={total,legal,false_win,passed,false_win_passed,pass_rate,max_round_score,max_cumulative_score}`：只完整观测终局，诈胡过关纳入passed；total无样本时pass_rate=null。它和合法手最高分分开展示。
-- v2～v8 collection_status='gameplay_adapter_ready'；旧版标记'legacy'。报告数值为已接收客户端事实，partial保留但不进正式统计。
+`GET /api/reports/patterns` 默认 V9（nine_batch_v9/fan_score_v9）；显式规则查 V2～V8 或 legacy。仅传 fan_score_v9 选 V9；four_core_v6 仍选历史 V8，exponential_v3 选 V4，four_core_v5 选 V5。所有查询按完整规则/计分组合、mode、scope 隔离；同计分模型的 V6/V7/V8 或 V3/V4 不合并。旧队列及原信封原样保留，无新迁移。
 
-V8沿用V6计分公式，采集、保存、报表不再次乘10，也不换算旧版本记录。现有证据可识别成型弃除、候选刷新及后续合法结算，旧V6/V7还可识别满14后的编辑；但没有动作前后的合法性事实，不能直接称为“修复成功率”或因果结论。本轮只适配现有证据与规则版本，不新增汇总接口或专门图表。
+- denominator_basis=legal_complete_settlements（legacy 为 eligible_routes）。V9 分母仅同模式/版本 result_type=win、legal=true、record_quality=complete 的唯一终局；no_yaku/incomplete/false_win 不进入。形状不筛分母，合法未过关仍计入。
+- patterns 各行保留 count/denominator/rate/max_round_score，另有 max_win_score/max_cumulative_score、kind；V9 仅 base。同手同番型计一次，多番占比之和可超过 100%。
+- summary.completed_hands 与 max_win_score 只取合法完整观测；三项最高分分别取和牌分、本关净分、累计分的最大值，不要求来自同一手，也不是某番型单独贡献。
+- settlements 保留 total/legal/false_win/passed/false_win_passed/pass_rate/max_round_score/max_cumulative_score，并分别统计 no_yaku/incomplete/no_yaku_passed/incomplete_passed。false_win 必须按 result_type 精确计数，不能用 1-legal。四种结果全部纳入完整观测终局总数，passed 独立统计，无样本 pass_rate=null。
+- partial 保留原始事实但不进入正式汇总。V2～V9 collection_status=gameplay_adapter_ready；legacy 保留旧口径与表查询。
+
+采集与报表直接保存冻结终局，不重算固定基数、番型倍率、旧四核心或指数公式，不换算历史分数。预览、回放、跳过和重试不增加计分事实。现有动作证据可关联后续终局，不能据此宣称“修复成功率”或因果关系。本轮不新增专用资源图表、自动解题或现实胡率基线。

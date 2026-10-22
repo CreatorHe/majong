@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { handleAnalytics } from '../server/analytics.js';
 import { PATTERN_CATALOG } from '../server/catalog.js';
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V5_CORE_IDS, GAME_PATTERN_CATALOG, V2_PATTERN_CATALOG, GAME_VERSION_PAIRS, gamePatternCatalog, patternIdForName, relicIdsForVersion, isSupportedGameVersion, validateGamePayload } from '../dist/analytics/game-schema.js';
+import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, V5_CORE_IDS, GAME_PATTERN_CATALOG, V2_PATTERN_CATALOG, GAME_VERSION_PAIRS, gamePatternCatalog, patternIdForName, relicIdsForVersion, isSupportedGameVersion, validateGamePayload } from '../dist/analytics/game-schema.js';
 import { makeFixture } from '../dist/analytics/report.js';
 
 // Exercises the same migration SQL deployed to D1, with real SQLite constraints
@@ -274,9 +274,26 @@ test('generic events persist without contributing to pattern facts and sanitize 
 });
 
 function gameEvents(mode = 'mcr') {
-  return makeFixture(mode).map(({ event_name, payload, context }) => ({
-    schema_version: 1, event_id: crypto.randomUUID(), event_name, occurred_at: new Date().toISOString(), session_id: 'session-v2-001', ...context, rules_version: 'free_play_v2', score_model_version: 'cumulative_v2', payload: { ...payload, owned_relic_ids: [] },
-  }));
+  // Historical envelopes are independent of the report page's current fixture.
+  // V2 allowed a complete no-pattern hand and had process awards; V9 does not.
+  const samples = [
+    ['pairs', 0, 80, 1800, 'complete'], ['normal', 0, 0, 80, 'complete'],
+    [null, 5000, 0, 0, 'complete'], [null, 50, 0, 0, 'complete'],
+    [null, 1100, 0, 0, 'complete'], ['pairs', 0, 0, 9999, 'partial'],
+  ];
+  return samples.flatMap(([shape, start, process, win, record_quality]) => {
+    const legal = shape !== null, settlement_id = crypto.randomUUID();
+    const faces = shape === 'pairs' ? [0,0,1,1,2,2,4,4,5,5,7,7,8,8] : legal ? [0,1,2,9,10,11,18,19,20,27,27,27,31,31] : [0,1,3,4,6,7,9,10,12,13,15,16,27,28];
+    const tiles = faces.map((face, i) => ({ id: `sample-tile-${i + 1}`, original: face, face, effective_face: face, wild: false }));
+    const group = (type, start, count) => ({ type, tile_ids: tiles.slice(start, start + count).map(tile => tile.id) });
+    const groups = shape === 'pairs' ? Array.from({ length: 7 }, (_, i) => group('pair', i * 2, 2)) : [group('chow', 0, 3), group('chow', 3, 3), group('chow', 6, 3), group('pung', 9, 3), group('pair', 12, 2)];
+    const event = scoreParts({ schema_version: 1, event_id: crypto.randomUUID(), event_name: 'round_settled', occurred_at: new Date().toISOString(), session_id: 'session-v2-001', app_release: 'historical_fixture_v2', mode, run_id: crypto.randomUUID(), round_attempt_id: crypto.randomUUID(), hand_id: settlement_id, rules_version: 'free_play_v2', score_model_version: 'cumulative_v2', payload: {
+      settlement_id, round_no: 1, legal, result_type: legal ? 'win' : 'false_win', record_quality,
+      shape, tiles, declared_kongs: [], decomposition: legal ? { groups } : null,
+      credited_pattern_ids: shape === 'pairs' ? [`${mode}.full_flush`, `${mode}.seven_pairs`] : [], unlock_pattern_ids: [], owned_relic_ids: [],
+    } }, { start, process, win, penalty: legal ? 0 : 100, target: 1000 });
+    return legal ? [event, { ...structuredClone(event), event_id: crypto.randomUUID(), event_name: 'hand_completed' }] : [event];
+  });
 }
 function scoreParts(event, { start = 0, process = 0, win = 1000, penalty = 0, target = 100 } = {}) {
   Object.assign(event.payload, { round_start_score: start, process_score: process, win_score: win, penalty_score: penalty, score_delta: win - penalty, round_score: process + win - penalty, cumulative_before: start + process, cumulative_after: start + process + win - penalty, target_score: target, passed: start + process + win - penalty >= target });
@@ -303,7 +320,7 @@ function kongEvent(kongCount) {
   return scoreParts(event);
 }
 
-test('v2 real report sample separates legal hands, false-win passes and three score records', async t => {
+test('versioned report samples separate legal hands, all terminal outcomes and score records', async t => {
   const f = await fixture(t, 'sandbox');
   const events = gameEvents();
   const result = await f.send(events);
@@ -325,6 +342,57 @@ test('v2 real report sample separates legal hands, false-win passes and three sc
   assert.deepEqual({ ...negative }, { round_score: -100, cumulative_after: -50 });
   assert.equal((await f.send(events)).body.duplicate.length, 9);
   assert.equal((await f.report('rules_version=free_play_v2')).settlements.total, 5);
+  let riichiSamples;
+  for (const mode of ['mcr', 'riichi']) {
+    const samples = makeFixture(mode).map(({ event_name, payload, context }) => ({ schema_version: 1, event_id: crypto.randomUUID(), event_name, occurred_at: new Date().toISOString(), session_id: 'session-v9-001', ...context, payload }));
+    assert.ok(samples.every(event => event.rules_version === V9_RULES_VERSION));
+    const ack = await f.send(samples);
+    assert.deepEqual(ack.body.rejected, []); assert.equal(ack.body.accepted.length, 6); assert.equal(ack.body.duplicate.length, 3);
+    assert.equal((await f.send(samples)).body.duplicate.length, 9);
+    const current = await f.report(`mode=${mode}&rules_version=${V9_RULES_VERSION}`);
+    assert.equal(current.summary.completed_hands, 2);
+    assert.deepEqual([row(current, `${mode}.full_flush`).count, row(current, `${mode}.full_flush`).rate, row(current, `${mode}.full_flush`).denominator], [1, 0.5, 2]);
+    assert.ok(current.patterns.every(pattern => pattern.kind === 'base' && pattern.denominator === 2));
+    assert.equal(current.summary.max_win_score, mode === 'mcr' ? 1024000 : 768000);
+    assert.deepEqual([current.settlements.total, current.settlements.legal, current.settlements.passed, current.settlements.pass_rate], [5, 2, 3, 0.6]);
+    assert.deepEqual([current.settlements.false_win, current.settlements.false_win_passed, current.settlements.no_yaku, current.settlements.no_yaku_passed, current.settlements.incomplete, current.settlements.incomplete_passed], mode === 'riichi' ? [1, 1, 1, 1, 1, 0] : [2, 2, 0, 0, 1, 0]);
+    if (mode === 'riichi') riichiSamples = samples;
+  }
+  const noYaku = riichiSamples.find(event => event.payload.result_type === 'no_yaku');
+  const incomplete = riichiSamples.find(event => event.payload.result_type === 'incomplete');
+  const invalid = [];
+  for (const [source, mutate] of [
+    [noYaku, event => { event.event_name = 'hand_completed'; }],
+    [noYaku, event => { event.payload.legal = true; }],
+    [noYaku, event => { event.mode = 'mcr'; }],
+    [noYaku, event => { event.payload.decomposition = null; }],
+    [noYaku, event => { event.payload.tiles[0].effective_face = null; }],
+    [noYaku, event => { event.payload.credited_pattern_ids = ['riichi.full_flush']; }],
+    [noYaku, event => { event.payload.decomposition.groups[0].tile_ids[0] = 'absent-tile'; }],
+    [noYaku, event => { scoreParts(event, { win: 0, penalty: 1, target: 32000 }); }],
+    [incomplete, event => { event.event_name = 'hand_completed'; }],
+    [incomplete, event => { event.payload.tiles = structuredClone(noYaku.payload.tiles); }],
+    [incomplete, event => { scoreParts(event, { win: 0, penalty: 3199, target: 32000 }); }],
+    [incomplete, event => { event.payload.shape = 'normal'; event.payload.decomposition = structuredClone(noYaku.payload.decomposition); }],
+    [noYaku, event => { event.rules_version = V8_RULES_VERSION; event.score_model_version = V8_SCORE_MODEL_VERSION; }],
+    [incomplete, event => { event.rules_version = V8_RULES_VERSION; event.score_model_version = V8_SCORE_MODEL_VERSION; }],
+  ]) { const event = structuredClone(source); event.event_id = crypto.randomUUID(); mutate(event); invalid.push(event); }
+  assert.equal((await f.send(invalid)).body.rejected.length, invalid.length);
+  const empty = structuredClone(incomplete);
+  empty.event_id = crypto.randomUUID(); empty.hand_id = empty.payload.settlement_id = crypto.randomUUID(); empty.round_attempt_id = crypto.randomUUID(); empty.payload.tiles = [];
+  scoreParts(empty, { start: 35200, win: 0, penalty: 3200, target: 32000 });
+  const partialKongs = kongEvent(4);
+  Object.assign(partialKongs, { rules_version: V9_RULES_VERSION, score_model_version: V9_SCORE_MODEL_VERSION });
+  Object.assign(partialKongs.payload, { legal: false, result_type: 'incomplete', shape: null, decomposition: null, credited_pattern_ids: [], record_quality: 'partial', owned_relic_ids: ['rank_brush'] });
+  partialKongs.payload.tiles.pop(); scoreParts(partialKongs, { win: 0, penalty: 1, target: 1 });
+  assert.deepEqual((await f.send([empty, partialKongs])).body.rejected, []);
+  const current = await f.report(`mode=riichi&rules_version=${V9_RULES_VERSION}`);
+  assert.equal(current.settlements.incomplete_passed, 1, 'exhaustion can pass after the deduction without counting as a legal hand');
+  assert.equal(current.summary.completed_hands, 2);
+  const conflict = structuredClone(empty); conflict.event_id = crypto.randomUUID();
+  scoreParts(conflict, { start: 35201, win: 0, penalty: 3200, target: 32000 });
+  assert.equal((await f.send([conflict])).body.rejected[0].reason, 'settlement_conflict');
+  assert.equal((await f.report('rules_version=free_play_v2')).settlements.no_yaku, 0, 'new outcome columns do not reinterpret old facts');
 });
 
 test('v2 two event types merge in either order and conflicting cross-event evidence rolls back', async t => {
@@ -445,16 +513,16 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   const [{ createGameAdapter }, { createAnalytics }, engine] = await Promise.all([
     import('../dist/analytics/game-adapter.js'), import('../dist/analytics/client.js'), import('../dist/engine.js'),
   ]);
-  assert.equal(engine.VERSION, 8);
-  assert.equal(V8_RULES_VERSION, engine.RULES_VERSION.replaceAll('-', '_'));
-  assert.equal(V8_SCORE_MODEL_VERSION, engine.SCORE_MODEL_VERSION.replaceAll('-', '_'));
-  assert.deepEqual([...relicIdsForVersion(V8_RULES_VERSION)].sort(), engine.RELICS.filter(item => item.id !== 'wild_jade').map(item => item.id).sort(), 'a historical display entry is not a currently equipable relic');
-  assert.deepEqual([...V5_CORE_IDS].sort(), engine.RELICS.filter(item => item.core).map(item => item.id).sort());
+  assert.equal(engine.VERSION, 9);
+  assert.equal(V9_RULES_VERSION, engine.RULES_VERSION.replaceAll('-', '_'));
+  assert.equal(V9_SCORE_MODEL_VERSION, engine.SCORE_MODEL_VERSION.replaceAll('-', '_'));
+  assert.deepEqual([...relicIdsForVersion(V9_RULES_VERSION)].sort(), engine.RELICS.map(item => item.id).sort());
+  assert.deepEqual(engine.RELICS.filter(item => item.core), []);
   const DB = database(); t.after(() => DB.sqlite.close());
   let saved = null, timestamp = Date.now(), dropFirstAck = true;
   const preferences = new Map(), received = [];
   const client = createAnalytics({
-    scope: 'sandbox', autoFlush: false, locks: null, appRelease: 'opening-build-v8', entry: 'debug', clock: () => timestamp,
+    scope: 'sandbox', autoFlush: false, locks: null, appRelease: 'nine-batch-v9', entry: 'debug', clock: () => timestamp,
     storage: { load: async () => saved && structuredClone(saved), save: async data => { saved = structuredClone(data); }, clear: async () => { saved = null; } },
     preferenceStorage: { getItem: key => preferences.get(key), setItem: (key, value) => preferences.set(key, value) },
     fetch: async (path, init) => {
@@ -477,13 +545,11 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
     assert.deepEqual(tracked.invalid ?? [], []);
     return { before, result };
   }
-  await act('starter', () => engine.chooseStarter(game, 'core_growth'), { relic_id: 'core_growth' });
   assert.equal(game.phase, 'prepare');
   assert.equal(game.swaps, 5);
-  assert.deepEqual([...game.relics].sort(), ['core_growth', 'rank_brush']);
-  // Controlled equipment/tiles exercise process awards and retriggered settlement
-  // through the real pipeline; reward acquisition is covered by adapter tests.
-  game.relics.push('single_seal', 'retrigger_meld');
+  assert.deepEqual(game.relics, ['rank_brush']);
+  // Controlled physical tiles exercise whole-batch refresh and final scoring;
+  // all transitions still go through the real engine, adapter and transport.
   const pool = [...game.hand, ...game.formed, ...game.deck, ...game.discard];
   const faces = [1, 1, 2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 4];
   const chosen = faces.map(face => {
@@ -494,9 +560,11 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
     const index = pool.findIndex(tile => tile.face === face);
     assert.ok(index >= 0); return pool.splice(index, 1)[0];
   });
-  const secondBatch = chosen.slice(1, 11);
-  game.hand = chosen.slice(0, 12); game.formed = [];
-  game.deck = pool.concat(replacements, chosen.slice(12).reverse()); game.discard = []; game.kongs = [];
+  const firstBatch = chosen.slice(0, 3), secondBatch = chosen.slice(3, 12);
+  game.hand = firstBatch.concat(pool.splice(0, 6)); game.formed = [];
+  const thirdCandidates = chosen.slice(12).concat(pool.splice(0, 7));
+  const fourthCandidates = replacements.concat(pool.splice(0, 7));
+  game.deck = pool.concat([...fourthCandidates].reverse(), [...thirdCandidates].reverse(), [...secondBatch].reverse()); game.discard = []; game.kongs = [];
   const tileId = chosen[0].id;
   assert.equal(game.ink, 2);
   const repair = await act('transform', () => engine.transform(game, [tileId], 'rank', -1), { selected_tile_ids: [tileId], source_zone: 'hand', transform_kind: 'rank', transform_value: -1, relic_id: 'rank_brush' });
@@ -505,24 +573,26 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   await act('begin_play', () => engine.beginPlay(game));
   assert.equal(game.phase, 'play');
   assert.equal(game.swaps, 5, 'begin play preserves the remaining shared exchanges');
-  const first = await act('commit', () => engine.commit(game, [tileId]), { selected_tile_ids: [tileId] });
+  const firstIds = firstBatch.map(tile => tile.id);
+  const first = await act('commit', () => engine.commit(game, firstIds), { selected_tile_ids: firstIds });
   const processGain = first.result.processGain;
-  assert.ok(processGain > 0);
-  await adapter.trackGameAction('commit', first.before, game, first.result, { selected_tile_ids: [tileId] });
-  assert.equal(game.hand.length, 12);
-  assert.equal(game.discard.length, 0);
-  assert.ok(secondBatch.every(tile => game.hand.some(candidate => candidate.id === tile.id)), 'unplayed candidates stay in hand');
+  assert.equal(processGain, 0);
+  await adapter.trackGameAction('commit', first.before, game, first.result, { selected_tile_ids: firstIds });
+  assert.equal(game.hand.length, 9);
+  assert.equal(game.discard.length, 6);
+  assert.ok(secondBatch.every(tile => game.hand.some(candidate => candidate.id === tile.id)), 'the whole next batch replaces unplayed candidates');
   await act('commit', () => engine.commit(game, secondBatch.map(tile => tile.id)), { selected_tile_ids: secondBatch.map(tile => tile.id) });
-  await act('commit', () => engine.commit(game, chosen.slice(11).map(tile => tile.id)), { selected_tile_ids: chosen.slice(11).map(tile => tile.id) });
-  assert.equal(game.hand.length, 12);
-  assert.equal(136 - game.deck.length, 26, 'initial 12 plus 14 played tiles were drawn');
+  await act('commit', () => engine.commit(game, chosen.slice(12).map(tile => tile.id)), { selected_tile_ids: chosen.slice(12).map(tile => tile.id) });
+  assert.equal(game.hand.length, 9);
+  assert.equal(game.discard.length, 13);
+  assert.equal(136 - game.deck.length, 36, 'initial nine and three fresh nine-tile batches were drawn');
   const discardedIds = chosen.slice(1, 3).map(tile => tile.id);
   assert.ok(replacements.every(tile => game.hand.some(candidate => candidate.id === tile.id)));
   const discard = await act('formed_discard', () => engine.discardFormed(game, discardedIds), { selected_tile_ids: discardedIds, source_zone: 'formed' });
   assert.equal(discard.result.ok, true);
   assert.deepEqual(game.formedDiscard, { round: 0, tileIds: discardedIds });
-  assert.equal(game.hand.length, 12);
-  assert.equal(136 - game.deck.length, 26, 'formed discard does not draw replacements');
+  assert.equal(game.hand.length, 9);
+  assert.equal(136 - game.deck.length, 36, 'formed discard does not draw replacements');
   assert.equal(game.processScore, processGain);
   assert.equal(game.ink, 0);
   await adapter.trackGameAction('formed_discard', discard.before, game, discard.result, { selected_tile_ids: discardedIds, source_zone: 'formed' });
@@ -531,7 +601,8 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   await act('commit', () => engine.commit(game, replacements.map(tile => tile.id)), { selected_tile_ids: replacements.map(tile => tile.id) });
   const terminal = await act('settle', () => engine.settle(game));
   assert.equal(terminal.result.legal, true);
-  assert.ok(terminal.result.gains.some(gain => gain.id === 'retrigger_meld'));
+  assert.deepEqual(terminal.result.gains, []);
+  assert.ok(terminal.result.total >= 1000, 'the new fixed-base score is preserved without converting to fan counts');
   await adapter.trackGameAction('settle', terminal.before, game, terminal.result);
   await act('settlement_skip', () => engine.finishSettlement(game));
   await client.flush(); timestamp += 2100;
@@ -541,8 +612,8 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.ok(received.some(ack => ack.duplicate.length > 0));
   assert.ok(received.every(ack => ack.rejected.length === 0));
   const r = await (await handleAnalytics(request('/api/reports/patterns?scope=sandbox&mode=mcr'), { DB })).json();
-  assert.equal(r.rules_version, V8_RULES_VERSION);
-  assert.equal(r.score_model_version, V8_SCORE_MODEL_VERSION);
+  assert.equal(r.rules_version, V9_RULES_VERSION);
+  assert.equal(r.score_model_version, V9_SCORE_MODEL_VERSION);
   assert.equal(r.summary.completed_hands, 1);
   assert.equal(r.settlements.total, 1);
   assert.equal(r.summary.max_win_score, terminal.result.total);
@@ -552,8 +623,8 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.equal(stored.round_score, terminal.result.total + processGain);
   assert.equal(stored.cumulative_after, game.totalScore);
   const commits = DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name = 'game_action'").all().map(row => JSON.parse(row.payload_json)).filter(action => action.action === 'commit');
-  assert.equal(commits.length, 4, 'duplicate adapter callback did not create another process award event');
-  assert.equal(commits.filter(action => action.after.process_score - action.before.process_score === processGain).length, 1);
+  assert.equal(commits.length, 4, 'duplicate adapter callback did not create another action event');
+  assert.ok(commits.every(action => action.after.process_score === 0 && action.before.process_score === 0));
   const discardEvents = DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name='game_action'").all().map(row => JSON.parse(row.payload_json)).filter(action => action.action === 'formed_discard');
   assert.equal(discardEvents.filter(action => action.outcome === 'applied').length, 1);
   assert.equal(discardEvents.filter(action => action.outcome === 'rejected').length, 1);
@@ -561,7 +632,7 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   const storedTerminal = JSON.parse(DB.sqlite.prepare('SELECT payload_json FROM round_settlements').get().payload_json);
   assert.ok(storedTerminal.tiles.every(tile => !discardedIds.includes(tile.id)), 'discarded entities cannot reappear in the completed hand');
   assert.equal(DB.sqlite.prepare("SELECT COUNT(*) AS n FROM raw_events WHERE event_name='round_started'").get().n, 1, 'begin_play does not start a second observed round');
-  assert.ok(DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name IN ('round_settled','hand_completed')").all().every(row => !Object.hasOwn(JSON.parse(row.payload_json), 'steps')), 'retrigger animation is not submitted as additional scoring facts');
+  assert.ok(DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name IN ('round_settled','hand_completed')").all().every(row => !Object.hasOwn(JSON.parse(row.payload_json), 'steps')), 'animation steps are not submitted as additional scoring facts');
   assert.equal(tableCount(DB, 'round_settlements'), 1);
   assert.equal(tableCount(DB, 'analytics_clients'), 1);
 });
@@ -631,6 +702,13 @@ test('v3 catalogue mappings preserve old IDs, exclude unavailable patterns and f
   assert.equal(patternIdForName('mcr', '箭刻 ×2', 'free_play_v3'), 'mcr.dragon_pung');
   assert.equal(patternIdForName('riichi', '立直', 'free_play_v3'), null);
   assert.equal(patternIdForName('mcr', '十三幺', 'free_play_v2'), null);
+  assert.equal(gamePatternCatalog('free_play_v3').length, 90, 'historical catalogues are frozen independently of the current production catalogue');
+  for (const pattern of gamePatternCatalog('free_play_v3').filter(pattern => pattern.kind === 'unlock')) {
+    assert.equal(patternIdForName(pattern.mode, pattern.name, V8_RULES_VERSION), pattern.pattern_id);
+    assert.equal(patternIdForName(pattern.mode, pattern.name, V9_RULES_VERSION), null, 'retired secret-scroll names do not fall back to a base pattern');
+  }
+  assert.equal(gamePatternCatalog(V9_RULES_VERSION).length, 84);
+  assert.ok(gamePatternCatalog(V9_RULES_VERSION).every(pattern => pattern.kind === 'base'));
   assert.ok(isSupportedGameVersion('free_play_v2', 'cumulative_v2'));
   assert.ok(isSupportedGameVersion('free_play_v3', 'exponential_v3'));
   assert.equal(isSupportedGameVersion('free_play_v3', 'cumulative_v2'), false);
@@ -737,9 +815,9 @@ function v5Action(action = 'begin_play') {
   return event;
 }
 
-test('v5–v8 facts stay isolated and a shared score model selects the latest rules', async t => {
-  assert.equal(GAME_RULES_VERSION, V8_RULES_VERSION);
-  assert.equal(GAME_SCORE_MODEL_VERSION, V8_SCORE_MODEL_VERSION);
+test('v5–v9 facts stay isolated and a shared score model selects the latest matching rules', async t => {
+  assert.equal(GAME_RULES_VERSION, V9_RULES_VERSION);
+  assert.equal(GAME_SCORE_MODEL_VERSION, V9_SCORE_MODEL_VERSION);
   assert.equal(V7_SCORE_MODEL_VERSION, V6_SCORE_MODEL_VERSION);
   assert.equal(V8_SCORE_MODEL_VERSION, V6_SCORE_MODEL_VERSION);
   assert.deepEqual(relicIdsForVersion(V6_RULES_VERSION), relicIdsForVersion(V5_RULES_VERSION));
@@ -749,12 +827,15 @@ test('v5–v8 facts stay isolated and a shared score model selects the latest ru
   assert.deepEqual(relicIdsForVersion(V8_RULES_VERSION), relicIdsForVersion(V7_RULES_VERSION));
   assert.equal(relicIdsForVersion(V8_RULES_VERSION).length, 27);
   assert.deepEqual(gamePatternCatalog(V8_RULES_VERSION), gamePatternCatalog(V7_RULES_VERSION));
+  assert.deepEqual(relicIdsForVersion(V9_RULES_VERSION), ['rank_brush', 'suit_ribbon', 'wild_jade', 'high_rescue']);
   assert.deepEqual(gamePatternCatalog(V6_RULES_VERSION), gamePatternCatalog(V5_RULES_VERSION));
   assert.deepEqual(gamePatternCatalog(V5_RULES_VERSION), gamePatternCatalog('free_play_v4'));
   const f = await fixture(t);
   const v4 = { ...v3Hand('knitted'), rules_version: 'free_play_v4' };
   assert.equal((await f.send([v4])).body.accepted.length, 1);
-  const latest = async () => (await (await handleAnalytics(request('/api/reports/patterns?mode=mcr'), f.env)).json());
+  const latest = async () => (await (await handleAnalytics(request(`/api/reports/patterns?mode=mcr&score_model_version=${V8_SCORE_MODEL_VERSION}`), f.env)).json());
+  const defaultReport = async () => (await (await handleAnalytics(request('/api/reports/patterns?mode=mcr'), f.env)).json());
+  assert.equal((await defaultReport()).rules_version, V9_RULES_VERSION);
   assert.equal((await latest()).rules_version, V8_RULES_VERSION);
   assert.equal((await latest()).summary.completed_hands, 0);
   const v5 = scoreParts({ ...v3Hand('orphans'), rules_version: V5_RULES_VERSION, score_model_version: V5_SCORE_MODEL_VERSION }, { win: Number.MAX_SAFE_INTEGER, target: Number.MAX_SAFE_INTEGER });
@@ -791,14 +872,25 @@ test('v5–v8 facts stay isolated and a shared score model selects the latest ru
   assert.equal((await f.report(`rules_version=${V7_RULES_VERSION}`)).summary.max_win_score, 1000);
   assert.equal((await f.report(`score_model_version=${V6_SCORE_MODEL_VERSION}`)).summary.completed_hands, 0);
   assert.equal((await f.report(`rules_version=${V6_RULES_VERSION}`)).summary.max_win_score, 2500);
-  const v8 = scoreParts({ ...v3Hand(), rules_version: V8_RULES_VERSION, score_model_version: V8_SCORE_MODEL_VERSION }, { win: 500, target: 1000 });
-  v8.payload.owned_relic_ids = ['core_high', 'rank_brush'];
+  const v8 = scoreParts({ ...v3Hand('pairs'), rules_version: V8_RULES_VERSION, score_model_version: V8_SCORE_MODEL_VERSION }, { win: 500, target: 1000 });
+  v8.payload.owned_relic_ids = ['core_high', 'rank_brush', 'wheel'];
+  v8.payload.unlock_pattern_ids = ['mcr.seven_shifted_pairs_bonus'];
   assert.equal((await f.send([v8])).body.accepted.length, 1);
   assert.equal((await latest()).summary.max_win_score, 500);
   assert.equal((await f.report(`score_model_version=${V6_SCORE_MODEL_VERSION}`)).summary.max_win_score, 500);
   assert.equal((await f.report(`rules_version=${V7_RULES_VERSION}`)).summary.max_win_score, 1000);
   assert.equal((await f.report(`rules_version=${V6_RULES_VERSION}`)).summary.max_win_score, 2500);
   assert.deepEqual((await f.send([v6, v7, v8])).body.duplicate, [v6.event_id, v7.event_id, v8.event_id]);
+  assert.equal(row(await latest(), 'mcr.seven_shifted_pairs_bonus').count, 1, 'historical unlocks remain visible after production removes their relics');
+  assert.equal((await defaultReport()).summary.completed_hands, 0);
+  const v9 = scoreParts({ ...v3Hand(), rules_version: V9_RULES_VERSION, score_model_version: V9_SCORE_MODEL_VERSION }, { win: 128000, target: 32000 });
+  v9.payload.owned_relic_ids = ['rank_brush'];
+  assert.equal((await f.send([v9])).body.accepted.length, 1);
+  assert.equal((await defaultReport()).summary.max_win_score, 128000);
+  assert.equal((await latest()).summary.max_win_score, 500);
+  assert.equal((await f.report(`score_model_version=${V9_SCORE_MODEL_VERSION}`)).rules_version, V9_RULES_VERSION);
+  assert.equal(row(await defaultReport(), 'mcr.seven_shifted_pairs_bonus'), undefined);
+  assert.deepEqual((await f.send([v8, v9])).body.duplicate, [v8.event_id, v9.event_id]);
   const invalid = [];
   for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4']) {
     assert.equal(relicIdsForVersion(rules).length, 21);
@@ -813,15 +905,18 @@ test('v5–v8 facts stay isolated and a shared score model selects the latest ru
   const mixed = structuredClone(v5); mixed.event_id = crypto.randomUUID(); mixed.score_model_version = 'exponential_v3'; invalid.push(mixed);
   const retired = structuredClone(v7); retired.event_id = crypto.randomUUID(); retired.payload.owned_relic_ids.push('wild_jade'); invalid.push(retired);
   const retiredV8 = structuredClone(v8); retiredV8.event_id = crypto.randomUUID(); retiredV8.payload.owned_relic_ids.push('wild_jade'); invalid.push(retiredV8);
+  for (const mutate of [event => { event.payload.owned_relic_ids.push('core_high'); }, event => { event.payload.unlock_pattern_ids = ['mcr.seven_shifted_pairs_bonus']; }, event => { scoreParts(event, { process: 1, win: 128000 }); }]) {
+    const bad = structuredClone(v9); bad.event_id = crypto.randomUUID(); mutate(bad); invalid.push(bad);
+  }
   for (const [event, score] of [[v5, V6_SCORE_MODEL_VERSION], [v6, V5_SCORE_MODEL_VERSION], [v7, V5_SCORE_MODEL_VERSION], [v8, V5_SCORE_MODEL_VERSION]]) {
     const mixed = structuredClone(event); mixed.event_id = crypto.randomUUID(); mixed.score_model_version = score; invalid.push(mixed);
   }
-  assert.equal((await f.send(invalid)).body.rejected.length, invalid.length);
-  assert.equal(tableCount(f.DB, 'round_settlements'), 5);
+  for (let i = 0; i < invalid.length; i += 8) assert.equal((await f.send(invalid.slice(i, i + 8))).body.rejected.length, invalid.slice(i, i + 8).length);
+  assert.equal(tableCount(f.DB, 'round_settlements'), 6);
   assert.equal(tableCount(f.DB, 'completed_hands'), 0);
 });
 
-test('older actions still replay while V8 phases and discards carry bounded, immutable evidence', async t => {
+test('older actions still replay while V9 phases, tools and discards carry bounded evidence', async t => {
   const f = await fixture(t);
   const begin = v5Action();
   const startRound = { ...structuredClone(begin), event_id: crypto.randomUUID(), event_name: 'round_started', payload: { state: begin.payload.before, record_quality: 'complete' } };
@@ -960,6 +1055,40 @@ test('older actions still replay while V8 phases and discards carry bounded, imm
     const result = await f.send(v8Invalid.slice(i, i + 8));
     assert.equal(result.body.rejected.length, v8Invalid.slice(i, i + 8).length);
   }
+  const asV9 = source => {
+    const event = asV8(source);
+    Object.assign(event, { rules_version: V9_RULES_VERSION, score_model_version: V9_SCORE_MODEL_VERSION });
+    for (const state of [event.payload.before, event.payload.after]) {
+      state.hand_count = 9; state.coins = state.process_score = state.single_count = 0;
+      state.relic_ids = ['rank_brush', 'suit_ribbon', 'wild_jade', 'high_rescue'];
+    }
+    if (event.payload.context.transform_kind === 'wild') event.payload.context.relic_id = 'wild_jade';
+    return event;
+  };
+  const v9Begin = asV9(v8Begin), v9Wild = asV9(prepWild), v9Exchange = asV9(fullExchange);
+  for (const state of [v9Exchange.payload.before, v9Exchange.payload.after]) state.formed_count = state.structure_count = 13;
+  const refusedFull = asV9(fullExchange); refusedFull.payload.outcome = 'rejected'; refusedFull.payload.after = structuredClone(refusedFull.payload.before); refusedFull.payload.tile_changes = [];
+  const endings = ['no_yaku_below_target', 'incomplete_below_target'].map(reason => ({ ...structuredClone(v9Begin), event_id: crypto.randomUUID(), event_name: 'run_ended', payload: { state: { ...structuredClone(v9Begin.payload.before), phase: 'defeat' }, record_quality: 'complete', reason } }));
+  const v9Events = [v9Begin, asV9(prepTool), v9Wild, asV9(prepExchange), v9Exchange, asV9(rescueRank), asV9(rescueExchange), asV9(v7Discard), refusedFull, ...endings];
+  for (let i = 0; i < v9Events.length; i += 8) {
+    const ack = await f.send(v9Events.slice(i, i + 8));
+    assert.deepEqual(ack.body.rejected, []); assert.equal(ack.body.accepted.length, v9Events.slice(i, i + 8).length);
+  }
+  assert.deepEqual((await f.send([v8Begin, prepWild, v9Wild])).body.duplicate, [v8Begin.event_id, prepWild.event_id, v9Wild.event_id], 'V8 core wilds and V9 tool wilds keep their original versioned facts');
+  const v9Invalid = [];
+  for (const [source, change] of [
+    [v9Begin, event => { event.payload.after.hand_count = 10; }],
+    [v9Begin, event => { event.payload.after.coins = 1; }],
+    [v9Begin, event => { event.payload.after.process_score = 1; }],
+    [v9Begin, event => { event.payload.after.single_count = 1; }],
+    [v9Begin, event => { event.payload.after.relic_ids = ['core_high']; }],
+    [v9Exchange, event => { event.payload.before.formed_count = event.payload.before.structure_count = 14; }],
+    [v9Wild, event => { event.payload.context.relic_id = 'core_high'; }],
+    [v9Wild, event => { event.payload.before.relic_ids = ['rank_brush']; }],
+    [v9Wild, event => { event.payload.before.phase = event.payload.after.phase = 'play'; }],
+  ]) { const bad = asV9(source); change(bad); v9Invalid.push(bad); }
+  for (const ending of endings) v9Invalid.push({ ...structuredClone(ending), event_id: crypto.randomUUID(), rules_version: V8_RULES_VERSION, score_model_version: V8_SCORE_MODEL_VERSION, payload: { ...ending.payload, state: { ...ending.payload.state, relic_ids: ['rank_brush'] } } });
+  for (let i = 0; i < v9Invalid.length; i += 8) assert.equal((await f.send(v9Invalid.slice(i, i + 8))).body.rejected.length, v9Invalid.slice(i, i + 8).length);
   const invalid = [];
   for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4']) {
     const old = actionEvent(); old.rules_version = rules; old.score_model_version = GAME_VERSION_PAIRS[rules];
@@ -1018,7 +1147,7 @@ test('older actions still replay while V8 phases and discards carry bounded, imm
   const wildResult = await f.send(invalidWild);
   assert.equal(wildResult.body.rejected.length, invalidWild.length);
   assert.ok(wildResult.body.rejected.some(item => item.reason === 'wild_requires_core_high'));
-  assert.equal(tableCount(f.DB, 'raw_events'), events.length + v8Events.length);
+  assert.equal(tableCount(f.DB, 'raw_events'), events.length + v8Events.length + v9Events.length);
   assert.equal(tableCount(f.DB, 'round_settlements'), 0);
   const bounded = v5Action('select');
   bounded.payload.selected_tile_ids = Array.from({ length: 18 }, (_, i) => `t${i}`.padEnd(64, 'x'));
@@ -1035,4 +1164,7 @@ test('older actions still replay while V8 phases and discards carry bounded, imm
   bounded.rules_version = V8_RULES_VERSION; bounded.score_model_version = V8_SCORE_MODEL_VERSION;
   assert.equal(validateGamePayload(bounded.event_name, bounded.payload, bounded).ok, true);
   assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 8192);
+  const v9Bounded = asV9(bounded);
+  assert.equal(validateGamePayload(v9Bounded.event_name, v9Bounded.payload, v9Bounded).ok, true);
+  assert.ok(Buffer.byteLength(JSON.stringify(v9Bounded)) < 8192);
 });
