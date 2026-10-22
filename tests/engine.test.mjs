@@ -22,7 +22,7 @@ function bring(s,faces){const ids=[];for(const face of faces){let t=s.hand.find(
 function structuralEntities(s){const all=[...s.hand,...s.formed,...s.deck,...s.discard];assert.equal(all.length,136);assert.equal(new Set(all.map(t=>t.id)).size,136);for(let face=0;face<34;face++)assert.equal(all.filter(t=>t.original===face).length,4);}
 function rewardState(core='core_high',extras=[]){const s=final('mcr',flush,core,extras);E.settle(s);E.finishSettlement(s);assert.equal(s.phase,'reward');return s;}
 
-test('V6 offers four mutually exclusive starter cores and requires explicit start',()=>{
+test('V7 offers four mutually exclusive starter cores and requires explicit start',()=>{
  for(const core of E.CORE_IDS){const s=E.newRun();assert.deepEqual(s.offers,E.CORE_IDS);assert.equal(E.chooseStarter(s,'jade'),false);assert.ok(E.chooseStarter(s,core));assert.equal(s.phase,'prepare');assert.deepEqual(s.relics,[core,'rank_brush']);assert.ok(E.restore(JSON.stringify(s)));
   const before=JSON.stringify(s);assert.equal(E.commit(s,[s.hand[0].id]).valid,false);assert.equal(E.declareKong(s,s.hand.slice(0,4).map(t=>t.id)).ok,false);assert.equal(E.settle(s).valid,false);assert.equal(E.addRelic(s,'jade'),false);assert.equal(JSON.stringify(s),before);
   assert.ok(E.beginPlay(s));assert.equal(s.phase,'play');assert.equal(s.swaps,0);assert.equal(E.beginPlay(s),false);assert.ok(E.restore(JSON.stringify(s)));
@@ -47,11 +47,19 @@ test('one edit preserves physical identity, enforces tool ownership and covers r
  assert.ok(E.transform(rank,[id],'rank',-1).ok);assert.equal(rank.hand.filter(t=>t.face===0).length,5);assert.equal(rank.hand.find(t=>t.id===id).original,1);assert.equal(rank.ink,0);
  const before=JSON.stringify(rank);assert.equal(E.transform(rank,[id],'rank',1).ok,false);assert.equal(JSON.stringify(rank),before);structuralEntities(rank);assert.ok(E.restore(JSON.stringify(rank)));
  for(const action of ['suit','wild']){
-  const s=preparing('mcr'),tileId=bring(s,[1])[0],tool=action==='suit'?'suit_ribbon':'wild_jade';
-  assert.equal(E.transform(s,[tileId],action,1).ok,false);s.relics.push(tool);assert.ok(E.beginPlay(s));assert.ok(E.transform(s,[tileId],action,1).ok);
+  const s=preparing('mcr'),tileId=bring(s,[1])[0];
+  if(action==='suit'){assert.equal(E.transform(s,[tileId],action,1).ok,false);s.relics.push('suit_ribbon');}
+  else {assert.deepEqual(s.relics,['core_high','rank_brush']);}assert.ok(E.beginPlay(s));assert.ok(E.transform(s,[tileId],action,1).ok);
   const changed=s.hand.find(t=>t.id===tileId);assert.equal(changed.original,1);assert.equal(changed.face%9,1);assert.equal(changed.wild,action==='wild');assert.equal(s.ink,0);
   assert.equal(E.transform(s,[tileId],action,2).ok,false);structuralEntities(s);assert.ok(E.restore(JSON.stringify(s)));
  }
+});
+test('wild ability belongs to the high core and shares the only edit even at full fourteen',()=>{
+ for(const core of ['core_pung','core_held','core_growth']){const s=preparing('mcr',7,core,['wild_jade']),id=bring(s,[1])[0],before=JSON.stringify(s);assert.equal(E.transform(s,[id],'wild').ok,false);assert.equal(JSON.stringify(s),before);assert.equal(E.restore(before),null);}
+ const s=final('mcr',[1,2,3,10,11,12,19,20,21,4,4,4,13,22]),tile=s.formed.find(t=>t.face===22),id=tile.id;
+ assert.equal(E.currentSettlementPreview(s).legal,false);assert.ok(E.transform(s,[id],'wild').ok);assert.equal(s.ink,0);assert.equal(s.relics.length,2);assert.ok(E.currentSettlementPreview(s).legal);assert.equal(s.formed.find(t=>t.id===id).original,22);assert.ok(E.restore(JSON.stringify(s)));
+ const before=JSON.stringify(s);assert.equal(E.transform(s,[id],'rank',1).ok,false);assert.equal(JSON.stringify(s),before);
+ const bad=structuredClone(s);bad.relics=['core_pung','rank_brush'];assert.equal(E.restore(JSON.stringify(bad)),null);
 });
 test('full fourteen can be repaired in place once before settlement and cannot be edited afterward',()=>{
  const s=final('mcr',[1,2,3,10,11,12,19,20,21,4,4,4,13,14],'core_pung');
@@ -72,6 +80,30 @@ test('single payments stop at four and never get multiplied into hand score',()=
  const s=playing('mcr',3,'core_pung',['single_seal']);for(let i=0;i<5;i++)assert.ok(E.commit(s,[s.hand[0].id]).valid);assert.equal(s.singleCount,4);assert.equal(s.processScore,800);assert.equal(s.totalScore,800);
  const t=final();t.processScore=80;t.score=80;t.totalScore=80;const p=E.currentSettlementPreview(t);assert.equal(p.cumulativeAfter,80+p.total);assert.equal(p.roundScore,80+p.total);
 });
+test('formed discard permanently removes one or two tiles without drawing or refunding resources and payments',()=>{
+ for(const count of [1,2]){
+  const s=playing('mcr',3,'core_pung',['single_seal']),editId=bring(s,[1])[0];assert.ok(E.transform(s,[editId],'rank',1).ok);
+  assert.ok(E.commit(s,[editId]).valid);for(let i=0;i<3;i++)assert.ok(E.commit(s,[s.hand[0].id]).valid);
+  const ids=s.formed.slice(0,count).map(t=>t.id),removed=s.formed.slice(0,count),hand=JSON.stringify(s.hand),wall=JSON.stringify(s.deck),resources=[s.ink,s.swaps,s.openingSwapsUsed,s.rescueUsed,s.singleCount,s.processScore,s.score,s.totalScore];
+  assert.ok(E.discardFormed(s,ids).ok);assert.equal(E.structuralCount(s),4-count);assert.deepEqual(s.formedDiscard,{round:0,tileIds:ids});assert.ok(removed.every(t=>s.discard.includes(t)&&t.entered));
+  assert.equal(JSON.stringify(s.hand),hand);assert.equal(JSON.stringify(s.deck),wall);assert.deepEqual([s.ink,s.swaps,s.openingSwapsUsed,s.rescueUsed,s.singleCount,s.processScore,s.score,s.totalScore],resources);structuralEntities(s);assert.ok(E.restore(JSON.stringify(s)));
+  const after=JSON.stringify(s);assert.equal(E.commit(s,ids).valid,false);assert.equal(E.discardFormed(s,[s.formed[0].id]).ok,false);assert.equal(JSON.stringify(s),after);
+  const deckCount=s.deck.length;assert.ok(E.commit(s,s.hand.slice(0,count).map(t=>t.id)).valid);assert.equal(s.deck.length,deckCount-count);assert.equal(s.hand.length,12);assert.equal(E.structuralCount(s),4);assert.equal(s.processScore,800);assert.equal(s.singleCount,4);structuralEntities(s);assert.ok(E.restore(JSON.stringify(s)));
+ }
+});
+test('formed discard rejects invalid phases, selections and locked kongs without consuming its use',()=>{
+ const prep=preparing(),beforePrep=JSON.stringify(prep);assert.equal(E.discardFormed(prep,[prep.hand[0].id]).ok,false);assert.equal(JSON.stringify(prep),beforePrep);
+ const s=final(),ids=s.formed.map(t=>t.id);for(const selected of [null,[],[ids[0],ids[0]],ids.slice(0,3),['missing'],[s.hand[0].id]]){const before=JSON.stringify(s);assert.equal(E.discardFormed(s,selected).ok,false);assert.equal(JSON.stringify(s),before);}
+ const kong=final('mcr',[0,0,0,10,11,12,22,23,24,33,33,33,27,27]),incoming=bring(kong,[0])[0],locked=kong.formed.filter(t=>t.face===0).map(t=>t.id).concat(incoming);assert.ok(E.declareKong(kong,locked).ok);
+ const unlocked=kong.formed.find(t=>!locked.includes(t.id)).id,beforeKong=JSON.stringify(kong);assert.equal(E.discardFormed(kong,[unlocked,locked[0]]).ok,false);assert.equal(JSON.stringify(kong),beforeKong);assert.ok(E.discardFormed(kong,[unlocked]).ok);assert.equal(kong.kongs.length,1);assert.ok(E.restore(JSON.stringify(kong)));
+ E.settle(s);const settled=JSON.stringify(s);assert.equal(E.discardFormed(s,[ids[0]]).ok,false);assert.equal(JSON.stringify(s),settled);
+});
+test('formed discard survives reload and later rounds while forged or reset usage is rejected',()=>{
+ const s=final(),id=s.formed.find(t=>t.face===4).id;assert.ok(E.discardFormed(s,[id]).ok);const reloaded=E.restore(JSON.stringify(s));assert.ok(reloaded);assert.deepEqual(reloaded.formedDiscard,{round:0,tileIds:[id]});
+ for(const mutate of [x=>delete x.formedDiscard,x=>x.formedDiscard=null,x=>x.formedDiscard.round=1,x=>x.formedDiscard.tileIds=[id,id],x=>x.formedDiscard.tileIds=[x.hand[0].id],x=>x.discard.find(t=>t.id===id).entered=false]){const forged=structuredClone(s);mutate(forged);assert.equal(E.restore(JSON.stringify(forged)),null);}
+ const replacement=bring(reloaded,[4])[0];assert.ok(E.commit(reloaded,[replacement]).valid);assert.ok(E.settle(reloaded).legal);assert.ok(E.finishSettlement(reloaded));assert.ok(E.skipReward(reloaded));assert.ok(E.nextRound(reloaded));assert.deepEqual(reloaded.formedDiscard,{round:0,tileIds:[id]});assert.ok(E.restore(JSON.stringify(reloaded)));
+ assert.ok(E.beginPlay(reloaded));assert.ok(E.commit(reloaded,[reloaded.hand[0].id]).valid);const before=JSON.stringify(reloaded);assert.equal(E.discardFormed(reloaded,[reloaded.formed[0].id]).ok,false);assert.equal(JSON.stringify(reloaded),before);assert.ok(E.restore(JSON.stringify(reloaded)));assert.equal(E.newRun().formedDiscard,null);
+});
 test('invalid selection and overflow have no side effects',()=>{
  const s=playing(),id=s.hand[0].id,before=JSON.stringify(s);assert.equal(E.commit(s,[id,id]).valid,false);assert.equal(E.commit(s,['missing']).valid,false);assert.equal(JSON.stringify(s),before);
  const full=final(),raw=JSON.stringify(full);assert.equal(E.commit(full,[full.hand[0].id]).valid,false);assert.equal(JSON.stringify(full),raw);
@@ -80,7 +112,7 @@ test('kong consumes four physical tiles as three structural positions and locks 
  const s=final('mcr',[0,0,0,10,11,12,22,23,24,33,33,33,27,27],'core_pung',['stone','kong_cauldron']);const incoming=bring(s,[0])[0],wall=s.deck.length,ids=[...s.formed.filter(t=>t.face===0).map(t=>t.id),incoming];assert.ok(E.declareKong(s,ids).ok);assert.equal(s.formed.length,15);assert.equal(E.structuralCount(s),14);assert.equal(s.deck.length,wall-1);const p=E.currentSettlementPreview(s);assert.ok(p.legal);assert.equal(p.gains.find(g=>g.id==='kong_cauldron').value,600);assert.equal(p.coinGain,2);const lockedState=JSON.stringify(s);assert.equal(E.transform(s,[ids[0]],'rank',1).ok,false);assert.equal(JSON.stringify(s),lockedState);assert.equal(E.declareKong(s,ids).ok,false);structuralEntities(s);assert.ok(E.restore(JSON.stringify(s)));
 });
 test('wildcard assignment is rank-fixed and locked inside a declared kong',()=>{
- const s=preparing('mcr',5,'core_high',['wild_jade']),ids=bring(s,[0,0,0,9]);assert.ok(E.transform(s,[ids[3]],'wild').ok);E.beginPlay(s);assert.ok(E.declareKong(s,ids).ok);assert.equal(s.kongs[0].face,0);assert.equal(s.formed.find(t=>t.id===ids[3]).face,0);assert.ok(E.restore(JSON.stringify(s)));
+ const s=preparing('mcr',5,'core_high'),ids=bring(s,[0,0,0,9]);assert.ok(E.transform(s,[ids[3]],'wild').ok);E.beginPlay(s);assert.ok(E.declareKong(s,ids).ok);assert.equal(s.kongs[0].face,0);assert.equal(s.formed.find(t=>t.id===ids[3]).face,0);assert.ok(E.restore(JSON.stringify(s)));
 });
 test('risk allows dangerous commitments without calling temporary incompleteness impossible',()=>{
  const s=arrange(playing(),[0,1,2,3,4,5,15,16,17,27,27,28]);assert.equal(E.inspect(s).canComplete,true);const west=bring(s,[29]);assert.equal(E.inspect(s,west).risk,'needs_repair');assert.equal(E.commit(s,west).valid,true);
@@ -117,7 +149,7 @@ test('false win applies 10 percent penalty and passes on accumulated overflow wi
 });
 test('one compatible reward per clear, four slots and explicit noncore replacement prevent extra acquisition',()=>{
  for(const core of E.CORE_IDS){const s=rewardState(core);assert.equal(s.offers.length,3);assert.ok(s.offers.includes(FIRST_COMPATIBLE[core]));assert.ok(s.offers.every(id=>!E.CORE_IDS.includes(id)&&!DISABLED_RELIC_IDS.includes(id)));assert.ok(E.chooseReward(s,FIRST_COMPATIBLE[core]));assert.equal(s.relics.length,3);assert.equal(E.chooseReward(s,s.offers[0]),false);assert.deepEqual(s.shop,[]);const before=JSON.stringify(s);assert.equal(E.buy(s,'jade'),false);assert.equal(E.refreshShop(s),false);assert.equal(E.sell(s,core),false);assert.equal(JSON.stringify(s),before);assert.ok(E.nextRound(s));assert.ok(E.restore(JSON.stringify(s)));}
- for(const core of E.CORE_IDS)for(let seed=0;seed<12;seed++){const s=final('mcr',flush,core);s.rng=seed;E.settle(s);assert.ok(core==='core_high'||!s.offers.includes('high_rescue'));assert.ok(core==='core_held'||!s.offers.includes('retrigger_held'));}
+ for(const core of E.CORE_IDS)for(let seed=0;seed<12;seed++){const s=final('mcr',flush,core);s.rng=seed;E.settle(s);assert.ok(!s.offers.includes('wild_jade'));assert.ok(core==='core_high'||!s.offers.includes('high_rescue'));assert.ok(core==='core_held'||!s.offers.includes('retrigger_held'));}
  const full=rewardState('core_pung',['jade','stone']),id=full.offers[0];assert.equal(E.chooseReward(full,id),false);assert.equal(E.chooseReward(full,id,'core_pung'),false);assert.ok(E.chooseReward(full,id,'rank_brush'));assert.equal(full.relics.length,4);assert.ok(E.restore(JSON.stringify(full)));
  const skip=rewardState();assert.ok(E.skipReward(skip));assert.equal(E.skipReward(skip),false);assert.equal(skip.relics.length,2);assert.ok(E.nextRound(skip));
 });
@@ -127,8 +159,8 @@ test('six rounds preserve growth and cumulative score while transient preparatio
 test('all scoring steps replay to authoritative totals without mutating preview state',()=>{
  for(const [core,extras,faces] of [['core_high',['jade','coin'],flush],['core_pung',['stone','retrigger_meld'],pungs],['core_growth',['river','retrigger_meld'],flush],['core_held',['retrigger_held'],flush]]){const s=final('mcr',faces,core,extras),before=JSON.stringify(s),p=E.currentSettlementPreview(s);assert.equal(JSON.stringify(s),before);assert.deepEqual(p,E.currentSettlementPreview(s));let base=0,mult=1;for(const step of p.steps){if(step.target==='base'){assert.equal(step.before,base);base=step.after;}if(step.target==='multiplier'){assert.equal(step.before,mult);mult=step.after;}}assert.equal(base,p.base);assert.equal(mult,p.mult);assert.equal(p.total,Number(BigInt(base)*BigInt(mult.toFixed(6).replace('.',''))/1000000n));assert.equal(p.steps.at(-1).event,'round_result');}
 });
-test('V6 rejects legacy, forged equipment/resources and altered frozen held snapshots',()=>{
- const s=playing();assert.equal(E.VERSION,6);assert.ok(E.restore(JSON.stringify(s)));for(const patch of [{version:5},{rulesVersion:'opening-build-v5'},{scoreVersion:'four-core-v5'},{ink:4},{ink:1},{relics:['core_high','ink']},{version:4},{rulesVersion:'free-play-v4'},{scoreVersion:'exponential-v3'},{hand:null},{deck:[]},{totalScore:7},{relics:['core_high','core_pung']},{relics:['core_high','jade','stone','ink','river']},{openingSwapsUsed:6},{swaps:1},{rescueUsed:true}])assert.equal(E.restore(JSON.stringify({...s,...patch})),null);
+test('V7 rejects legacy, forged equipment/resources and altered frozen held snapshots',()=>{
+ const s=playing();assert.equal(E.VERSION,7);assert.ok(E.restore(JSON.stringify(s)));for(const patch of [{version:6},{rulesVersion:'opening-build-v6'},{relics:['core_high','wild_jade']},{version:5},{rulesVersion:'opening-build-v5'},{scoreVersion:'four-core-v5'},{ink:4},{ink:1},{relics:['core_high','ink']},{version:4},{rulesVersion:'free-play-v4'},{scoreVersion:'exponential-v3'},{hand:null},{deck:[]},{totalScore:7},{relics:['core_high','core_pung']},{relics:['core_high','jade','stone','ink','river']},{openingSwapsUsed:6},{swaps:1},{rescueUsed:true}])assert.equal(E.restore(JSON.stringify({...s,...patch})),null);
  const p=preparing();assert.equal(E.restore(JSON.stringify({...p,swaps:4})),null);assert.ok(E.retire(p));assert.ok(E.restore(JSON.stringify(p)));
  const finished=final();E.settle(finished);for(const mutate of [x=>x.last.passed=!x.last.passed,x=>x.last.heldTiles[0].face=33,x=>x.growth.coreGrowth+=1]){const bad=structuredClone(finished);mutate(bad);assert.equal(E.restore(JSON.stringify(bad)),null);}
 });

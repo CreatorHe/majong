@@ -1,0 +1,853 @@
+{
+  "createdAt": "2026-10-22T10:12:47.478Z",
+  "mode": "mcr",
+  "policy": "v7-wild-visible-play-edit-v1-shared-ink2",
+  "rewardPriority": "wild-aware",
+  "main": [
+    {
+      "route": "high",
+      "variant": "current-K0",
+      "n": 1000,
+      "firstLegal": 0.772,
+      "win": 0.392,
+      "winCI": [
+        0.3622102251883648,
+        0.42261635464451514
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 213223.64,
+        "p10": -100,
+        "median": 139280,
+        "p90": 608640,
+        "p99": 1298400,
+        "max": 1992240
+      },
+      "failure": {
+        "illegal": 360,
+        "legalBelowTarget": 248
+      },
+      "wild": {
+        "acquired": 693,
+        "offered": 703,
+        "usedRuns": 462,
+        "usedRounds": 686,
+        "usageByRound": [
+          0,
+          0,
+          81,
+          190,
+          218,
+          197
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          254,
+          503,
+          624,
+          566
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          254,
+          251,
+          138,
+          50
+        ],
+        "replacementCount": 565,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "high",
+      "variant": "current-K2",
+      "n": 1000,
+      "firstLegal": 0.878,
+      "win": 0.504,
+      "winCI": [
+        0.4730552793350446,
+        0.5349141065970708
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 281299.62,
+        "p10": -100,
+        "median": 180880,
+        "p90": 750080,
+        "p99": 1404920,
+        "max": 1992240
+      },
+      "failure": {
+        "illegal": 222,
+        "legalBelowTarget": 274
+      },
+      "wild": {
+        "acquired": 795,
+        "offered": 805,
+        "usedRuns": 564,
+        "usedRounds": 863,
+        "usageByRound": [
+          0,
+          0,
+          105,
+          234,
+          271,
+          253
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          287,
+          585,
+          718,
+          682
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          287,
+          298,
+          149,
+          61
+        ],
+        "replacementCount": 644,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "high",
+      "variant": "integrated-K0",
+      "n": 1000,
+      "firstLegal": 0.828,
+      "win": 0.526,
+      "winCI": [
+        0.49501179061158157,
+        0.5567892179471697
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 300813.96,
+        "p10": -100,
+        "median": 189160,
+        "p90": 791920,
+        "p99": 1793680,
+        "max": 3561320
+      },
+      "failure": {
+        "illegal": 272,
+        "legalBelowTarget": 202
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 0,
+        "usedRuns": 773,
+        "usedRounds": 1757,
+        "usageByRound": [
+          350,
+          307,
+          269,
+          280,
+          292,
+          259
+        ],
+        "availabilityByRound": [
+          1000,
+          828,
+          821,
+          812,
+          800,
+          725
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 386,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "high",
+      "variant": "integrated-K2",
+      "n": 1000,
+      "firstLegal": 0.907,
+      "win": 0.612,
+      "winCI": [
+        0.5814239245764211,
+        0.6417188815228144
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 371077.3,
+        "p10": 16000,
+        "median": 227200,
+        "p90": 940960,
+        "p99": 1803720,
+        "max": 3561320
+      },
+      "failure": {
+        "illegal": 159,
+        "legalBelowTarget": 229
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 0,
+        "usedRuns": 864,
+        "usedRounds": 2081,
+        "usageByRound": [
+          391,
+          359,
+          332,
+          339,
+          344,
+          316
+        ],
+        "availabilityByRound": [
+          1000,
+          907,
+          902,
+          900,
+          888,
+          827
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 431,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "high",
+      "variant": "integrated-occupied-K0",
+      "n": 1000,
+      "firstLegal": 0.828,
+      "win": 0.464,
+      "winCI": [
+        0.43328733184788387,
+        0.49498819476307615
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 259270.62,
+        "p10": -100,
+        "median": 166600,
+        "p90": 724440,
+        "p99": 1490520,
+        "max": 2764680
+      },
+      "failure": {
+        "illegal": 265,
+        "legalBelowTarget": 271
+      },
+      "wild": {
+        "acquired": 1000,
+        "offered": 0,
+        "usedRuns": 765,
+        "usedRounds": 1795,
+        "usageByRound": [
+          350,
+          307,
+          269,
+          300,
+          299,
+          270
+        ],
+        "availabilityByRound": [
+          1000,
+          828,
+          821,
+          812,
+          787,
+          694
+        ],
+        "acquisitionByRound": [
+          1000,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 0,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "high",
+      "variant": "integrated-occupied-K2",
+      "n": 1000,
+      "firstLegal": 0.907,
+      "win": 0.545,
+      "winCI": [
+        0.5140224377348876,
+        0.5756331540014126
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 317215.36,
+        "p10": 10500,
+        "median": 194480,
+        "p90": 785600,
+        "p99": 1579360,
+        "max": 2764680
+      },
+      "failure": {
+        "illegal": 166,
+        "legalBelowTarget": 289
+      },
+      "wild": {
+        "acquired": 1000,
+        "offered": 0,
+        "usedRuns": 857,
+        "usedRounds": 2114,
+        "usageByRound": [
+          391,
+          359,
+          332,
+          355,
+          354,
+          323
+        ],
+        "availabilityByRound": [
+          1000,
+          907,
+          902,
+          900,
+          881,
+          793
+        ],
+        "acquisitionByRound": [
+          1000,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 0,
+        "wildReplacedCount": 0
+      }
+    }
+  ],
+  "otherRoutes": [
+    {
+      "route": "pungs",
+      "variant": "current-K2",
+      "n": 1000,
+      "firstLegal": 0.881,
+      "win": 0.563,
+      "winCI": [
+        0.5320740752991774,
+        0.5934437531316427
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 1116671.382,
+        "p10": -100,
+        "median": 311091,
+        "p90": 2751217,
+        "p99": 16853436,
+        "max": 58005662
+      },
+      "failure": {
+        "illegal": 257,
+        "legalBelowTarget": 180
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 472,
+        "usedRuns": 0,
+        "usedRounds": 0,
+        "usageByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 644,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "pungs",
+      "variant": "integrated-K2",
+      "n": 1000,
+      "firstLegal": 0.881,
+      "win": 0.587,
+      "winCI": [
+        0.5562066759628382,
+        0.6171274680606752
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 1176747.37,
+        "p10": -100,
+        "median": 321094,
+        "p90": 2547792,
+        "p99": 15913898,
+        "max": 67261755
+      },
+      "failure": {
+        "illegal": 240,
+        "legalBelowTarget": 173
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 0,
+        "usedRuns": 0,
+        "usedRounds": 0,
+        "usageByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 627,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "held",
+      "variant": "current-K2",
+      "n": 1000,
+      "firstLegal": 0.888,
+      "win": 0.764,
+      "winCI": [
+        0.7367028474727885,
+        0.7892766240468384
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 425355,
+        "p10": -100,
+        "median": 310970,
+        "p90": 686176,
+        "p99": 3639858,
+        "max": 7332053
+      },
+      "failure": {
+        "illegal": 190,
+        "legalBelowTarget": 46
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 450,
+        "usedRuns": 0,
+        "usedRounds": 0,
+        "usageByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 437,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "held",
+      "variant": "integrated-K2",
+      "n": 1000,
+      "firstLegal": 0.888,
+      "win": 0.774,
+      "winCI": [
+        0.7470576210232625,
+        0.7988453153266535
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 402182.715,
+        "p10": -100,
+        "median": 312421,
+        "p90": 664161,
+        "p99": 2794395,
+        "max": 13689177
+      },
+      "failure": {
+        "illegal": 189,
+        "legalBelowTarget": 37
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 0,
+        "usedRuns": 0,
+        "usedRounds": 0,
+        "usageByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 420,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "growth",
+      "variant": "current-K2",
+      "n": 1000,
+      "firstLegal": 0.866,
+      "win": 0.722,
+      "winCI": [
+        0.6934229755065661,
+        0.7488779437258474
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 760801.976,
+        "p10": -100,
+        "median": 489072,
+        "p90": 1864303,
+        "p99": 3702788,
+        "max": 7970872
+      },
+      "failure": {
+        "illegal": 264,
+        "legalBelowTarget": 14
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 465,
+        "usedRuns": 0,
+        "usedRounds": 0,
+        "usageByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 597,
+        "wildReplacedCount": 0
+      }
+    },
+    {
+      "route": "growth",
+      "variant": "integrated-K2",
+      "n": 1000,
+      "firstLegal": 0.866,
+      "win": 0.757,
+      "winCI": [
+        0.7294665084355112,
+        0.7825665377029134
+      ],
+      "finalScore": {
+        "n": 1000,
+        "mean": 765656.52,
+        "p10": -100,
+        "median": 492789,
+        "p90": 1908958,
+        "p99": 3590866,
+        "max": 4684027
+      },
+      "failure": {
+        "illegal": 238,
+        "legalBelowTarget": 5
+      },
+      "wild": {
+        "acquired": 0,
+        "offered": 0,
+        "usedRuns": 0,
+        "usedRounds": 0,
+        "usageByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "availabilityByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "acquisitionByRound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "replacementCount": 606,
+        "wildReplacedCount": 0
+      }
+    }
+  ],
+  "paired": [
+    {
+      "better": "integrated-K0",
+      "base": "current-K0",
+      "n": 1000,
+      "gained": 261,
+      "lost": 127,
+      "netRate": 0.134,
+      "firstGained": 56,
+      "firstLost": 0,
+      "identicalRounds": 0,
+      "meanScoreDelta": 87590.32
+    },
+    {
+      "better": "integrated-K2",
+      "base": "current-K2",
+      "n": 1000,
+      "gained": 257,
+      "lost": 149,
+      "netRate": 0.108,
+      "firstGained": 29,
+      "firstLost": 0,
+      "identicalRounds": 0,
+      "meanScoreDelta": 89777.68
+    },
+    {
+      "better": "integrated-occupied-K0",
+      "base": "current-K0",
+      "n": 1000,
+      "gained": 219,
+      "lost": 147,
+      "netRate": 0.072,
+      "firstGained": 56,
+      "firstLost": 0,
+      "identicalRounds": 0,
+      "meanScoreDelta": 46046.98
+    },
+    {
+      "better": "integrated-occupied-K2",
+      "base": "current-K2",
+      "n": 1000,
+      "gained": 218,
+      "lost": 177,
+      "netRate": 0.041,
+      "firstGained": 29,
+      "firstLost": 0,
+      "identicalRounds": 0,
+      "meanScoreDelta": 35915.74
+    },
+    {
+      "better": "integrated-K0",
+      "base": "integrated-occupied-K0",
+      "n": 1000,
+      "gained": 148,
+      "lost": 86,
+      "netRate": 0.062,
+      "firstGained": 0,
+      "firstLost": 0,
+      "identicalRounds": 0,
+      "meanScoreDelta": 41543.34
+    },
+    {
+      "better": "integrated-K2",
+      "base": "integrated-occupied-K2",
+      "n": 1000,
+      "gained": 159,
+      "lost": 92,
+      "netRate": 0.067,
+      "firstGained": 0,
+      "firstLost": 0,
+      "identicalRounds": 0,
+      "meanScoreDelta": 53861.94
+    }
+  ],
+  "otherPaired": [
+    {
+      "route": "pungs",
+      "better": "integrated-K2",
+      "base": "current-K2",
+      "n": 1000,
+      "gained": 197,
+      "lost": 173,
+      "netRate": 0.024,
+      "approxPaired95CI": [
+        -0.013671995413038582,
+        0.06167199541303858
+      ],
+      "firstGained": 0,
+      "firstLost": 0,
+      "meanScoreDelta": 60075.988
+    },
+    {
+      "route": "held",
+      "better": "integrated-K2",
+      "base": "current-K2",
+      "n": 1000,
+      "gained": 106,
+      "lost": 96,
+      "netRate": 0.01,
+      "approxPaired95CI": [
+        -0.017849937881438807,
+        0.037849937881438804
+      ],
+      "firstGained": 0,
+      "firstLost": 0,
+      "meanScoreDelta": -23172.285
+    },
+    {
+      "route": "growth",
+      "better": "integrated-K2",
+      "base": "current-K2",
+      "n": 1000,
+      "gained": 118,
+      "lost": 83,
+      "netRate": 0.035,
+      "approxPaired95CI": [
+        0.007297010269647793,
+        0.06270298973035221
+      ],
+      "firstGained": 0,
+      "firstLost": 0,
+      "meanScoreDelta": 4854.544
+    }
+  ],
+  "audits": {
+    "main": {
+      "runs": 6000,
+      "rounds": 30550,
+      "repairs": 924,
+      "wildRounds": 9296,
+      "wildEntityAssignments": 9296,
+      "errors": [],
+      "maxRounds": 6,
+      "maxHand": 12,
+      "maxRelics": 4
+    },
+    "other": {
+      "runs": 6000,
+      "rounds": 31209,
+      "repairs": 2670,
+      "wildRounds": 0,
+      "wildEntityAssignments": 0,
+      "errors": [],
+      "maxRounds": 6,
+      "maxHand": 12,
+      "maxRelics": 4
+    }
+  },
+  "exclusiveEquivalence": [
+    {
+      "mode": "wild-aware",
+      "condition": "K0",
+      "n": 200,
+      "allRoundFieldsEqual": true,
+      "sameSeedsAreNotIndependentSamples": true
+    },
+    {
+      "mode": "wild-aware",
+      "condition": "K2",
+      "n": 200,
+      "allRoundFieldsEqual": true,
+      "sameSeedsAreNotIndependentSamples": true
+    }
+  ],
+  "limits": [
+    "Fixed visible-legal-completion strategy, not human win rates or rare-hand optimization.",
+    "Other routes never chose wild_jade under the fixed reward policy; only pool and subsequent RNG effects are measured.",
+    "Exclusive high-core mechanics equal current high-core mechanics; matched replays are not independent samples.",
+    "Occupied-slot ablation includes downstream accessory selection and RNG divergence.",
+    "No scoring, threshold, draw or ink budget changes."
+  ]
+}

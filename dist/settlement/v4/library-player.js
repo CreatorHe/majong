@@ -1,11 +1,12 @@
 import {createEffekseerLayer} from './effekseer-layer.js';
+import {artUrl} from '../../art-loader.js';
 export const DURATION = 4200;
 const clamp = x => Math.max(0, Math.min(1, x));
 const smooth = x => {x=clamp(x);return x*x*(3-2*x);};
 const out = x => 1-(1-clamp(x))**3;
 const mix = (a,b,t) => a+(b-a)*t;
 const random = n => {const v=Math.sin(n*127.1+91.23)*43758.5453;return v-Math.floor(v);};
-const url = path => new URL(path,import.meta.url).href;
+const url = path => artUrl(new URL(path,import.meta.url).href);
 const THEMES = {
   phoenix:{background:'assets/fire-background.webp',accent:'#ffd18a',particles:'ember'},
   cosmos:{background:'assets/cosmos-background.webp',accent:'#f2d6a4',particles:'star'},
@@ -59,10 +60,12 @@ export async function createLibraryPlayer({width=960,height=540,signal}={}) {
     if(disposed)throw new Error('播放器已释放');
     const ticket=++loadId,t=THEMES[next.theme];if(!t)throw new Error(`未知主题 ${next.theme}`);
     const paths=[t.background,...['charge','dash','release'].map(p=>`assets/${next.theme}-${p}.webp`)];
-    const textures=await guarded(P.Assets.load(paths.map(url)));
+    // Keep keys stable if a service worker takes control while textures load.
+    const resolved=paths.map(url);
+    const textures=await guarded(P.Assets.load(resolved.map(src=>({src,loadParser:'loadTextures'}))));
     if(disposed||ticket!==loadId)return false;
-    bg.texture=textures[url(paths[0])];bg.width=1040;bg.height=585;
-    poses.forEach((s,i)=>s.texture=textures[url(paths[i+1])]);
+    bg.texture=textures[resolved[0]];bg.width=1040;bg.height=585;
+    poses.forEach((s,i)=>s.texture=textures[resolved[i+1]]);
     scene=next;theme=t;fx.reset();return true;
   }
 

@@ -1,0 +1,9 @@
+.art-loading{min-height:100svh;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:32px 24px;text-align:center;background:radial-gradient(ellipse at 50% 35%,#32615d70,transparent 65%)}
+.art-loading .brand-tile{width:48px;height:62px;font-size:33px;margin-bottom:34px}
+.art-loading h1{font-size:30px;letter-spacing:.12em}
+.art-loading p{margin-top:12px;color:var(--muted);font-size:13px}
+.art-loading progress{appearance:none;display:block;width:min(240px,80vw);height:4px;margin:34px 0 12px;border:0;border-radius:4px;overflow:hidden;background:#a6c9ac26;color:var(--gold)}
+.art-loading progress::-webkit-progress-bar{background:#a6c9ac26}
+.art-loading progress::-webkit-progress-value{background:var(--gold);border-radius:4px}
+.art-loading progress::-moz-progress-bar{background:var(--gold);border-radius:4px}
+.art-loading small{font:11px var(--mono);color:var(--muted)}

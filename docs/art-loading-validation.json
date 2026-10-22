@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-22",
+  "version": "2a06a2055895ef62b041",
+  "assetCount": 99,
+  "beforeActiveBytes": 36277736,
+  "afterActiveBytes": 11553850,
+  "initialCount": 41,
+  "initialBytes": 719333,
+  "backgroundCount": 58,
+  "backgroundBytes": 10834517,
+  "checks": {
+    "coldEntry": {
+      "networkArtRequests": 41,
+      "bytes": 719333,
+      "duplicates": 0
+    },
+    "enteredGame": {
+      "totalNetworkArtRequests": 99,
+      "bytes": 11553850,
+      "duplicates": 0
+    },
+    "warmReload": {
+      "newArtNetworkRequests": 0,
+      "serverArtDisabled": true,
+      "played": "九莲宝灯",
+      "finalScore": "19,660,800"
+    },
+    "singleAssetRevision": {
+      "newArtNetworkRequests": 1,
+      "asset": "art/tiles/Man1.svg",
+      "productionFilesModified": false
+    },
+    "workerUnavailable": {
+      "browserPlayback": "passed",
+      "renderedBlobImages": true,
+      "finalScore": "19,660,800",
+      "uniqueAssets": 99,
+      "totalAssetRequests": 108,
+      "note": "9 extra requests for code/binary dependencies and immediate-demand images in degraded mode; no promise of full persistent interception without SW."
+    },
+    "adapterRegression": {
+      "passed": 10,
+      "failed": 0
+    },
+    "build": "passed",
+    "review": "no open confirmed issues"
+  },
+  "scope": "Local IAB browser. HTTPS production deployment, real mobile throughput and a full offline application shell were not tested."
+}

@@ -1,5 +1,6 @@
 // Effekseer owns particles only. Illustration, subject motion and typography stay
 // in the caller's compositor. No RAF is installed by this module.
+import {artUrl} from '../../art-loader.js';
 const DURATION_MS = 4000;
 const FPS = 60;
 const BASE = new URL('.', import.meta.url);
@@ -21,13 +22,13 @@ function loadRuntime() {
   if(globalThis[RUNTIME_PROMISE])return globalThis[RUNTIME_PROMISE];
   const promise=new Promise((resolve,reject)=>{
     const script=document.createElement('script');
-    script.src=new URL('vendor/effekseer/effekseer.min.js',BASE).href;
+    script.src=artUrl(new URL('vendor/effekseer/effekseer.min.js',BASE).href);
     script.async=true;
     script.onerror=()=>reject(new Error('Effekseer 1.70e runtime script could not be loaded'));
     script.onload=()=>{
       const runtime=globalThis.effekseer;
       if(!runtime?.initRuntime){reject(new Error('Effekseer global API is unavailable'));return;}
-      runtime.initRuntime(new URL('vendor/effekseer/effekseer.wasm',BASE).href,
+      runtime.initRuntime(artUrl(new URL('vendor/effekseer/effekseer.wasm',BASE).href),
         ()=>resolve(runtime),()=>reject(new Error('Effekseer WebAssembly initialization failed')));
     };
     document.head.append(script);
@@ -90,9 +91,10 @@ export function createEffekseerTimeline(context,effects,{centerX=0,sequence=EFFE
 function loadEffect(context,cue) {
   return new Promise((resolve,reject)=>{
     let effect;
-    effect=context.loadEffect(new URL(cue.file,BASE).href,1,
+    effect=context.loadEffect(artUrl(new URL(cue.file,BASE).href),1,
       ()=>queueMicrotask(()=>resolve(effect)),
-      (reason,path)=>reject(new Error(`Effekseer ${cue.id}: ${reason} (${path})`)));
+      (reason,path)=>reject(new Error(`Effekseer ${cue.id}: ${reason} (${path})`)),
+      path=>{const src=artUrl(path);return src.startsWith('blob:')&&/\.png(?:\?|$)/i.test(path)?src+'#.png':src;});
   });
 }
 

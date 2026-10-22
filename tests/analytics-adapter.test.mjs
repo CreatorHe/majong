@@ -119,17 +119,18 @@ test('legal below-target remains a hand; terminal failure is recorded after play
   assert.equal(h.events.at(-1).payload.reason, 'completed_below_target');
 });
 
-test('v6 aliases normalize while v2 through v5 snapshots and superseded runs retain their original version', async () => {
+test('v7 aliases normalize while v2 through v6 snapshots and superseded runs retain their original version', async () => {
   for (const [version, rulesVersion, scoreVersion, handCount] of [
     [2, 'free-play-v2', 'cumulative-v2', 18], [3, 'free-play-v3', 'exponential-v3', 10],
     [4, 'free-play-v4', 'exponential-v3', 12],
     [5, 'opening-build-v5', 'four-core-v5', 12],
+    [6, 'opening-build-v6', 'four-core-v6', 12],
   ]) {
     const h = harness(), s = await started(h);
-    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v6');
+    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v7');
     assert.equal(h.events.at(-1).context.score_model_version, 'four_core_v6');
-    const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, ink: 4,
-      relics: version === 5 ? ['core_high', 'ink'] : ['jade'] };
+    const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, ink: version === 6 ? 2 : 4,
+      relics: version >= 5 ? ['core_high', 'wild_jade'] : ['jade'] };
     if (old.hand.length < handCount) old.hand.push(...old.deck.splice(0, handCount - old.hand.length));
     else old.deck.push(...old.hand.splice(handCount));
     const oldSnapshot = h.adapter.captureGameState(old);
@@ -142,8 +143,10 @@ test('v6 aliases normalize while v2 through v5 snapshots and superseded runs ret
     assert.equal(superseded.context.score_model_version, scoreVersion.replaceAll('-', '_'));
     assert.equal(superseded.payload.state.hand_count, handCount);
     assert.equal(h.events.filter(e => e.name === 'game_action').at(-1).payload.before, null);
-    assert.equal(superseded.payload.state.ink, 4, 'old resource amounts are not rewritten as V6');
-    s.rulesVersion = 'opening_build_v6'; s.scoreVersion = 'four_core_v6';
+    assert.equal(superseded.payload.state.ink, old.ink, 'old resource amounts are not rewritten as V7');
+    assert.equal('formed_discard' in superseded.payload.state, false);
+    if (version >= 5) assert.ok(superseded.payload.state.relic_ids.includes('wild_jade'));
+    s.rulesVersion = 'opening_build_v7'; s.scoreVersion = 'four_core_v6';
     assert.equal(h.adapter.captureGameState(s).scoreVersion, 'four_core_v6');
     const before = h.adapter.captureGameState(s), count = h.events.length;
     s.scoreVersion = 'four-core-v5';
@@ -204,8 +207,12 @@ for (const k of [1,4]) test(`${k} declared kongs preserve ${14+k} physical tiles
 test('wildcard effective face and unlock patterns come from actual terminal result', async () => {
   const h = harness(), s = await started(h, 'riichi');
   const faces = [10,10,11,11,12,12,13,13,14,14,15,15,16,16];
-  arrange(s, faces); s.relics.push('wheel', 'wild_jade');
-  s.formed[0].face = 1; s.formed[0].wild = true; s.wildUsed = 1;
+  arrange(s, faces); s.relics.push('wheel');
+  s.formed[0].face = 1;
+  await h.act('transform', s, () => engine.transform(s, [s.formed[0].id], 'wild'), {
+    selected_tile_ids:[s.formed[0].id], transform_kind:'wild',
+  });
+  assert.equal(h.events.at(-1).payload.context.relic_id, 'core_high');
   await h.act('settle', s, () => engine.settle(s));
   const fact = h.events.find(e => e.name === 'hand_completed').payload;
   const wild = fact.tiles.find(t => t.wild);
@@ -373,19 +380,20 @@ test('real app rescue contexts preserve the single rescue and its actual exchang
   }
 });
 
-test('V6 full-hand repairs keep tile identity, share two ink and emit only the resulting settlement', async () => {
+test('V7 full-hand repairs keep tile identity, share two ink and attribute wild to the high core', async () => {
   for (const [kind, damagedFace, arg, tool] of [
-    ['rank', 3, 1, 'rank_brush'], ['suit', 13, 0, 'suit_ribbon'], ['wild', 13, undefined, 'wild_jade'],
+    ['rank', 3, 1, 'rank_brush'], ['suit', 13, 0, 'suit_ribbon'], ['wild', 13, undefined, 'core_high'],
   ]) {
     const h = harness(), s = await started(h);
-    if (tool !== 'rank_brush') s.relics.push(tool);
+    if (!s.relics.includes(tool)) s.relics.push(tool);
     s.relics.push('high_rescue');
     arrange(s, [...ordinary.slice(0, -1), damagedFace]);
     const tileId = s.formed.at(-1).id;
-    const context = {selected_tile_ids:[tileId], transform_kind:kind, transform_value:arg ?? null, relic_id:tool};
+    const context = {selected_tile_ids:[tileId], transform_kind:kind, transform_value:arg ?? null};
     await h.act('transform', s, () => engine.transform(s, [tileId], kind, arg), context);
     const repair = h.events.at(-1).payload;
     assert.equal(repair.outcome, 'applied'); assert.equal(repair.context.source_zone, 'formed');
+    if (kind === 'wild') assert.equal(repair.context.relic_id, 'core_high');
     assert.equal(repair.before.structure_count, 14); assert.equal(repair.after.structure_count, 14);
     assert.equal(repair.before.ink, 2); assert.equal(repair.after.ink, 0);
     assert.equal(repair.before.rescue_used, false); assert.equal(repair.after.rescue_used, false);
@@ -406,6 +414,91 @@ test('V6 full-hand repairs keep tile identity, share two ink and emit only the r
     assert.equal(fact.win_score, result.total);
     assert.equal(fact.tiles.find(t => t.id === tileId).effective_face, 4);
     assert.equal(h.events.filter(e => e.name === 'round_settled').length, 1);
+  }
+  for (const core of ['core_pung', 'core_held', 'core_growth']) {
+    const h = harness(), s = await started(h, 'mcr', core);
+    const tileId = s.hand.find(t => t.face < 27).id;
+    await h.act('transform', s, () => engine.transform(s, [tileId], 'wild'), {
+      selected_tile_ids:[tileId], transform_kind:'wild', relic_id:'wild_jade',
+    });
+    const rejected = h.events.at(-1).payload;
+    assert.equal(rejected.context.relic_id, 'core_high');
+    assert.equal(rejected.outcome, 'rejected'); assert.equal(rejected.reason_code, 'missing_relic');
+    assert.deepEqual(rejected.before, rejected.after); assert.deepEqual(rejected.tile_changes, []);
+  }
+});
+
+test('formed discard records one use per run, survives resume and joins later legal or false-win facts', async () => {
+  for (const count of [1, 2]) {
+    const h = harness(), s = await prepared(h);
+    await h.act('formed_discard', s, () => engine.discardFormed(s, []), {selected_tile_ids:[]});
+    assert.equal(h.events.at(-1).payload.reason_code, 'invalid_phase');
+    assert.equal(h.events.at(-1).payload.after.formed_discard, null);
+    await h.act('begin_play', s, () => engine.beginPlay(s));
+    arrange(s, count === 1 ? ordinary : invalid);
+    const removed = s.formed.slice(-count), ids = removed.map(t => t.id);
+    // Reserve physical replacements in the candidate area before observation.
+    const replacementIds = [];
+    for (const tile of removed) {
+      let replacement = s.hand.find(t => t.face === tile.face && !replacementIds.includes(t.id));
+      if (!replacement) {
+        const index = s.deck.findIndex(t => t.face === tile.face);
+        assert.ok(index >= 0);
+        const handIndex = s.hand.findIndex(t => !replacementIds.includes(t.id));
+        [s.hand[handIndex], s.deck[index]] = [s.deck[index], s.hand[handIndex]];
+        replacement = s.hand[handIndex];
+      }
+      replacementIds.push(replacement.id);
+    }
+    const context = {selected_tile_ids:ids, source_zone:'formed', count:99};
+    const {before, result} = await h.act('formed_discard', s, () => engine.discardFormed(s, ids), context);
+    const action = h.events.at(-1).payload;
+    assert.equal(result.ok, true); assert.equal(action.outcome, 'applied');
+    assert.equal(action.before.formed_discard, null);
+    assert.deepEqual(action.after.formed_discard, {round_no:1, tile_ids:ids});
+    assert.equal('count' in action.context, false, 'actual IDs define usage count, not the caller hint');
+    assert.equal(action.after.formed_count, action.before.formed_count - count);
+    assert.equal(action.after.structure_count, action.before.structure_count - count);
+    assert.equal(action.after.discard_count, action.before.discard_count + count);
+    for (const key of ['hand_count','deck_count','total_score','round_score','process_score','ink','swaps','coins','rescue_used']) {
+      assert.equal(action.after[key], action.before[key], key);
+    }
+    assert.equal(action.tile_changes.length, count);
+    assert.deepEqual(action.tile_changes.map(t => t.slice(0,3)).sort(), ids.map(id => [id,'formed','discard']).sort());
+    await h.adapter.trackGameAction('formed_discard', before, s, result, context);
+    assert.equal(h.events.filter(e => e.name === 'game_action' && e.payload.action === 'formed_discard' && e.payload.outcome === 'applied').length, 1);
+    const restored = engine.restore(JSON.stringify(s));
+    assert.ok(restored, 'the real engine restores the spent run-level ability');
+    const resumed = harness();
+    await resumed.adapter.trackGameAction('resume', null, restored, true, {source:'save'});
+    assert.equal(resumed.events.filter(e => e.name === 'game_action' && e.payload.action === 'formed_discard').length, 0);
+    assert.deepEqual(resumed.events.find(e => e.name === 'run_resumed').payload.state.formed_discard, action.after.formed_discard);
+    await h.act('formed_discard', s, () => engine.discardFormed(s, [s.formed[0].id]), {selected_tile_ids:[s.formed[0].id]});
+    assert.equal(h.events.at(-1).payload.reason_code, 'formed_discard_used');
+    assert.deepEqual(h.events.at(-1).payload.before, h.events.at(-1).payload.after);
+    await h.act('commit', s, () => engine.commit(s, replacementIds), {selected_tile_ids:replacementIds});
+    const {result: terminal} = await h.act('settle', s, () => engine.settle(s));
+    const fact = h.events.find(e => e.name === 'round_settled');
+    assert.equal(fact.payload.legal, count === 1);
+    assert.equal(fact.context.run_id, s.runId); assert.equal(fact.context.round_attempt_id, s.roundId);
+    assert.equal(fact.payload.record_quality, 'complete');
+    assert.equal(fact.payload.win_score, terminal.total);
+    assert.equal(fact.payload.tiles.some(t => ids.includes(t.id)), false);
+    assert.equal(h.events.filter(e => e.name === 'hand_completed').length, count === 1 ? 1 : 0);
+    if (count === 1) {
+      assert.equal(terminal.passed, true);
+      await h.act('settlement_continue', s, () => engine.finishSettlement(s));
+      await h.act('skip_reward', s, () => engine.skipReward(s));
+      await h.act('next_round', s, () => engine.nextRound(s));
+      assert.equal(h.events.at(-1).payload.state.round_no, 2);
+      assert.deepEqual(h.events.at(-1).payload.state.formed_discard, action.after.formed_discard);
+      await h.act('begin_play', s, () => engine.beginPlay(s));
+      const tileId = s.hand[0].id;
+      await h.act('commit', s, () => engine.commit(s, [tileId]), {selected_tile_ids:[tileId]});
+      await h.act('formed_discard', s, () => engine.discardFormed(s, [tileId]), {selected_tile_ids:[tileId]});
+      assert.equal(h.events.at(-1).payload.reason_code, 'formed_discard_used');
+      assert.deepEqual(h.events.at(-1).payload.after.formed_discard, action.after.formed_discard);
+    }
   }
 });
 

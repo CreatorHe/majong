@@ -1,6 +1,7 @@
 import { createLibraryPlayer } from './library-player.js';
 import { SCENES, PATTERN_ANIMATIONS } from './catalog.js';
 import { createSettlementAudio } from '../audio.js';
+import { isArtObjectURL } from '../../art-loader.js';
 
 export const BURST_DURATION = 5400;
 export const DECORATION_LOAD_TIMEOUT_MS = 8000;
@@ -63,6 +64,7 @@ export function createBurstPlan(input, { durationMs = BURST_DURATION } = {}) {
 
 function safeImageUrl(value) {
   if (!value) return '';
+  if (isArtObjectURL(value)) return value;
   try { const url = new URL(value, document.baseURI); return ['http:', 'https:'].includes(url.protocol) && url.origin === location.origin ? url.href : ''; } catch { return ''; }
 }
 

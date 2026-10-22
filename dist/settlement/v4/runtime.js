@@ -1,4 +1,5 @@
 import { createLibraryPlayer } from './library-player.js';
+import { artUrl } from '../../art-loader.js';
 
 let dependencies;
 function script(path, ready) {
@@ -6,7 +7,7 @@ function script(path, ready) {
   return new Promise((resolve, reject) => {
     const node = document.createElement('script');
     const timeout = setTimeout(() => { node.remove(); reject(new Error('结算画面加载超时')); }, 12000);
-    node.src = new URL(path, import.meta.url).href;
+    node.src = artUrl(new URL(path, import.meta.url).href);
     node.async = true;
     node.onload = () => { clearTimeout(timeout); ready() ? resolve() : reject(new Error('结算画面运行库不可用')); };
     node.onerror = () => { clearTimeout(timeout); node.remove(); reject(new Error('结算画面加载失败')); };

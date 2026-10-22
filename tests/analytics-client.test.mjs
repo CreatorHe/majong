@@ -607,15 +607,34 @@ test('versioned lifecycle and actions preserve rule limits and old outboxes acro
   };
   assert.equal((await h.client.track('game_action', repair, v6Context)).queued, true);
   assert.equal(h.storage.peek().events.at(-1).payload.after.ink, 0);
-  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State], [v6Context, v6State]]) {
+  const v7Context = { ...v6Context, rules_version: 'opening_build_v7' };
+  const v7State = { ...v6State, formed_discard: null };
+  assert.equal((await h.client.track('round_started', { state: v7State, record_quality: 'complete' }, v7Context)).queued, true);
+  assert.equal((await h.client.track('round_started', { state: v6State, record_quality: 'complete' }, v7Context)).reason, 'invalid_event');
+  assert.equal((await h.client.track('round_started', { state: v7State, record_quality: 'complete' }, v6Context)).reason, 'invalid_event');
+  const discard = {
+    ...begin, action: 'formed_discard', before: { ...fullState, formed_discard: null },
+    after: { ...fullState, formed_count: 12, structure_count: 12, discard_count: 2, formed_discard: { round_no: 1, tile_ids: ['tile-1', 'tile-2'] } },
+    selected_tile_ids: ['tile-1', 'tile-2'],
+    tile_changes: ['tile-1', 'tile-2'].map(id => [id, 'formed', 'discard', 0, null, false, null, true, null]),
+    context: { ...begin.context, source_zone: 'formed' },
+  };
+  assert.equal((await h.client.track('game_action', discard, v7Context)).queued, true);
+  assert.deepEqual(h.storage.peek().events.at(-1).payload.after.formed_discard, { round_no: 1, tile_ids: ['tile-1', 'tile-2'] });
+  assert.equal((await h.client.track('game_action', discard, v6Context)).reason, 'invalid_event');
+  assert.equal((await h.client.track('game_action', { ...discard, after: { ...discard.after, ink: 0 } }, v7Context)).reason, 'invalid_event');
+  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State], [v6Context, v6State], [v7Context, v7State]]) {
     assert.equal((await h.client.track('round_started', { state: { ...state, hand_count: state.hand_count + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
     assert.equal((await h.client.track('round_started', { state: { ...state, total_score: Number.MAX_SAFE_INTEGER + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
   }
-  const storedOld = h.storage.peek().events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5'].includes(event.rules_version));
+  const oldVersions = ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5', 'opening_build_v6'];
+  const storedOld = h.storage.peek().events.filter(event => oldVersions.includes(event.rules_version));
+  assert.ok(storedOld.some(event => event.rules_version === 'opening_build_v6'));
+  assert.ok(storedOld.filter(event => event.rules_version === 'opening_build_v6').every(event => !Object.hasOwn(event.payload.state ?? event.payload.after, 'formed_discard')));
   h.client.dispose();
-  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v6', scoreModelVersion: 'four_core_v6', appRelease: 'opening-build-v6' });
+  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v7', scoreModelVersion: 'four_core_v6', appRelease: 'opening-build-v7' });
   await upgraded.ready; await upgraded.flush();
-  const deliveredOld = h.requests.at(-1).body.events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5'].includes(event.rules_version));
+  const deliveredOld = h.requests.at(-1).body.events.filter(event => oldVersions.includes(event.rules_version));
   assert.deepEqual(deliveredOld, storedOld);
   upgraded.dispose();
 });

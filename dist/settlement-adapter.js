@@ -1,5 +1,6 @@
 import { CinematicSettlementPlayer } from './settlement/cinematic-player.js';
 import { PATTERN_ANIMATIONS } from './settlement/v4/catalog.js';
+import { artUrl } from './art-loader.js';
 
 // This module only translates the engine's settled ledger into presentation data.
 // No game mutations, score operations, rewards, or random draws belong here.
@@ -156,8 +157,8 @@ export function buildSettlementSnapshot(game, result = game?.last) {
 /** The host owns this root and must keep it outside any whole-app rerender. */
 export function createSettlementPlayer(root, options = {}) {
   return new CinematicSettlementPlayer(root, {
-    tileUrl: tile => tile.face ? new URL(`./art/tiles/${tile.face}.svg`, import.meta.url).href : '',
-    relicUrl: relic => relic.imageUrl || RELIC_ART_URLS[relic.id] || '',
+    tileUrl: tile => tile.face ? artUrl(new URL(`./art/tiles/${tile.face}.svg`, import.meta.url).href) : '',
+    relicUrl: relic => artUrl(relic.imageUrl || RELIC_ART_URLS[relic.id] || ''),
     ...options,
   });
 }

@@ -1,4 +1,4 @@
-// V6 trial values. Keep mechanics, scoring and acquisition tuning in one place.
+// V7 acquisition; V6 score curves and thresholds. Keep mechanics, scoring and acquisition tuning in one place.
 // These are playtest parameters, not claims of final four-route balance.
 export const CORE_IDS = ['core_high', 'core_pung', 'core_held', 'core_growth'];
 export const STARTER_RELIC_ID = 'rank_brush';
@@ -42,9 +42,9 @@ export const TARGETS = {
   mcr: [1000,5000,12000,30000,80000,180000],
   riichi: [200,500,1000,2500,5500,12000],
 };
-export const DISABLED_RELIC_IDS = ['wind', 'growth', 'reserve', 'ink'];
+export const DISABLED_RELIC_IDS = ['wind', 'growth', 'reserve', 'ink', 'wild_jade'];
 export const COMPATIBLE_RELICS = {
-  core_high: ['high_rescue','rank_brush','suit_ribbon','wild_jade','jade'],
+  core_high: ['high_rescue','rank_brush','suit_ribbon','jade'],
   core_pung: ['retrigger_meld','stone','mountain','kong_cauldron','rank_brush','jade'],
   core_held: ['retrigger_held','jade','rank_brush','suit_ribbon'],
   core_growth: ['retrigger_meld','jade','rank_brush','suit_ribbon','river'],

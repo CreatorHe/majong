@@ -3,6 +3,8 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const assets = '.runtime/assets';
+// Hash authored production assets before copying; the worker and page must agree.
+await import('./generate-art-assets.mjs');
 await rm(assets, { recursive: true, force: true });
 await mkdir(assets, { recursive: true });
 for (const file of await readdir('dist')) {

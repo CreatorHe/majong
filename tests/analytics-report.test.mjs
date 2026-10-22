@@ -7,20 +7,24 @@ const previous = (summary = {}, settlements = {}) => ({ rules_version: 'free_pla
 const v3 = (summary = {}, settlements = {}) => ({ rules_version: 'free_play_v3', score_model_version: 'exponential_v3', summary, settlements });
 const v4 = (summary = {}, settlements = {}) => ({ rules_version: 'free_play_v4', score_model_version: 'exponential_v3', summary, settlements });
 const v5 = (summary = {}, settlements = {}) => ({ rules_version: 'opening_build_v5', score_model_version: 'four_core_v5', summary, settlements });
+const v6 = (summary = {}, settlements = {}) => ({ rules_version: 'opening_build_v6', score_model_version: 'four_core_v6', summary, settlements });
 const legacy = summary => ({ rules_version: 'split_legacy_v1', score_model_version: 'rogue_legacy_v1', summary });
 
-test('v2 through v6 keep reported scores unchanged and complete version keys separate', () => {
-  assert.deepEqual(sampleVersions, { rules_version: 'opening_build_v6', score_model_version: 'four_core_v6' });
+test('v2 through v7 keep reported scores unchanged and complete version keys separate', () => {
+  assert.deepEqual(sampleVersions, { rules_version: 'opening_build_v7', score_model_version: 'four_core_v6' });
   assert.notEqual(versionKey(v3()), versionKey(v4()));
   assert.notEqual(versionKey(v4()), versionKey(v5()));
-  assert.notEqual(versionKey(v5()), versionKey(current()));
+  assert.notEqual(versionKey(v5()), versionKey(v6()));
+  assert.equal(v6().score_model_version, current().score_model_version);
+  assert.notEqual(versionKey(v6()), versionKey(current()));
   assert.deepEqual(JSON.parse(versionKey(v3())), ['free_play_v3', 'exponential_v3']);
   assert.deepEqual(JSON.parse(versionKey(v4())), ['free_play_v4', 'exponential_v3']);
   assert.deepEqual(JSON.parse(versionKey(v5())), ['opening_build_v5', 'four_core_v5']);
-  assert.deepEqual(JSON.parse(versionKey(current())), ['opening_build_v6', 'four_core_v6']);
+  assert.deepEqual(JSON.parse(versionKey(v6())), ['opening_build_v6', 'four_core_v6']);
+  assert.deepEqual(JSON.parse(versionKey(current())), ['opening_build_v7', 'four_core_v6']);
   assert.equal(reportPresentation({ ...current(), score_model_version: 'exponential_v3' }).freePlay, false);
   assert.equal(reportPresentation({ ...current(), score_model_version: 'four_core_v5' }).freePlay, false);
-  for (const version of [previous, v3, v4, v5, current]) {
+  for (const version of [previous, v3, v4, v5, v6, current]) {
     const data = version(
       { max_win_score: 1800, max_round_score: 1880, max_cumulative_score: 1880 },
       { max_round_score: 1880, max_cumulative_score: 4900, pass_rate: 3 / 5 },
@@ -31,7 +35,8 @@ test('v2 through v6 keep reported scores unchanged and complete version keys sep
     assert.equal(view.v3, version === v3);
     assert.equal(view.v4, version === v4);
     assert.equal(view.v5, version === v5);
-    assert.equal(view.v6, version === current);
+    assert.equal(view.v6, version === v6);
+    assert.equal(view.v7, version === current);
     assert.equal(view.maxScore, 1800);
     assert.equal(view.maxNet, 1880);
     assert.equal(view.maxCumulative, 4900);
@@ -41,8 +46,8 @@ test('v2 through v6 keep reported scores unchanged and complete version keys sep
   }
 });
 
-test('free-play versions preserve missing and signed records, including v3 through v6 safe large scores', () => {
-  for (const version of [previous, v3, v4, v5, current]) {
+test('free-play versions preserve missing and signed records, including v3 through v7 safe large scores', () => {
+  for (const version of [previous, v3, v4, v5, v6, current]) {
     const data = version({ max_round_score: 9999 }, { max_round_score: -100, max_cumulative_score: -50, pass_rate: 0 });
     const view = reportPresentation(data);
     assert.equal(view.maxScore, null);
@@ -52,7 +57,7 @@ test('free-play versions preserve missing and signed records, including v3 throu
     assert.equal(patternScore({ max_round_score: 9999 }, data), null);
     assert.equal(reportPresentation(version()).passRate, null);
   }
-  for (const version of [v3, v4, v5, current]) {
+  for (const version of [v3, v4, v5, v6, current]) {
     const high = version({ max_win_score: 2 ** 48 }, { max_round_score: 2 ** 48, max_cumulative_score: Number.MAX_SAFE_INTEGER });
     assert.equal(reportPresentation(high).maxScore, 2 ** 48);
     assert.equal(reportPresentation(high).maxCumulative, Number.MAX_SAFE_INTEGER);
@@ -109,7 +114,7 @@ test('sandbox fixture uses separate stable IDs and mode-specific pattern IDs', (
       assert.equal(item.context.mode, mode);
       assert.equal(item.context.rules_version, sampleVersions.rules_version);
       assert.equal(item.context.score_model_version, sampleVersions.score_model_version);
-      assert.equal(item.context.app_release, 'opening-build-v6');
+      assert.equal(item.context.app_release, 'opening-build-v7');
       assert.deepEqual(item.payload.owned_relic_ids, ['core_high', 'rank_brush']);
       assert.equal(item.context.hand_id, item.payload.settlement_id);
       assert.ok(item.payload.credited_pattern_ids.every(id => id.startsWith(`${mode}.`)));
@@ -124,6 +129,8 @@ test('all sandbox facts pass the same shared strict validation as gameplay event
     for (const item of makeFixture(mode)) {
       const result = validateGamePayload(item.event_name, item.payload, item.context);
       assert.equal(result.ok, true, `${mode}/${item.event_name}/${item.payload.result_type}: ${result.reason}`);
+      const v6Context = { ...item.context, rules_version: 'opening_build_v6', score_model_version: 'four_core_v6', app_release: 'opening-build-v6' };
+      assert.equal(validateGamePayload(item.event_name, item.payload, v6Context).ok, true, 'v6 terminal fields remain unchanged');
       const v5Context = { ...item.context, rules_version: 'opening_build_v5', score_model_version: 'four_core_v5', app_release: 'opening-build-v5' };
       const v5Payload = { ...item.payload, owned_relic_ids: ['core_high'] };
       assert.equal(validateGamePayload(item.event_name, v5Payload, v5Context).ok, true);

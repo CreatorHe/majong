@@ -1,0 +1,1541 @@
+{
+  "policy": "webp-relic432-q84-background1280-q82-pose1152-q86-pnglossless-v1",
+  "generatedAt": "2026-10-22T09:40:25.904126+00:00",
+  "encoder": "Pillow 12.3.0",
+  "beforeBytes": 35046641,
+  "afterBytes": 9510143,
+  "savedBytes": 25536498,
+  "fileCount": 62,
+  "files": [
+    {
+      "path": "dist/art/backgrounds/board-v2.webp",
+      "source": "art/backgrounds/board-v2.png",
+      "sourceSha256": "1de18089c7d972357d29fea34e5fccc03417d9db17a7b97267bd77d2ad675781",
+      "beforeSha256": "f0fc932aa6ca6887dfd4c9e872d450261a22ccb6740348bfcd55e758d1a4690b",
+      "afterSha256": "4f7056a1decb9ad9562bf94e7c4b5122edd9494b2a0186c5c8fb9ca53b290eda",
+      "beforeBytes": 2196784,
+      "afterBytes": 178356,
+      "savedBytes": 2018428,
+      "beforeDimensions": [
+        1774,
+        887
+      ],
+      "afterDimensions": [
+        1280,
+        640
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 36.35,
+      "changed": true
+    },
+    {
+      "path": "dist/art/backgrounds/page-v2.webp",
+      "source": "art/backgrounds/page-v2.png",
+      "sourceSha256": "14758e4fbefc489a6890b499be864f1862ef9cf6225e1a14c5b89e2bb9581c04",
+      "beforeSha256": "68ac4a54764d2531e74517757258a57b95d75e29a1e5dc5489d8ab3f2d66bea2",
+      "afterSha256": "9e240ac7f3f1483c25afe70d7992863e4df498684098255194fb197684400f36",
+      "beforeBytes": 1358282,
+      "afterBytes": 26454,
+      "savedBytes": 1331828,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 42.03,
+      "changed": true
+    },
+    {
+      "path": "dist/art/backgrounds/shop-v2.webp",
+      "source": "art/backgrounds/shop-v2.png",
+      "sourceSha256": "e96d42e3d5a3ab8f694b526df891fa5f17bf2eb24ee118a14afcf6f9e0ceae16",
+      "beforeSha256": "e7e6bdf042f265a4e55d970f1420a80058c2d7b0b79328a0f63d6c6e1d874277",
+      "afterSha256": "348fb515bd1d2ab47574e2a1711c6ccb188bea6ab25e2c05fcc4ad3cc44b35bf",
+      "beforeBytes": 1392290,
+      "afterBytes": 39194,
+      "savedBytes": 1353096,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 40.05,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/bamboo-v2.webp",
+      "source": "art/relics/bamboo-v2.png",
+      "sourceSha256": "e1f00b061d08aa8cfa903b9c14c12073132afe20b82edaf2ef02e1246f6f073e",
+      "beforeSha256": "498af68cae98456db8dfe6c52b35e412a24d8852fdce7424254b054c5fc651ee",
+      "afterSha256": "1110b59df678d2866880cb1715025aeab7f35cd83b17b6e5a2967b15d2121a87",
+      "beforeBytes": 591746,
+      "afterBytes": 21286,
+      "savedBytes": 570460,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 39.06,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/coin-v2.webp",
+      "source": "art/relics/coin-v2.png",
+      "sourceSha256": "9ded1a8c2f29e996b7d3fb0372964f272629e9fdd40f4d07e4f72f58bd90815f",
+      "beforeSha256": "538da3b3945f01530befc0ff8b7e70fbccce226a33e394c2fb6c58bf486b5829",
+      "afterSha256": "650e03a47214afaa896f94daa013bf13083b57abada81073edc490e37b1c2fa2",
+      "beforeBytes": 1089530,
+      "afterBytes": 38042,
+      "savedBytes": 1051488,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 36.1,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/echo-v2.webp",
+      "source": "art/relics/echo-v2.png",
+      "sourceSha256": "f03fcfb96052e374954d6477956d666e3aedbdc1e5c6fd3322bbeb283eaa91d0",
+      "beforeSha256": "26f7fc3ba3a567e0bf6bc895ca1a7713f23203d4115874fd6995cad4e3adf41f",
+      "afterSha256": "1d2d9f013cc8e11ef3256e4e17f2f1bb009937a5b0c852f9cfc62777a7172f4a",
+      "beforeBytes": 970566,
+      "afterBytes": 36980,
+      "savedBytes": 933586,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.16,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/growth-v2.webp",
+      "source": "art/relics/growth-v2.png",
+      "sourceSha256": "09520c2a547a9154f2366c1bf5afd1cb81cf5f35f52de3f358eda5d60f93245c",
+      "beforeSha256": "1e7e03a9790a2d2ce37a4292643e7ca2648d920024c334351f6eafabb4b2250a",
+      "afterSha256": "e02174f84340541231f6cb6ba9bec99678260f118774ebc49d326c431db3825f",
+      "beforeBytes": 655940,
+      "afterBytes": 28248,
+      "savedBytes": 627692,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.86,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/ink-v2.webp",
+      "source": "art/relics/ink-v2.png",
+      "sourceSha256": "da391266fdeb0ca32321028a3dabe22a0c51c584793b42a69be7aef3bb48601b",
+      "beforeSha256": "02f6f8860d73abf8ee24149d2250c3361c8c472f673c112545c2459f16fa8d6f",
+      "afterSha256": "77206bf07bc879b81c2005bb210f849dce4b2fdb1a4074171447df02edec404a",
+      "beforeBytes": 735842,
+      "afterBytes": 22220,
+      "savedBytes": 713622,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 40.34,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/jade-v2.webp",
+      "source": "art/relics/jade-v2.png",
+      "sourceSha256": "d0e50582364ee2d753a93d11be603112773aac871d4ab1b23699da8fcb9b4275",
+      "beforeSha256": "86fcefc2d0f14e4f2d13dc78abda9f4d8837d1fc6605e5f75300cde4eec11556",
+      "afterSha256": "d0ad6b68c893ef1ca584fc307dbb7669e39cccfa3b0c33d2d494adf73087239c",
+      "beforeBytes": 876022,
+      "afterBytes": 23810,
+      "savedBytes": 852212,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 39.83,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/jiang-v2.webp",
+      "source": "art/relics/jiang-v2.png",
+      "sourceSha256": "976ec9432ff39ed7c95b04643449f43990fcb1b5ab10b47444680db030e48d77",
+      "beforeSha256": "23256281c416b3b67e8603e6e82d990f19d46824c1aff1170289b9d15f08a036",
+      "afterSha256": "77f7108cd388eb6638079c4e21e5c0ee7101b617685448d1ebef1232fca4b375",
+      "beforeBytes": 855958,
+      "afterBytes": 23308,
+      "savedBytes": 832650,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.79,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/kong_cauldron-v3.webp",
+      "source": "art/settlement/relics/kong_cauldron.png",
+      "sourceSha256": "3cb61202fc5b8b8af8fa4750f7deec856d61896aad3c002e2d6d6a3907cf4599",
+      "beforeSha256": "b2e36b71e1cab998d5250cbb46f7fcc25a60027d13ea7153aac4982e5c920a16",
+      "afterSha256": "4dde4db5ef93833a29661887d9be97140c0acde61448669ffd1791965b9c538e",
+      "beforeBytes": 106126,
+      "afterBytes": 47872,
+      "savedBytes": 58254,
+      "beforeDimensions": [
+        640,
+        640
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 35.14,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/mirror-v2.webp",
+      "source": "art/relics/mirror-v2.png",
+      "sourceSha256": "549083f836de878e182424f235bdb299b347a6d8fbb80cc7d93033dfe9622620",
+      "beforeSha256": "3655f6eaa6150b53ebc19dd9b9c5ad1a1b364298559b75a6c3c3ef845d05cc93",
+      "afterSha256": "8bd7988c0d53a920167511d75152436235849eb40b63805f0db1dfad627b7825",
+      "beforeBytes": 756132,
+      "afterBytes": 23598,
+      "savedBytes": 732534,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 39.04,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/mountain-v2.webp",
+      "source": "art/relics/mountain-v2.png",
+      "sourceSha256": "b3128ff4450e428b822da0cca1ac75ff49d04db715d2bafec1ace9d2db4b4fa0",
+      "beforeSha256": "6404a562da645e1dbab2c4ce35693a414363c84b422c6efc682641dc97fea03f",
+      "afterSha256": "a8e12a9401a3b737c8862c132f51343897064dca26213a3c294a43e2940b190c",
+      "beforeBytes": 1061658,
+      "afterBytes": 31634,
+      "savedBytes": 1030024,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.4,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/pair-v2.webp",
+      "source": "art/relics/pair-v2.png",
+      "sourceSha256": "25a29a5cbafd2380bf8b80b0726ab6b24e20889eac0c639a50291a01af29d741",
+      "beforeSha256": "c6ba7876aa27a43170ed308ebfc15a936b6adc36eb9e109a88dbcb580b5361d0",
+      "afterSha256": "7e7fde1330b6a75900aa8cad129503ff7c88af499cdd8ed4f164cc421e9f676f",
+      "beforeBytes": 836012,
+      "afterBytes": 32664,
+      "savedBytes": 803348,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 38.58,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/rank_brush-v3.webp",
+      "source": "art/settlement/relics/rank_brush.png",
+      "sourceSha256": "2c7b8aa383dbd31bb4957982ef68e21adb8d0129ed49a224da151b5e8eaf8a81",
+      "beforeSha256": "9132b8c45e64f3a2a86f7cb626fe5df54a024d230ccb17cc1111d23818062955",
+      "afterSha256": "7214aef02d6ea973536588919aef1c842977f16791de2f939a278da7875ef0ca",
+      "beforeBytes": 39498,
+      "afterBytes": 20832,
+      "savedBytes": 18666,
+      "beforeDimensions": [
+        640,
+        640
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 41.03,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/reserve-v2.webp",
+      "source": "art/relics/reserve-v2.png",
+      "sourceSha256": "480344be7e281206bd9512281c091cde4e1a235dbab9cf89e0f3d6681b07c0d5",
+      "beforeSha256": "377e42224279fb3ae21af770c6f964542bc3c8b89b918530180c7748eaa8d819",
+      "afterSha256": "28f114383313b7cda9edb4e1b0386a91da16a3f9b9a2b064960913584cef9da4",
+      "beforeBytes": 779020,
+      "afterBytes": 28796,
+      "savedBytes": 750224,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 39.74,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/river-v2.webp",
+      "source": "art/relics/river-v2.png",
+      "sourceSha256": "ef8124fb27a832ebd728a57d6e0960fd794516fbb02fb0d0c9980a5560d21f50",
+      "beforeSha256": "0a8be8153e538edc820f13a8ac87483b8991eb23248ea6f482f1c90c164681a6",
+      "afterSha256": "0e5bc570058a8f70a07a5cc03a22f7cc26b52ee0b3859e67a692b648a77573bd",
+      "beforeBytes": 892672,
+      "afterBytes": 38816,
+      "savedBytes": 853856,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 38.55,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/seal-v2.webp",
+      "source": "art/relics/seal-v2.png",
+      "sourceSha256": "15e4d34a35a0164eadae64eed08df4adef8bdd6c8c6d17e035b8a542cc2b979b",
+      "beforeSha256": "05f96320c59f17d089a82a0e2a672dcd5ff06ea57d9c7376076364bbf99e74e7",
+      "afterSha256": "30355357831471e84f5a18e11d674cb28d8ebfc730d9fa25b747735af11e0d0f",
+      "beforeBytes": 994654,
+      "afterBytes": 31038,
+      "savedBytes": 963616,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.82,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/single_seal-v3.webp",
+      "source": "art/settlement/relics/single_seal.png",
+      "sourceSha256": "aa418adc8f82808f0b3b7df8537d6e0a695b17ace99bbd4eecf235b65bc4475a",
+      "beforeSha256": "38e3937b197b10c4a5fafebc11a7165b3043cbcb0dbc76c80a65554cbe523219",
+      "afterSha256": "9c544717549eae59f4650ab62c3e24ecf1beb2c48eede1c707bb6f1600bf1a5a",
+      "beforeBytes": 35704,
+      "afterBytes": 17570,
+      "savedBytes": 18134,
+      "beforeDimensions": [
+        640,
+        640
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 39.51,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/stone-v2.webp",
+      "source": "art/relics/stone-v2.png",
+      "sourceSha256": "4c84bd03f74a8b5340820621c1857f9b82486cef761b992409986639af6b30c6",
+      "beforeSha256": "f829d860aa630cec4118dd12707b4ef2ff59c60b73f479895842b74c6ed2793c",
+      "afterSha256": "3ee7109a4005c8e53ba72c35fc1df8c9f52fbfd924d7199fa6e8fbfd40be853f",
+      "beforeBytes": 1138092,
+      "afterBytes": 35978,
+      "savedBytes": 1102114,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.3,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/suit_ribbon-v3.webp",
+      "source": "art/settlement/relics/suit_ribbon.png",
+      "sourceSha256": "88435522a7df22e6f1dbe3ad450a21d0f359d8f4d23dba4cf4cc73ce6c285828",
+      "beforeSha256": "19eaa1c42b387cbdc6135744798e84d0af151c6d5db53cc44aa96c5ff8f4cc4e",
+      "afterSha256": "406911039537c4a59e771b24b5e856e2b571b460369858079d52fec564bd1737",
+      "beforeBytes": 53588,
+      "afterBytes": 26986,
+      "savedBytes": 26602,
+      "beforeDimensions": [
+        640,
+        640
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 40.37,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/wheel-v2.webp",
+      "source": "art/relics/wheel-v2.png",
+      "sourceSha256": "cdf4f7d347a842904765f9ae00782d03916a305f37985884f2393f68ffe90225",
+      "beforeSha256": "dbe39321192aca23a4b59ef83fd5180032962ba38ed046f34ddfbaf3a05a40e5",
+      "afterSha256": "aa99a9ed6bbd1555de1b6985b5171e2a596a95509fae29e67a08cb7604f7820d",
+      "beforeBytes": 986584,
+      "afterBytes": 32538,
+      "savedBytes": 954046,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.27,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/wild_jade-v3.webp",
+      "source": "art/settlement/relics/wild_jade.png",
+      "sourceSha256": "a249de75497a398d21cb8dfea523674fa4ba88cb945f86b651cb9ddcab8bb7e0",
+      "beforeSha256": "1e6ddc3df30585972903b604898ee7228b508735685066cd2654d95e58dcd017",
+      "afterSha256": "255dac01bd06f76257a0669dbe32670a9b71db264afcb7f48bf2b4a4da053e84",
+      "beforeBytes": 60740,
+      "afterBytes": 28860,
+      "savedBytes": 31880,
+      "beforeDimensions": [
+        640,
+        640
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 37.59,
+      "changed": true
+    },
+    {
+      "path": "dist/art/relics/wind-v2.webp",
+      "source": "art/relics/wind-v2.png",
+      "sourceSha256": "93d2d5977b220cb2967f19c9a5f6521553adbb57649a0cee29cb2c09163bcc8b",
+      "beforeSha256": "f4a4bd47569073a0eca0d6a2c8cc7f4344e6bb3032599f6c8ea4d170b0668b6f",
+      "afterSha256": "e7caa9ac703289f9fce0e7e62d53dd1525ca9c352768cfdea19783e6e19efb6f",
+      "beforeBytes": 737508,
+      "afterBytes": 28752,
+      "savedBytes": 708756,
+      "beforeDimensions": [
+        1254,
+        1254
+      ],
+      "afterDimensions": [
+        432,
+        432
+      ],
+      "quality": 84,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 38.51,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/cosmos-v2.webp",
+      "source": "art/settlement/cinematic/cosmos-v2.png",
+      "sourceSha256": "3b62d7b9f9f64e6ec5afd3dde6c1762133288d338f7912ed398957eeaa065657",
+      "beforeSha256": "b7fb7696b2991f67bb688b6e52f30be65812ec8185d59cf2b3f21b777509ee76",
+      "afterSha256": "891e513fb6fc28d11782087149a6382a91997ef7f0c53ccb570c085c3463003d",
+      "beforeBytes": 394888,
+      "afterBytes": 219910,
+      "savedBytes": 174978,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.45,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/forest-v2.webp",
+      "source": "art/settlement/cinematic/forest-v2.png",
+      "sourceSha256": "798523ba22822834d662edb86fbf39536e7a4e0ee0ce8ef3a9bc6cfb297b4db3",
+      "beforeSha256": "d3af9a81c2f08e94e464f1c66feee9b01da9155b33708eaa487c1f6846cd0dcf",
+      "afterSha256": "e3d8edd25783da62241666f5ed0df7dd6e64b2347b0a6de06b7a1ea325bbfe20",
+      "beforeBytes": 389966,
+      "afterBytes": 228014,
+      "savedBytes": 161952,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.23,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/gate-v2.webp",
+      "source": "art/settlement/cinematic/gate-v2.png",
+      "sourceSha256": "eabe66ed82907a834a6f9f548ef2621774592595e290ba12a0fbb12eb4689acd",
+      "beforeSha256": "73a50aa82d119cbd8968f255220c671eec44dbc6758c34a25f36d3fefeddfe86",
+      "afterSha256": "1ae62492249400a2b7a893e2cb98e8816820911632f50744ef0614725f6c2e84",
+      "beforeBytes": 366902,
+      "afterBytes": 215896,
+      "savedBytes": 151006,
+      "beforeDimensions": [
+        1672,
+        940
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.92,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/lotus-v2.webp",
+      "source": "art/settlement/cinematic/lotus-v2.png",
+      "sourceSha256": "32853a458a84e26a70d52402418cc2b29d344dacec70ec45b29b62a280d47968",
+      "beforeSha256": "80dd48760242ef71570f3518f9c2785a1a479e1629f3ba93ff49d824177bd6ab",
+      "afterSha256": "bca56f985cd254ff30424852bc78125cbe45e22d5816b8c45c9c0de7648efad1",
+      "beforeBytes": 368318,
+      "afterBytes": 204938,
+      "savedBytes": 163380,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.22,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/phoenix-v2.webp",
+      "source": "art/settlement/cinematic/phoenix-v2.png",
+      "sourceSha256": "50202015c218da11bdd0ffec2be757588b29e13b839e71584c9db7525af2fb70",
+      "beforeSha256": "38eee46f6e6afb5dd6c23fe1ee30aab23c707303e46ac6be6e73e1849398feba",
+      "afterSha256": "4e79b90f0bdb3130a2dca5772e0a52849adcc102320eaf77da0ee64ab8f2cbec",
+      "beforeBytes": 359574,
+      "afterBytes": 204800,
+      "savedBytes": 154774,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.49,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/scroll-v2.webp",
+      "source": "art/settlement/cinematic/scroll-v2.png",
+      "sourceSha256": "f2011b250e6567cbccfe3fa289b4f60e1b02cfa2718c6a24b52742380bce567a",
+      "beforeSha256": "4676d0cea6716a3d4fbe461968f5a3c1a7bc199d68dfa5facc777c794a40b398",
+      "afterSha256": "4fe9acb0a9af3114096eb1c5187902e9f4847ae43da061213f0384cf7444ba65",
+      "beforeBytes": 386900,
+      "afterBytes": 223904,
+      "savedBytes": 162996,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.96,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/cinematic/sovereign-v2.webp",
+      "source": "art/settlement/cinematic/sovereign-v2.png",
+      "sourceSha256": "715a2b46bcc3a473cc542b5b5f18a618d7f99523e742de0b752c056825e45352",
+      "beforeSha256": "d82132bfd5bdef506aa213f53f3b4d39ad2487c4f41c23ecd534ac59499610f9",
+      "afterSha256": "f6f852d8242ea3b5991c68fcc264b87258f1abe1c65eb8683995673911f2ad0c",
+      "beforeBytes": 368182,
+      "afterBytes": 210654,
+      "savedBytes": 157528,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.7,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/cosmos-background.webp",
+      "source": "art/settlement/cinematic-v3/cosmos-empty.png",
+      "sourceSha256": "66c58003348b6fe7734dd514dfde431c16ca23cd8f6a97b98b47aac64b0d3549",
+      "beforeSha256": "334be3c5baf2cae3430cdf9cd0186e29a069350a4f2ea612e66f1e9f10424c9b",
+      "afterSha256": "1f5c1512e907b07c93c1f8682676a938969fa4506a9edd26dd436034d47416aa",
+      "beforeBytes": 390392,
+      "afterBytes": 150256,
+      "savedBytes": 240136,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 35.26,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/cosmos-charge.webp",
+      "source": "art/settlement/v4/assets/cosmos-charge.png",
+      "sourceSha256": "1c8bbb13f6e82af2fad0df3e5371643858a895599b16261cbdd0f8ad44e380ec",
+      "beforeSha256": "741ac8fd35d16b18c734feb03aab5b0255400c5cb4a52779bfe12d68ca82e775",
+      "afterSha256": "cabaf662ad1939e13b6ffcc088d7044a8bb351ef41d692965194822ea5bb9aa9",
+      "beforeBytes": 577602,
+      "afterBytes": 378786,
+      "savedBytes": 198816,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.12,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/cosmos-dash.webp",
+      "source": "art/settlement/v4/assets/cosmos-dash.png",
+      "sourceSha256": "225918451fa88cefa1c5b3916a2c582b281b70e18d00c23e8151b10932e834a6",
+      "beforeSha256": "38572ed0b12cc31368779b7660d4ddbbfb7ea74669cea6e5d593e84d2ebbcc66",
+      "afterSha256": "96dedc1f6fbb85c311aa45772910044a05c3643b18f53fbbc18804056d890bb2",
+      "beforeBytes": 649784,
+      "afterBytes": 409846,
+      "savedBytes": 239938,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.5,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/cosmos-release.webp",
+      "source": "art/settlement/v4/assets/cosmos-release.png",
+      "sourceSha256": "7c1c1e3f027bd1251786fd8a1a56cc4e3f33372a1810830d74697f8876757b1a",
+      "beforeSha256": "ed7d177c152eb15fd71760f45d021226f16a0ed4220fec18859189bfa4a4cdb0",
+      "afterSha256": "620bcb9e8047eaa6b76c12cd189a2f4688bc68717656a4d951ec2d35f90dbc6e",
+      "beforeBytes": 682846,
+      "afterBytes": 414920,
+      "savedBytes": 267926,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.02,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/fire-background.webp",
+      "source": "art/settlement/cinematic-v3/fire-empty.png",
+      "sourceSha256": "d47c1dbf37bbbdfed2861950f48ed79304f52c05e3a3908e290155546279cd02",
+      "beforeSha256": "1124c5a8310c57603055da6380a8c969c30827e059f463dda7f15972b662010a",
+      "afterSha256": "00dc14335a0d65316af5054336ab6eea56c2080a2695043db6cab5078f679ed1",
+      "beforeBytes": 336770,
+      "afterBytes": 135904,
+      "savedBytes": 200866,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 34.23,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/forest-charge.webp",
+      "source": "art/settlement/v4/assets/forest-charge.png",
+      "sourceSha256": "ac8738518b7927ba5fd2936846857146e27a37d279842a38c32d7fee6089895d",
+      "beforeSha256": "c706a2f5e6e3fc619bdfc51c1540d21f0c6b29560378d34084115d19a68ac003",
+      "afterSha256": "733ec687ac5c94407ef48aefc9a18c44ac7c8857b1a554e1eb6b2bad0e74da14",
+      "beforeBytes": 548268,
+      "afterBytes": 361134,
+      "savedBytes": 187134,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 36.22,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/forest-dash.webp",
+      "source": "art/settlement/v4/assets/forest-dash.png",
+      "sourceSha256": "9771596d3bb9f27be6c725d2fa87826772826b8d96b325afdfe81aba3b906270",
+      "beforeSha256": "e3d4b77bfdb1de9d4fa9b7b35b07ac2ef884f28cabdfa34792041b65ae4c6918",
+      "afterSha256": "c6e38ef91926e24879a566374537568981fff7515613f46d7729a75d924f05c7",
+      "beforeBytes": 497760,
+      "afterBytes": 341410,
+      "savedBytes": 156350,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 36.99,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/forest-release.webp",
+      "source": "art/settlement/v4/assets/forest-release.png",
+      "sourceSha256": "104ef76ce26d900d5cca52d5a3db866d8d46a1b31f9b13765739330d1d7657e5",
+      "beforeSha256": "25b8f3f7c3a432cdf824aa4e9cdaa6d5129e9c092f938055528232208b12c405",
+      "afterSha256": "9099e6a600f7ecaf2cc8c2552c6da55864b44478257a0e63797222791cbfaebc",
+      "beforeBytes": 560264,
+      "afterBytes": 373216,
+      "savedBytes": 187048,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 35.83,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/gate-charge.webp",
+      "source": "art/settlement/v4/assets/gate-charge.png",
+      "sourceSha256": "16fffe4c116bcf9f052d9af09daa276378c77f3ee578d091abc83628251e76dd",
+      "beforeSha256": "00f4e99afb8ec3f31c4bbe1a79d3f13c9d0e438c8b6997ed1ed3dd1a68207ec4",
+      "afterSha256": "8de51ed380e2600e3a1e8fb450ab7161075990fc36db2fe8451cfb0dc9ba5c68",
+      "beforeBytes": 680388,
+      "afterBytes": 404618,
+      "savedBytes": 275770,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.36,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/gate-dash.webp",
+      "source": "art/settlement/v4/assets/gate-dash.png",
+      "sourceSha256": "adb6aac795cd50706f594d4f1523bb41146d06f20af04d663a6e2d0e35718f7a",
+      "beforeSha256": "b3578e4f96326662af7c2a44f4e3818cb03e37c48726878f7ed3c80718163ef1",
+      "afterSha256": "bd581ff90ee5514943475ee104232d4d07a6b2c41cbe29a483ffd433110efcd2",
+      "beforeBytes": 448790,
+      "afterBytes": 240728,
+      "savedBytes": 208062,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.1,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/gate-release.webp",
+      "source": "art/settlement/v4/assets/gate-release.png",
+      "sourceSha256": "eaada5104e9cb391ae9faa56ddce3ec0093b9efd9dc710c25e6d670d8781ab23",
+      "beforeSha256": "95c3ac30112f09d2e2de37a3983197744b0b0b29a64e6913b6ded488db115f1f",
+      "afterSha256": "51acf652918752467dc3c8284275e6877ec3020afbf186d53c0ec01eadee6cee",
+      "beforeBytes": 582260,
+      "afterBytes": 313350,
+      "savedBytes": 268910,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.2,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/lake-background.webp",
+      "source": "art/settlement/cinematic-v3/lake-empty.png",
+      "sourceSha256": "f84babe467c8d127bc92e6c6abce423f1d14e0a500b16b1f04bcc970c0cd86ba",
+      "beforeSha256": "74ff9aa5568dc6cb7ba87ca4cb9713368b27250f23ea4c2d7cb8c3e749011a92",
+      "afterSha256": "9a9a68eb1e6204a84034276e751111c907065766caf6f63aaa373459e0b87e83",
+      "beforeBytes": 413914,
+      "afterBytes": 175342,
+      "savedBytes": 238572,
+      "beforeDimensions": [
+        1672,
+        941
+      ],
+      "afterDimensions": [
+        1280,
+        720
+      ],
+      "quality": 82,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 35.11,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/lotus-charge.webp",
+      "source": "art/settlement/v4/assets/lotus-charge.png",
+      "sourceSha256": "e0abfdd08133ce279a7151f074afd57c5b541e9db238cae6cff8e5cf58e7526b",
+      "beforeSha256": "94b66ffe3ac4997b9b400e11ee25df9889cb7ab4416e84a1f30a9e5f219000ac",
+      "afterSha256": "73ffd30328931cebd168bb3be32f195d94d28656cf20574a9825eb0e77152d44",
+      "beforeBytes": 343340,
+      "afterBytes": 199128,
+      "savedBytes": 144212,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.48,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/lotus-dash.webp",
+      "source": "art/settlement/v4/assets/lotus-dash.png",
+      "sourceSha256": "87e734ed88eb39a62ae875ed2690d90d375c53cac145b106119e898c6893a474",
+      "beforeSha256": "f4023da4640bebf0270fa55d2231d69aff1dfaa17bb1cc15459e52f500dab9e9",
+      "afterSha256": "b9b78d0c33393ae0df933422081beba8913e05b8a3490a4540fe77aad9ba16d8",
+      "beforeBytes": 339148,
+      "afterBytes": 196670,
+      "savedBytes": 142478,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 31.68,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/lotus-release.webp",
+      "source": "art/settlement/v4/assets/lotus-release.png",
+      "sourceSha256": "9ac8b7b99e862c6006fe87248d0d1194cdd411bf1daff0058e62840c34b2992e",
+      "beforeSha256": "3f9b1c99b276d8f74c9e9c94d32e8c982e200f08835bc382494dcb221059cffc",
+      "afterSha256": "095afd6a01df993907cc063cb440d68a5fada9a1a46167db7ea045e4d165e2e1",
+      "beforeBytes": 496116,
+      "afterBytes": 304802,
+      "savedBytes": 191314,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 31.68,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/phoenix-charge.webp",
+      "source": "art/settlement/v4/assets/phoenix-charge.png",
+      "sourceSha256": "2d871aaa31ace0eccf83bf98df8e67a8a459c9c9ce286792a14f29c7a95fd9c3",
+      "beforeSha256": "f0067ae0b181fd2b5a6225bd011f1c190f455b09c074de762574b2942e3059f2",
+      "afterSha256": "7df62b2bc98d92f75ce122ff7ae620d6c2ae6b55dc69b5cca6b0865379236f87",
+      "beforeBytes": 484642,
+      "afterBytes": 315960,
+      "savedBytes": 168682,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 35.6,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/phoenix-dash.webp",
+      "source": "art/settlement/v4/assets/phoenix-dash.png",
+      "sourceSha256": "98d6bf2654f9587137bd7bd5f582e04f661543af09c62f31471ec4513a7c7fa7",
+      "beforeSha256": "2f40d64ceff4733bce6c01e382fc90f10fc293f369b2102386fa97914c6b1fe4",
+      "afterSha256": "7a7159a21519cf04ce270d0ea3f98e26cef066812873f7ec79bf893e26d075e3",
+      "beforeBytes": 523938,
+      "afterBytes": 329096,
+      "savedBytes": 194842,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 34.15,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/phoenix-release.webp",
+      "source": "art/settlement/v4/assets/phoenix-release.png",
+      "sourceSha256": "925420c8d0c6cc2b55b43459d6d2f8d398a08d60173be7878e89aa6e72213eb2",
+      "beforeSha256": "b4b04301b6e1c1497f4cb3716c65de6e64edadfbe8865d0bdfe91a8aac1df19c",
+      "afterSha256": "20a2912ffcaf0e15f82e2d0cc005a520713ee01578162c0651c55dcbc480213a",
+      "beforeBytes": 579402,
+      "afterBytes": 379974,
+      "savedBytes": 199428,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 34.43,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/scroll-charge.webp",
+      "source": "art/settlement/v4/assets/scroll-charge.png",
+      "sourceSha256": "645c3ea3cd0a68faefca3da61e11574fd160f7032ccdac9688134f512a850874",
+      "beforeSha256": "3f36052d40755d4dd9b16648533919fabf8257f57b9b339dc2cc3c355a3eb208",
+      "afterSha256": "424497ab5977b09223cbb52837be9c25c36ca754dca7b9de4ea7e3dba58a67a7",
+      "beforeBytes": 253440,
+      "afterBytes": 127352,
+      "savedBytes": 126088,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 36.16,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/scroll-dash.webp",
+      "source": "art/settlement/v4/assets/scroll-dash.png",
+      "sourceSha256": "3cbb31c895bb935b2228da9608b51f503e4978ca22198d25af0c2899bfcd3cd8",
+      "beforeSha256": "91e45a7c4d5715d65ed633122059d3dd806b3a0dead7720831a811706e90691c",
+      "afterSha256": "ae5ba8a83a53d833176527814450fb60af3c7c47fb37083ce2ab34dfc0951908",
+      "beforeBytes": 236904,
+      "afterBytes": 114172,
+      "savedBytes": 122732,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 34.95,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/scroll-release.webp",
+      "source": "art/settlement/v4/assets/scroll-release.png",
+      "sourceSha256": "844836b122af64af96a6b8341ec16ccf2ba0a11eb071989acfe6c5c41f0c17f4",
+      "beforeSha256": "f377a183dd2c6bca8eb68f2b0c258c00247c5b57ab626ab80bd5700df9845b95",
+      "afterSha256": "b309d8225d75dd5b2a763008f45e875a2b4444d47cae79d585e90d68bca572f2",
+      "beforeBytes": 353550,
+      "afterBytes": 147728,
+      "savedBytes": 205822,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 35.41,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/sovereign-charge.webp",
+      "source": "art/settlement/v4/assets/sovereign-charge.png",
+      "sourceSha256": "635ace477ab627eae853e499c8f18aad166178f77d6ba21afaebf5807dc10fde",
+      "beforeSha256": "a5c254b519db2caa81de436d374a2443dba381aa68b329349d7a118a7f879ace",
+      "afterSha256": "dcfa68d5660d8b24d00fdd3d3e32734781c93933677daf474e6d8201ced35ec4",
+      "beforeBytes": 620940,
+      "afterBytes": 348834,
+      "savedBytes": 272106,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 33.65,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/sovereign-dash.webp",
+      "source": "art/settlement/v4/assets/sovereign-dash.png",
+      "sourceSha256": "edba69621fd76612a3dbe050e5321d0642d8bdf4b158b4ec364da3c7a06fb520",
+      "beforeSha256": "a760dcf5f20398da88621e2fdf2a129922a4ca847ee08e584eb21ed877fc7234",
+      "afterSha256": "1c281f57342847b5b9d4189a446637d3e3f4b92d43e06e8a1b2f518bbe82c95a",
+      "beforeBytes": 508812,
+      "afterBytes": 274382,
+      "savedBytes": 234430,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.4,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/assets/sovereign-release.webp",
+      "source": "art/settlement/v4/assets/sovereign-release.png",
+      "sourceSha256": "841286a796dec7d45261809f48e766af903d08e25a6ed6ed1b9172ac47f94be0",
+      "beforeSha256": "cacdbf29d380c1409f6f4ed88abecb91f5449b86ec7ea9efe55b0b03c2fb9619",
+      "afterSha256": "1f2da97e7053ba6b1b2994440a0397cc12743be439fec1a502a1bbb5b304ff63",
+      "beforeBytes": 479202,
+      "afterBytes": 256354,
+      "savedBytes": 222848,
+      "beforeDimensions": [
+        1536,
+        1024
+      ],
+      "afterDimensions": [
+        1152,
+        768
+      ],
+      "quality": 86,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": false,
+      "opaqueCompositePsnr": 32.58,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Basic/Texture/Particle01.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Basic/Texture/Particle01.png",
+      "sourceSha256": "b1346d2bfafa6e783661453680b282edc6bc0e0b85711414b9914aac03a3a881",
+      "beforeSha256": "b1346d2bfafa6e783661453680b282edc6bc0e0b85711414b9914aac03a3a881",
+      "afterSha256": "6b0606bdbf535de49a10db9cb1dacde64e1ea5fbaa8131a130492da5fccf736b",
+      "beforeBytes": 7082,
+      "afterBytes": 6342,
+      "savedBytes": 740,
+      "beforeDimensions": [
+        128,
+        128
+      ],
+      "afterDimensions": [
+        128,
+        128
+      ],
+      "quality": null,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Basic/Texture/Particle02.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Basic/Texture/Particle02.png",
+      "sourceSha256": "3734dfdba425f96ce5aca1f6682b572a85f73c799a6a615cd5978e16fc3c6e07",
+      "beforeSha256": "3734dfdba425f96ce5aca1f6682b572a85f73c799a6a615cd5978e16fc3c6e07",
+      "afterSha256": "f2696456de6a0b4db80a97d8dd27cf2756dbf96d6c2480670ef5058c7fe961c8",
+      "beforeBytes": 7230,
+      "afterBytes": 5559,
+      "savedBytes": 1671,
+      "beforeDimensions": [
+        128,
+        128
+      ],
+      "afterDimensions": [
+        128,
+        128
+      ],
+      "quality": null,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Basic/Texture/SwordLine01.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Basic/Texture/SwordLine01.png",
+      "sourceSha256": "b2b5d65f582c77d07ea28690d3976da3eaf3979fc3c775b44bec505e4965c8b1",
+      "beforeSha256": "b2b5d65f582c77d07ea28690d3976da3eaf3979fc3c775b44bec505e4965c8b1",
+      "afterSha256": "da8c1a5d850073d8283d8527543d1ed42e9014845442b6309ee9e541b94f7e5c",
+      "beforeBytes": 6493,
+      "afterBytes": 4728,
+      "savedBytes": 1765,
+      "beforeDimensions": [
+        128,
+        128
+      ],
+      "afterDimensions": [
+        128,
+        128
+      ],
+      "quality": null,
+      "alpha": false,
+      "encodingAlphaLosslessVerified": false,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Version16/Textures/Aura02_T.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Version16/Textures/Aura02_T.png",
+      "sourceSha256": "91fa124b3180997088df9c87d47be29c4f61113a1db141668e44acb2a4132e9e",
+      "beforeSha256": "91fa124b3180997088df9c87d47be29c4f61113a1db141668e44acb2a4132e9e",
+      "afterSha256": "4de4249e53aea228acd729d8a0e690443e4510a18532bb5372614618da4916a7",
+      "beforeBytes": 107569,
+      "afterBytes": 106962,
+      "savedBytes": 607,
+      "beforeDimensions": [
+        512,
+        512
+      ],
+      "afterDimensions": [
+        512,
+        512
+      ],
+      "quality": null,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Version16/Textures/Aura04_T.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Version16/Textures/Aura04_T.png",
+      "sourceSha256": "2862c5447e5d4a383ebdc2beedc28cc7f807b46803a88f50d88393f244614ae3",
+      "beforeSha256": "2862c5447e5d4a383ebdc2beedc28cc7f807b46803a88f50d88393f244614ae3",
+      "afterSha256": "45991dd208feb8530c8c4987472a4b966b323763b2565a89b74252fbbf36a689",
+      "beforeBytes": 65972,
+      "afterBytes": 65269,
+      "savedBytes": 703,
+      "beforeDimensions": [
+        512,
+        512
+      ],
+      "afterDimensions": [
+        512,
+        512
+      ],
+      "quality": null,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Version16/Textures/Normal01.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Version16/Textures/Normal01.png",
+      "sourceSha256": "37fff3cef328c4a2abe5dfe576b3701d06b301b5f2e08e21dbd3b7e968ad1917",
+      "beforeSha256": "37fff3cef328c4a2abe5dfe576b3701d06b301b5f2e08e21dbd3b7e968ad1917",
+      "afterSha256": "0a49384db2171d1b4714a6723046e2684358a186a5c3ff100a21c14f7fb680ee",
+      "beforeBytes": 1420731,
+      "afterBytes": 248466,
+      "savedBytes": 1172265,
+      "beforeDimensions": [
+        512,
+        512
+      ],
+      "afterDimensions": [
+        512,
+        512
+      ],
+      "quality": null,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    },
+    {
+      "path": "dist/settlement/v4/fx/00_Version16/Textures/Particle01.png",
+      "source": "jade-run/dist/settlement/v4/fx/00_Version16/Textures/Particle01.png",
+      "sourceSha256": "b9ad217c3c07536dceaf13180c4d81aa835b01ce6076ae020706b061ba574f87",
+      "beforeSha256": "b9ad217c3c07536dceaf13180c4d81aa835b01ce6076ae020706b061ba574f87",
+      "afterSha256": "009b4bfbaa76f290ccc4e8976aa4c79eaaf327d100519be3de3de5789ab2b92e",
+      "beforeBytes": 7414,
+      "afterBytes": 6907,
+      "savedBytes": 507,
+      "beforeDimensions": [
+        256,
+        256
+      ],
+      "afterDimensions": [
+        256,
+        256
+      ],
+      "quality": null,
+      "alpha": true,
+      "encodingAlphaLosslessVerified": true,
+      "pixelLosslessVerified": true,
+      "opaqueCompositePsnr": null,
+      "changed": true
+    }
+  ],
+  "notes": [
+    "Source masters retained; existing runtime URLs retained.",
+    "RGBA resizing uses premultiplied alpha; encoded alpha matches resized source exactly.",
+    "34 tile SVGs retained as vectors; no rasterization or lossy path simplification.",
+    "Legacy V3 MP4/poster files retained, because older modules still refer to them.",
+    "No app, cache, build, or API code is changed by this script."
+  ],
+  "groups": {
+    "dist/art/backgrounds": {
+      "count": 3,
+      "beforeBytes": 4947356,
+      "afterBytes": 244004
+    },
+    "dist/art/relics": {
+      "count": 21,
+      "beforeBytes": 14253592,
+      "afterBytes": 619828
+    },
+    "dist/settlement/cinematic": {
+      "count": 7,
+      "beforeBytes": 2634730,
+      "afterBytes": 1508116
+    },
+    "dist/settlement/v4/assets": {
+      "count": 24,
+      "beforeBytes": 11588472,
+      "afterBytes": 6693962
+    },
+    "dist/settlement/v4/fx": {
+      "count": 7,
+      "beforeBytes": 1622491,
+      "afterBytes": 444233
+    }
+  },
+  "verification": {
+    "sha256AndDecodePassed": 62,
+    "alphaPlaneMatchPassed": 47,
+    "losslessPngPixelMatchPassed": 7,
+    "idempotentSecondRun": true,
+    "visualInspection": "Four core relics at 216px; board, cauldron, forest, lotus, phoenix and normal texture side-by-side; artwork content and transparent edges preserved at game display scale.",
+    "browserVerification": "Delegated to main task for integrated browser validation."
+  }
+}

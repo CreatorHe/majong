@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { handleAnalytics } from '../server/analytics.js';
 import { PATTERN_CATALOG } from '../server/catalog.js';
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V5_CORE_IDS, GAME_PATTERN_CATALOG, V2_PATTERN_CATALOG, GAME_VERSION_PAIRS, gamePatternCatalog, patternIdForName, relicIdsForVersion, isSupportedGameVersion, validateGamePayload } from '../dist/analytics/game-schema.js';
+import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V5_CORE_IDS, GAME_PATTERN_CATALOG, V2_PATTERN_CATALOG, GAME_VERSION_PAIRS, gamePatternCatalog, patternIdForName, relicIdsForVersion, isSupportedGameVersion, validateGamePayload } from '../dist/analytics/game-schema.js';
 import { makeFixture } from '../dist/analytics/report.js';
 
 // Exercises the same migration SQL deployed to D1, with real SQLite constraints
@@ -445,16 +445,16 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   const [{ createGameAdapter }, { createAnalytics }, engine] = await Promise.all([
     import('../dist/analytics/game-adapter.js'), import('../dist/analytics/client.js'), import('../dist/engine.js'),
   ]);
-  assert.equal(engine.VERSION, 6);
-  assert.equal(V6_RULES_VERSION, engine.RULES_VERSION.replaceAll('-', '_'));
-  assert.equal(V6_SCORE_MODEL_VERSION, engine.SCORE_MODEL_VERSION.replaceAll('-', '_'));
-  assert.deepEqual([...relicIdsForVersion(V6_RULES_VERSION)].sort(), engine.RELICS.map(item => item.id).sort());
+  assert.equal(engine.VERSION, 7);
+  assert.equal(V7_RULES_VERSION, engine.RULES_VERSION.replaceAll('-', '_'));
+  assert.equal(V7_SCORE_MODEL_VERSION, engine.SCORE_MODEL_VERSION.replaceAll('-', '_'));
+  assert.deepEqual([...relicIdsForVersion(V7_RULES_VERSION)].sort(), engine.RELICS.filter(item => item.id !== 'wild_jade').map(item => item.id).sort(), 'a historical display entry is not a currently equipable relic');
   assert.deepEqual([...V5_CORE_IDS].sort(), engine.RELICS.filter(item => item.core).map(item => item.id).sort());
   const DB = database(); t.after(() => DB.sqlite.close());
   let saved = null, timestamp = Date.now(), dropFirstAck = true;
   const preferences = new Map(), received = [];
   const client = createAnalytics({
-    scope: 'sandbox', autoFlush: false, locks: null, appRelease: 'opening-build-v6', entry: 'debug', clock: () => timestamp,
+    scope: 'sandbox', autoFlush: false, locks: null, appRelease: 'opening-build-v7', entry: 'debug', clock: () => timestamp,
     storage: { load: async () => saved && structuredClone(saved), save: async data => { saved = structuredClone(data); }, clear: async () => { saved = null; } },
     preferenceStorage: { getItem: key => preferences.get(key), setItem: (key, value) => preferences.set(key, value) },
     fetch: async (path, init) => {
@@ -490,9 +490,13 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
     const index = pool.findIndex(tile => tile.face === face);
     assert.ok(index >= 0); return pool.splice(index, 1)[0];
   });
+  const replacements = [1, 2].map(face => {
+    const index = pool.findIndex(tile => tile.face === face);
+    assert.ok(index >= 0); return pool.splice(index, 1)[0];
+  });
   const secondBatch = chosen.slice(1, 11);
   game.hand = chosen.slice(0, 12); game.formed = [];
-  game.deck = pool.concat(chosen.slice(12).reverse()); game.discard = []; game.kongs = [];
+  game.deck = pool.concat(replacements, chosen.slice(12).reverse()); game.discard = []; game.kongs = [];
   await act('begin_play', () => engine.beginPlay(game));
   assert.equal(game.phase, 'play');
   assert.equal(game.swaps, 0);
@@ -511,7 +515,20 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.equal(game.ink, 2);
   const repair = await act('transform', () => engine.transform(game, [tileId], 'rank', -1), { selected_tile_ids: [tileId], source_zone: 'formed', transform_kind: 'rank', transform_value: -1, relic_id: 'rank_brush' });
   assert.equal(repair.result.ok, true);
-  assert.equal(game.ink, 0, 'full-hand repair consumes the shared V6 ink allowance');
+  assert.equal(game.ink, 0, 'full-hand repair consumes the shared ink allowance');
+  const discardedIds = chosen.slice(1, 3).map(tile => tile.id);
+  assert.ok(replacements.every(tile => game.hand.some(candidate => candidate.id === tile.id)));
+  const discard = await act('formed_discard', () => engine.discardFormed(game, discardedIds), { selected_tile_ids: discardedIds, source_zone: 'formed' });
+  assert.equal(discard.result.ok, true);
+  assert.deepEqual(game.formedDiscard, { round: 0, tileIds: discardedIds });
+  assert.equal(game.hand.length, 12);
+  assert.equal(136 - game.deck.length, 26, 'formed discard does not draw replacements');
+  assert.equal(game.processScore, processGain);
+  assert.equal(game.ink, 0);
+  await adapter.trackGameAction('formed_discard', discard.before, game, discard.result, { selected_tile_ids: discardedIds, source_zone: 'formed' });
+  const refused = await act('formed_discard', () => engine.discardFormed(game, discardedIds), { selected_tile_ids: discardedIds, source_zone: 'formed' });
+  assert.equal(refused.result.ok, false);
+  await act('commit', () => engine.commit(game, replacements.map(tile => tile.id)), { selected_tile_ids: replacements.map(tile => tile.id) });
   const terminal = await act('settle', () => engine.settle(game));
   assert.equal(terminal.result.legal, true);
   assert.ok(terminal.result.gains.some(gain => gain.id === 'retrigger_meld'));
@@ -524,8 +541,8 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.ok(received.some(ack => ack.duplicate.length > 0));
   assert.ok(received.every(ack => ack.rejected.length === 0));
   const r = await (await handleAnalytics(request('/api/reports/patterns?scope=sandbox&mode=mcr'), { DB })).json();
-  assert.equal(r.rules_version, V6_RULES_VERSION);
-  assert.equal(r.score_model_version, V6_SCORE_MODEL_VERSION);
+  assert.equal(r.rules_version, V7_RULES_VERSION);
+  assert.equal(r.score_model_version, V7_SCORE_MODEL_VERSION);
   assert.equal(r.summary.completed_hands, 1);
   assert.equal(r.settlements.total, 1);
   assert.equal(r.summary.max_win_score, terminal.result.total);
@@ -535,8 +552,14 @@ test('actual current engine → adapter → SDK → API → SQLite survives lost
   assert.equal(stored.round_score, terminal.result.total + processGain);
   assert.equal(stored.cumulative_after, game.totalScore);
   const commits = DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name = 'game_action'").all().map(row => JSON.parse(row.payload_json)).filter(action => action.action === 'commit');
-  assert.equal(commits.length, 3, 'duplicate adapter callback did not create another process award event');
+  assert.equal(commits.length, 4, 'duplicate adapter callback did not create another process award event');
   assert.equal(commits.filter(action => action.after.process_score - action.before.process_score === processGain).length, 1);
+  const discardEvents = DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name='game_action'").all().map(row => JSON.parse(row.payload_json)).filter(action => action.action === 'formed_discard');
+  assert.equal(discardEvents.filter(action => action.outcome === 'applied').length, 1);
+  assert.equal(discardEvents.filter(action => action.outcome === 'rejected').length, 1);
+  assert.deepEqual(discardEvents[0].after.formed_discard, { round_no: 1, tile_ids: discardedIds });
+  const storedTerminal = JSON.parse(DB.sqlite.prepare('SELECT payload_json FROM round_settlements').get().payload_json);
+  assert.ok(storedTerminal.tiles.every(tile => !discardedIds.includes(tile.id)), 'discarded entities cannot reappear in the completed hand');
   assert.equal(DB.sqlite.prepare("SELECT COUNT(*) AS n FROM raw_events WHERE event_name='round_started'").get().n, 1, 'begin_play does not start a second observed round');
   assert.ok(DB.sqlite.prepare("SELECT payload_json FROM raw_events WHERE event_name IN ('round_settled','hand_completed')").all().every(row => !Object.hasOwn(JSON.parse(row.payload_json), 'steps')), 'retrigger animation is not submitted as additional scoring facts');
   assert.equal(tableCount(DB, 'round_settlements'), 1);
@@ -714,18 +737,21 @@ function v5Action(action = 'begin_play') {
   return event;
 }
 
-test('v5 and v6 facts stay isolated and preserve the existing terminal contract', async t => {
-  assert.equal(GAME_RULES_VERSION, V6_RULES_VERSION);
-  assert.equal(GAME_SCORE_MODEL_VERSION, V6_SCORE_MODEL_VERSION);
+test('v5–v7 facts stay isolated and a shared score model selects the latest rules', async t => {
+  assert.equal(GAME_RULES_VERSION, V7_RULES_VERSION);
+  assert.equal(GAME_SCORE_MODEL_VERSION, V7_SCORE_MODEL_VERSION);
+  assert.equal(V7_SCORE_MODEL_VERSION, V6_SCORE_MODEL_VERSION);
   assert.deepEqual(relicIdsForVersion(V6_RULES_VERSION), relicIdsForVersion(V5_RULES_VERSION));
   assert.ok(relicIdsForVersion(V5_RULES_VERSION).includes('ink'), 'disabling a reward drop does not rewrite a historical catalogue');
+  for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION]) assert.ok(relicIdsForVersion(rules).includes('wild_jade'));
+  assert.equal(relicIdsForVersion(V7_RULES_VERSION).includes('wild_jade'), false);
   assert.deepEqual(gamePatternCatalog(V6_RULES_VERSION), gamePatternCatalog(V5_RULES_VERSION));
   assert.deepEqual(gamePatternCatalog(V5_RULES_VERSION), gamePatternCatalog('free_play_v4'));
   const f = await fixture(t);
   const v4 = { ...v3Hand('knitted'), rules_version: 'free_play_v4' };
   assert.equal((await f.send([v4])).body.accepted.length, 1);
   const latest = async () => (await (await handleAnalytics(request('/api/reports/patterns?mode=mcr'), f.env)).json());
-  assert.equal((await latest()).rules_version, V6_RULES_VERSION);
+  assert.equal((await latest()).rules_version, V7_RULES_VERSION);
   assert.equal((await latest()).summary.completed_hands, 0);
   const v5 = scoreParts({ ...v3Hand('orphans'), rules_version: V5_RULES_VERSION, score_model_version: V5_SCORE_MODEL_VERSION }, { win: Number.MAX_SAFE_INTEGER, target: Number.MAX_SAFE_INTEGER });
   v5.payload.owned_relic_ids = ['core_high', 'retrigger_meld', 'high_rescue', 'jade'];
@@ -743,7 +769,7 @@ test('v5 and v6 facts stay isolated and preserve the existing terminal contract'
   v6.payload.owned_relic_ids = ['core_growth', 'rank_brush', 'single_seal', 'retrigger_meld'];
   assert.equal((await f.send([v6])).body.accepted.length, 1);
   assert.deepEqual((await f.send([v5, v6])).body.duplicate, [v5.event_id, v6.event_id]);
-  const current = await latest();
+  const current = await f.report(`rules_version=${V6_RULES_VERSION}`);
   assert.equal(current.summary.completed_hands, 1);
   assert.equal(current.summary.max_win_score, 2500);
   assert.equal(current.summary.max_round_score, 2700);
@@ -751,7 +777,16 @@ test('v5 and v6 facts stay isolated and preserve the existing terminal contract'
   assert.equal(row(current, 'mcr.seven_pairs').count, 1);
   assert.equal(row(current, 'mcr.thirteen_orphans').count, 0);
   assert.equal((await f.report(`score_model_version=${V5_SCORE_MODEL_VERSION}`)).summary.max_win_score, Number.MAX_SAFE_INTEGER);
-  assert.equal((await f.report(`score_model_version=${V6_SCORE_MODEL_VERSION}`)).summary.max_win_score, 2500);
+  const scoreOnly = await f.report(`score_model_version=${V6_SCORE_MODEL_VERSION}`);
+  assert.equal(scoreOnly.rules_version, V7_RULES_VERSION);
+  assert.equal(scoreOnly.summary.completed_hands, 0, 'score-only reports never mix V6 records into the latest V7 rules');
+  const v7 = scoreParts({ ...v3Hand(), rules_version: V7_RULES_VERSION, score_model_version: V7_SCORE_MODEL_VERSION }, { win: 1000, target: 1000 });
+  v7.payload.owned_relic_ids = ['core_high', 'rank_brush'];
+  assert.equal((await f.send([v7])).body.accepted.length, 1);
+  assert.equal((await latest()).summary.max_win_score, 1000);
+  assert.equal((await f.report(`score_model_version=${V6_SCORE_MODEL_VERSION}`)).summary.max_win_score, 1000);
+  assert.equal((await f.report(`rules_version=${V6_RULES_VERSION}`)).summary.max_win_score, 2500);
+  assert.deepEqual((await f.send([v6, v7])).body.duplicate, [v6.event_id, v7.event_id]);
   const invalid = [];
   for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4']) {
     assert.equal(relicIdsForVersion(rules).length, 21);
@@ -764,15 +799,16 @@ test('v5 and v6 facts stay isolated and preserve the existing terminal contract'
   }
   const steps = structuredClone(v5); steps.event_id = crypto.randomUUID(); steps.payload.steps = []; invalid.push(steps);
   const mixed = structuredClone(v5); mixed.event_id = crypto.randomUUID(); mixed.score_model_version = 'exponential_v3'; invalid.push(mixed);
-  for (const [event, score] of [[v5, V6_SCORE_MODEL_VERSION], [v6, V5_SCORE_MODEL_VERSION]]) {
+  const retired = structuredClone(v7); retired.event_id = crypto.randomUUID(); retired.payload.owned_relic_ids.push('wild_jade'); invalid.push(retired);
+  for (const [event, score] of [[v5, V6_SCORE_MODEL_VERSION], [v6, V5_SCORE_MODEL_VERSION], [v7, V5_SCORE_MODEL_VERSION]]) {
     const mixed = structuredClone(event); mixed.event_id = crypto.randomUUID(); mixed.score_model_version = score; invalid.push(mixed);
   }
   assert.equal((await f.send(invalid)).body.rejected.length, invalid.length);
-  assert.equal(tableCount(f.DB, 'round_settlements'), 3);
+  assert.equal(tableCount(f.DB, 'round_settlements'), 4);
   assert.equal(tableCount(f.DB, 'completed_hands'), 0);
 });
 
-test('v5 actions still replay while v6 shared ink evidence stays within the same bounded schema', async t => {
+test('older actions still replay while V7 discards carry bounded, immutable evidence', async t => {
   const f = await fixture(t);
   const begin = v5Action();
   const startRound = { ...structuredClone(begin), event_id: crypto.randomUUID(), event_name: 'round_started', payload: { state: begin.payload.before, record_quality: 'complete' } };
@@ -803,13 +839,38 @@ test('v5 actions still replay while v6 shared ink evidence stays within the same
   const exhausted = structuredClone(v6Tool); exhausted.event_id = crypto.randomUUID(); exhausted.payload.action_id = crypto.randomUUID();
   exhausted.payload.outcome = 'rejected'; exhausted.payload.reason_code = 'insufficient_ink';
   exhausted.payload.before = structuredClone(exhausted.payload.after); exhausted.payload.tile_changes = [];
-  const events = [...previousEvents, v6Begin, v6Tool, exhausted];
+  const v7Discard = structuredClone(v6Tool);
+  Object.assign(v7Discard, { event_id: crypto.randomUUID(), rules_version: V7_RULES_VERSION, score_model_version: V7_SCORE_MODEL_VERSION });
+  Object.assign(v7Discard.payload, { action_id: crypto.randomUUID(), action: 'formed_discard', selected_tile_ids: ['entity-1', 'entity-2'], context: { ...begin.payload.context, source_zone: 'formed' } });
+  v7Discard.payload.before = { ...structuredClone(v6Tool.payload.after), deck_count: 110, formed_discard: null };
+  v7Discard.payload.after = { ...structuredClone(v7Discard.payload.before), formed_count: 12, structure_count: 12, discard_count: 2, formed_discard: { round_no: 1, tile_ids: ['entity-1', 'entity-2'] } };
+  v7Discard.payload.tile_changes = ['entity-1', 'entity-2'].map(tileId => [tileId, 'formed', 'discard', 2, null, false, null, true, null]);
+  const used = structuredClone(v7Discard); used.event_id = crypto.randomUUID(); used.payload.action_id = crypto.randomUUID();
+  used.payload.before = structuredClone(used.payload.after); used.payload.after = structuredClone(used.payload.before);
+  used.payload.after.formed_discard = { tile_ids: ['entity-2', 'entity-1'], round_no: 1 };
+  used.payload.outcome = 'rejected'; used.payload.reason_code = 'formed_discard_used'; used.payload.tile_changes = [];
+  const carried = { ...structuredClone(v7Discard), event_id: crypto.randomUUID(), event_name: 'round_started', payload: { state: { ...structuredClone(v7Discard.payload.after), round_no: 2, phase: 'prepare', formed_count: 0, structure_count: 0, deck_count: 124, discard_count: 0 }, record_quality: 'complete' } };
+  const oldWild = structuredClone(v6Tool); oldWild.event_id = crypto.randomUUID(); oldWild.payload.action_id = crypto.randomUUID();
+  for (const state of [oldWild.payload.before, oldWild.payload.after]) state.relic_ids = ['core_pung', 'wild_jade'];
+  Object.assign(oldWild.payload.context, { transform_kind: 'wild', transform_value: null, relic_id: 'wild_jade' });
+  oldWild.payload.after.wild_used = true;
+  oldWild.payload.tile_changes = [['entity-1', 'formed', 'formed', 1, 1, false, true, true, true]];
+  const coreWild = structuredClone(oldWild);
+  Object.assign(coreWild, { event_id: crypto.randomUUID(), rules_version: V7_RULES_VERSION, score_model_version: V7_SCORE_MODEL_VERSION });
+  coreWild.payload.action_id = crypto.randomUUID(); coreWild.payload.context.relic_id = 'core_high';
+  for (const state of [coreWild.payload.before, coreWild.payload.after]) { state.relic_ids = ['core_high', 'rank_brush']; state.formed_discard = null; }
+  const refusedWild = structuredClone(coreWild); refusedWild.event_id = crypto.randomUUID(); refusedWild.payload.action_id = crypto.randomUUID();
+  refusedWild.payload.before.relic_ids = ['core_pung', 'rank_brush']; refusedWild.payload.after = structuredClone(refusedWild.payload.before);
+  refusedWild.payload.outcome = 'rejected'; refusedWild.payload.reason_code = 'missing_relic'; refusedWild.payload.tile_changes = [];
+  const events = [...previousEvents, v6Begin, v6Tool, exhausted, v7Discard, used, carried, oldWild, coreWild, refusedWild];
   const received = await f.send(events);
   assert.deepEqual(received.body.rejected, []);
   assert.equal(received.body.accepted.length, events.length);
   assert.deepEqual((await f.send(previousEvents)).body.duplicate, previousEvents.map(event => event.event_id), 'old V5 outboxes retain their original envelopes and ACKs');
   assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM raw_events WHERE rules_version=?').get(V5_RULES_VERSION).n, previousEvents.length);
-  assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM raw_events WHERE rules_version=?').get(V6_RULES_VERSION).n, 3);
+  assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM raw_events WHERE rules_version=?').get(V6_RULES_VERSION).n, 4);
+  assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM raw_events WHERE rules_version=?').get(V7_RULES_VERSION).n, 5);
+  assert.deepEqual((await f.send([v7Discard])).body.duplicate, [v7Discard.event_id]);
   assert.equal(tableCount(f.DB, 'round_settlements'), 0, 'actions never create settlement awards');
   const invalid = [];
   for (const rules of ['free_play_v2', 'free_play_v3', 'free_play_v4']) {
@@ -834,6 +895,41 @@ test('v5 actions still replay while v6 shared ink evidence stays within the same
     const bad = structuredClone(v6Tool); bad.event_id = crypto.randomUUID(); change(bad); v6Invalid.push(bad);
   }
   assert.equal((await f.send(v6Invalid)).body.rejected.length, v6Invalid.length);
+  const v7Invalid = [];
+  for (const change of [
+    event => { event.payload.after.formed_discard.tile_ids = ['entity-1', 'entity-1']; },
+    event => { event.payload.after.formed_discard.tile_ids.push('entity-3'); },
+    event => { event.payload.after.formed_discard.round_no = 0; },
+    event => { event.payload.after.formed_discard.round_no = 2; },
+    event => { delete event.payload.after.formed_discard; },
+    event => { event.payload.after.formed_discard.used = true; },
+    event => { event.payload.after.ink++; },
+    event => { event.payload.after.total_score = event.payload.after.round_score = event.payload.after.process_score = 10; },
+    event => { event.payload.after.deck_count--; },
+    event => { event.payload.after.hand_count--; },
+    event => { event.payload.before.formed_discard = structuredClone(event.payload.after.formed_discard); },
+    event => { event.payload.selected_tile_ids = ['entity-1']; },
+  ]) { const bad = structuredClone(v7Discard); bad.event_id = crypto.randomUUID(); change(bad); v7Invalid.push(bad); }
+  const refusedChange = structuredClone(used); refusedChange.event_id = crypto.randomUUID(); refusedChange.payload.after.formed_discard = null; v7Invalid.push(refusedChange);
+  for (const rules of [V5_RULES_VERSION, V6_RULES_VERSION]) {
+    const old = structuredClone(v6Tool); Object.assign(old, { event_id: crypto.randomUUID(), rules_version: rules, score_model_version: GAME_VERSION_PAIRS[rules] });
+    old.payload.action = 'formed_discard';
+    assert.equal(validateGamePayload(old.event_name, old.payload, old).reason, 'invalid_game_action', 'old versions reject the new action before applying its context or transition validation');
+    v7Invalid.push(old);
+    const leakedState = structuredClone(old); leakedState.event_id = crypto.randomUUID(); leakedState.payload.action = 'transform'; leakedState.payload.after.formed_discard = null; v7Invalid.push(leakedState);
+  }
+  const invalidWild = [];
+  for (const change of [
+    event => { for (const state of [event.payload.before, event.payload.after]) state.relic_ids = ['core_pung', 'rank_brush']; },
+    event => { for (const state of [event.payload.before, event.payload.after]) state.relic_ids.push('wild_jade'); },
+    event => { event.payload.context.relic_id = 'wild_jade'; },
+  ]) { const bad = structuredClone(coreWild); bad.event_id = crypto.randomUUID(); change(bad); invalidWild.push(bad); }
+  const invalidDiscard = await f.send(v7Invalid);
+  assert.equal(invalidDiscard.body.rejected.length, v7Invalid.length);
+  assert.ok(invalidDiscard.body.rejected.some(item => item.reason === 'rejected_action_mutates_state'));
+  const wildResult = await f.send(invalidWild);
+  assert.equal(wildResult.body.rejected.length, invalidWild.length);
+  assert.ok(wildResult.body.rejected.some(item => item.reason === 'wild_requires_core_high'));
   assert.equal(tableCount(f.DB, 'raw_events'), events.length);
   const bounded = v5Action('select');
   bounded.payload.selected_tile_ids = Array.from({ length: 18 }, (_, i) => `t${i}`.padEnd(64, 'x'));
@@ -841,6 +937,10 @@ test('v5 actions still replay while v6 shared ink evidence stays within the same
   assert.equal(validateGamePayload(bounded.event_name, bounded.payload, bounded).ok, true);
   assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 8192);
   bounded.rules_version = V6_RULES_VERSION; bounded.score_model_version = V6_SCORE_MODEL_VERSION;
+  assert.equal(validateGamePayload(bounded.event_name, bounded.payload, bounded).ok, true);
+  assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 8192);
+  bounded.rules_version = V7_RULES_VERSION; bounded.score_model_version = V7_SCORE_MODEL_VERSION;
+  for (const state of [bounded.payload.before, bounded.payload.after]) state.formed_discard = { round_no: 1, tile_ids: ['a'.repeat(64), 'b'.repeat(64)] };
   assert.equal(validateGamePayload(bounded.event_name, bounded.payload, bounded).ok, true);
   assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 8192);
 });

@@ -1,4 +1,5 @@
 import {tileName} from './engine.js';
+import {artUrl} from './art-loader.js';
 
 // Vector outlines keep the same engraved tile lettering on every device.
 // CC0 artwork and adaptation details: art/tiles/LICENSE.md.
@@ -11,7 +12,7 @@ const faces = [
 
 export function face(t){
   const value=typeof t==='object'?t.face:t;
-  return `<svg viewBox="0 0 60 74" aria-hidden="true"><image href="${faces[value]}" x="7" y="6" width="46" height="62"/></svg>`;
+  return `<svg viewBox="0 0 60 74" aria-hidden="true"><image href="${artUrl(faces[value])}" x="7" y="6" width="46" height="62"/></svg>`;
 }
 export function tile(t,{size='',selected=false,index=null,quiet=false,zone=null,locked=false}={}){
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

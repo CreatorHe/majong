@@ -2,7 +2,7 @@ import { RELICS, currentSettlementPreview } from './engine.js';
 import { BALANCE } from './balance.js';
 import { suit, rank, groupType } from './hand-rules.js';
 
-const SUPPORT = new Set(['ink', 'wind', 'single_seal', 'rank_brush', 'suit_ribbon', 'wild_jade', 'high_rescue']);
+const SUPPORT = new Set(['ink', 'wind', 'single_seal', 'rank_brush', 'suit_ribbon', 'high_rescue']);
 const SUITS = ['万', '筒', '索'];
 const unique = values => [...new Set(values)];
 const ids = tiles => tiles.map(t => t.id);
@@ -66,7 +66,7 @@ function partialRows(state, m) {
     ...m.byFace.slice(27).flatMap(tiles=>Array.from({length:Math.floor(tiles.length/3)},(_,i)=>ids(tiles.slice(i*3,i*3+3))))];
   const swaps = state.swaps || 0, ink = state.ink || 0;
   const held = (state.hand || []).filter(t=>t.face>=27 || [1,9].includes(rank(t)));
-  add('core_high','提高最终牌型番值','牌型倍率进入大番曲线','同一手先判番，再按大番核心曲线计算；其余奇物不会被再次指数化。');
+  add('core_high',`提高番值 · 花色万能${editsRemaining(state)?'可用':'额度已用'}`,'大番曲线＋内置花色万能',`先判番，再按大番曲线计分。自带花色万能能力，不另占槽；保留点数，仅变万／筒／索，不代字牌，与改点／换色共用每关一次${BALANCE.editCost}墨。`);
   add('core_pung',`刻／杠材料 ${m.pungGroups.length} 组`,`每次面子事件 ×${BALANCE.pungFactor}`,pending,m.pungGroups.flat());
   add('core_held',`当前候选有 ${held.length} 张幺九`,`前${BALANCE.heldBaseCount}张 ×${BALANCE.heldFactor}；其后 ×${BALANCE.heldBurstFactor}`,`${Math.min(held.length,BALANCE.heldBaseCount)} 张基础档＋${Math.max(0,held.length-BALANCE.heldBaseCount)} 张爆发档；每张触发 ${(state.relics||[]).includes('retrigger_held')?2:1} 次。须合法和牌，以最终候选为准；重触发不增加合格张数。`,ids(held));
   add('core_growth',`已储存 ${baseNumber(Math.floor(state.growth?.coreGrowth || 0))} 底分`,`每次顺子事件 ×${BALANCE.growthRate}`,'只有合法结算才写入永久成长；本手处理完成长后，加入底分一次。',chows.flat());
@@ -108,12 +108,11 @@ function partialRows(state, m) {
   add('mountain', `连续刻／杠材料 ${mountain.count}/3 组`, `每刻／杠底分 +${baseNumber(BALANCE.mountainBase)}；三连刻再 ×2`, `${mountain.count ? `当前目标 ${rank(mountain.start)}～${rank(mountain.start) + 2}${SUITS[suit(mountain.start)]}；` : ''}三组须同花色且点数连续，各组使用不同实体牌。${pending}${wildNote}`, mountain.tileIds);
   add('reserve', `剩余 ${swaps} 次换牌`, `当前可加 ${baseNumber(swaps * 20)} 底分`, '基础六关暂不刷新。');
   add('kong_cauldron', `已声明 ${m.kongs.length} 杠`, `每个声明杠底分 +${baseNumber(BALANCE.kongBase)}`, '只计已声明的杠；可与刻石、连山印的刻／杠底分叠加，须合法和牌。', m.kongs.flatMap(k => k.tileIds));
-  add('ink', `剩余 ${ink} 墨`, '基础六关暂不刷新', 'V6每关共用一次改牌，不通过墨泉追加次数。', [], 'support');
+  add('ink', `剩余 ${ink} 墨`, '基础六关暂不刷新', '每关共用一次改牌，不通过墨泉追加次数。', [], 'support');
   add('wind', `剩余 ${swaps} 次换牌`, '每关额外 2 次已计入资源', '基础六关暂不刷新；成型区不支持替换。', [], 'support');
   add('single_seal', `本关已触发 ${state.singleCount || 0}/4 次`, `已得 ${baseNumber((state.singleCount || 0) * BALANCE.singleBase)} 过程分`, '有效单张首次入区即得分；过程分不再随最终和牌倍率重复放大。', [], 'support');
   add('rank_brush', `本关还可改牌 ${editsRemaining(state)} 次`, `每次 ${BALANCE.editCost} 墨：数牌点数 ±1`, '准备与组牌共用额度；可选候选或成型区非杠数牌，满14张未结算仍可用。点数限1～9，不保证和牌。', [], 'support');
   add('suit_ribbon', `本关还可改牌 ${editsRemaining(state)} 次`, `每次 ${BALANCE.editCost} 墨：保持点数换花色`, '准备与组牌共用额度；可改两区非杠数牌，字牌不能改，万能牌可定色。满14张未结算仍可用。', [], 'support');
-  add('wild_jade', state.wildUsed ? '本关生成机会已用' : `本关还可改牌 ${editsRemaining(state)} 次`, `${BALANCE.editCost} 墨生成花色万能牌`, '准备与组牌共用一次改牌；可选两区非杠数牌，保留点数、不代替字牌，最终花色由结算最佳解释决定。', [], 'support');
   return rows;
 }
 
@@ -161,7 +160,7 @@ export function buildHints(state, preview) {
   const rows = RELICS.filter(relic => owned.has(relic.id)).map(relic => {
     const row = { id: relic.id, name: relic.name, state:'progress',progress:'等待合法和牌',effect:relic.kind,detail:relic.desc,tileIds:[], ...candidates.get(relic.id) };
     if (!complete) return row;
-    if (legal === false) return SUPPORT.has(relic.id) ? row : { ...row, state: 'inactive', progress: '先修复牌形', effect: '当前结算将诈胡', detail: `当前14个结构位置尚未组成合法牌型。${editsRemaining(state) && ['rank_brush','suit_ribbon','wild_jade'].some(id=>owned.has(id)) ? '尚可用对应工具改写非杠数牌，但不保证修复成功。' : '本关已无普通改牌机会；若有合法杠仍可声明。'}已有过程分保留。`, tileIds: [] };
+    if (legal === false) return SUPPORT.has(relic.id) ? row : { ...row, state: 'inactive', progress: '先修复牌形', effect: '当前结算将诈胡', detail: `当前14个结构位置尚未组成合法牌型。${editsRemaining(state) && ['rank_brush','suit_ribbon','core_high'].some(id=>owned.has(id)) ? '尚可用对应工具改写非杠数牌，但不保证修复成功。' : '本关已无普通改牌机会；若有合法杠仍可声明。'}已有过程分保留。`, tileIds: [] };
     if (legal === null) return { ...row, state: 'inactive', progress: '等待结算验证', detail: result?.reason || '未取得有效结算预览，暂不确认联动。', tileIds: [] };
     const ownGains = gains.filter(gain => gain.id === relic.id);
     if (ownGains.length) return { ...row, state: 'active', progress: '本次已触发', effect: gainText(ownGains),

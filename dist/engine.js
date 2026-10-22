@@ -5,14 +5,14 @@ import { mcrPatterns } from './mcr-patterns.js';
 import { PATTERN_CATALOG } from './pattern-catalog.js';
 import {BALANCE, CORE_IDS, STARTER_RELIC_ID, TARGETS, DISABLED_RELIC_IDS, COMPATIBLE_RELICS, FIRST_COMPATIBLE, highFanMultiplier} from './balance.js';
 export {BALANCE, CORE_IDS, STARTER_RELIC_ID, TARGETS};
-export const VERSION = 6;
+export const VERSION = 7;
 export const MODES = { mcr: { name: '国标番型', short: '国标', unit: '番', scale: 8 }, riichi: { name: '日麻役种', short: '日麻', unit: '翻', scale: 1 } };
 export const ROUND_NAMES = ['初见青山', '竹影入局', '风过空谷', '云深不知', '月照千峰', '登临绝顶'];
 // Cumulative targets, provisional playtest values for one complete hand per round.
 
 export const target = s => s.roundTarget ?? TARGETS[s.mode][s.round];
 export const RELICS = [
-  {id:'core_high',name:'天机算筹',icon:'筹',kind:'核心',core:true,desc:'大番路线：番数达到档位时跃升倍率；与补缺符搭配获得组牌阶段一次补缺。',price:0},
+  {id:'core_high',name:'天机算筹',icon:'筹',kind:'核心',core:true,desc:'大番路线：番数达到档位时跃升倍率；自带花色万能能力，保留点数，仅变万／筒／索，与其他改牌共用每关一次额度，不另占槽。',price:0},
   {id:'core_pung',name:'叠岳印',icon:'岳',kind:'核心',core:true,get desc(){return `刻子路线：每次刻子或杠计分，倍率 ×${BALANCE.pungFactor}。`;},price:0},
   {id:'core_held',name:'藏锋匣',icon:'藏',kind:'核心',core:true,get desc(){return `留牌路线：合法和牌时，候选区前${BALANCE.heldBaseCount}张幺九牌每次计分 ×${BALANCE.heldFactor}，第${BALANCE.heldBaseCount+1}～${BALANCE.handSize}张每次 ×${BALANCE.heldBurstFactor}；重复触发沿用该张牌的档位。`;},price:0},
   {id:'core_growth',name:'长春梳',icon:'生',kind:'核心',core:true,get desc(){return `成长路线：从${BALANCE.growthSeed*BALANCE.baseScale}有效底分开始，每次合法顺子计分储存底分 ×${BALANCE.growthRate}；跨关保留。`;},price:0},
@@ -39,7 +39,7 @@ export const RELICS = [
   { id: 'kong_cauldron', name: '四方鼎', icon: '鼎', kind: '杠', get desc(){return `合法和牌每个已声明的杠 +${BALANCE.kongBase*BALANCE.baseScale} 底分，可与刻子奇物联动。`;}, price: 6 },
   { id: 'rank_brush', name: '升降笔', icon: '笔', kind: '改牌', get desc(){return `准备或组牌阶段，候选及成型区非杠数牌点数 ±1，范围 1～9；消耗共用${BALANCE.editCost}墨，满14未结算也可用。`;}, price: 5 },
   { id: 'suit_ribbon', name: '换色绫', icon: '绫', kind: '改牌', get desc(){return `准备或组牌阶段，候选及成型区非杠数牌换花色、保持点数；消耗共用${BALANCE.editCost}墨，满14未结算也可用。`;}, price: 5 },
-  { id: 'wild_jade', name: '百相玉', icon: '相', kind: '改牌', get desc(){return `准备或组牌阶段，候选及成型区非杠数牌变为三色万能牌，保持点数、不代替字牌；消耗共用${BALANCE.editCost}墨，满14未结算也可用。`;}, price: 8 },
+  { id: 'wild_jade', name: '百相玉', icon: '相', kind: '改牌', desc: '能力已并入天机算筹，不再作为独立奇物刷新或占槽。', price: 8 },
 ];
 export const relic = id => RELICS.find(r => r.id === id);
 export const tileName = tile => { const t = faceValue(tile); return t < 27 ? ['一','二','三','四','五','六','七','八','九'][rank(t)-1] + (tile?.wild ? '万能' : ['万','筒','索'][suit(t)]) : ['东','南','西','北','白','發','中'][t-27]; };
@@ -63,7 +63,7 @@ export const BASE_PATTERNS = Object.fromEntries(Object.entries(PATTERN_CATALOG).
 export function patterns(mode, groups, pair, shape='normal') {
   return mode === 'mcr' ? mcrPatterns(groups,pair,shape) : riichiPatterns(groups,pair,shape);
 }
-export const RULES_VERSION = 'opening-build-v6';
+export const RULES_VERSION = 'opening-build-v7';
 export const SCORE_MODEL_VERSION = 'four-core-v6';
 export function specialStatus(s, groups = [], pair = [], shape = 'normal') {
   const all = groups.flat().concat(pair), full = shape === 'pairs' ? groups.length === 7 : groups.length === 4 && pair.length === 2;
@@ -189,7 +189,7 @@ export function currentSettlementPreview(s) {
 export function newRun(mode='mcr',seed=Date.now()) {
   if (!MODES[mode]) throw Error('Unknown mode');
   const runId = globalThis.crypto?.randomUUID?.() || `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return {version:VERSION,rulesVersion:RULES_VERSION,scoreVersion:SCORE_MODEL_VERSION,runId,mode,seed:seed>>>0,rng:seed>>>0,phase:'starter',round:0,coins:8,relics:[],growth:{river:0,exchange:0,coreGrowth:BALANCE.growthSeed},history:[],totalScore:0,bestHand:0,offers:[...CORE_IDS],shop:[],log:[],roundScores:[],score:0,processScore:0};
+  return {version:VERSION,rulesVersion:RULES_VERSION,scoreVersion:SCORE_MODEL_VERSION,runId,mode,seed:seed>>>0,rng:seed>>>0,phase:'starter',round:0,coins:8,relics:[],growth:{river:0,exchange:0,coreGrowth:BALANCE.growthSeed},history:[],totalScore:0,bestHand:0,offers:[...CORE_IDS],shop:[],log:[],roundScores:[],score:0,processScore:0,formedDiscard:null};
 }
 export const DRAW_BATCH_SIZE = BALANCE.handSize;
 export function startRound(s) {
@@ -253,6 +253,18 @@ export function exchange(s,ids) {
   redraw(s,ids);s.swaps--;s.openingSwapsUsed++;return true;
 }
 export function replaceFormed(){return {ok:false,reason:'本版本不支持替换成型牌'};}
+export function discardFormed(s,ids) {
+  if(s.phase!=='play')return {ok:false,reason:'成型弃除只在组牌阶段、结算前开放'};
+  if(s.formedDiscard!==null)return {ok:false,reason:'本趟旅程的成型弃除已使用'};
+  if(!validIds(ids,s.formed,1,2))return {ok:false,reason:'请选择一到两张成型区的牌'};
+  const locked=lockedIds(s);if(ids.some(id=>locked.has(id)))return {ok:false,reason:'已声明杠内的牌不能弃除'};
+  const removed=pick(s.formed,ids),used=new Set(ids);
+  s.formed=s.formed.filter(t=>!used.has(t.id));s.discard.push(...removed);
+  s.formedDiscard={round:s.round,tileIds:[...ids]};s.selected=[];
+  s.batches.push({id:`${s.roundId}:batch:${s.batches.length}`,tileIds:[...ids],kind:'discard',processGain:0});
+  s.log.unshift({step:s.batches.length,score:0,names:[],label:`弃除成型牌 ${ids.length} 张`});
+  return {ok:true,count:ids.length,tileIds:[...ids]};
+}
 export function highRescue(s,request={}){
   if(s.phase!=='play'||structuralCount(s)>=14||s.rescueUsed||!has(s,'core_high')||!has(s,'high_rescue'))return {ok:false,reason:'补缺需天机算筹和补缺符，且本关未使用、成型区未满14'};
   const {type,ids,arg}=request;
@@ -270,7 +282,7 @@ function applyTransform(s,ids,action,arg,rescue=false) {
   if(lockedIds(s).has(ids[0]))return {ok:false,reason:'杠内牌已经锁定，不能改写'};
   const t=available(s).find(t=>t.id===ids[0]);
   if(t.face>=27)return {ok:false,reason:'字牌不能改点数、改花色或变为万能牌'};
-  const required={rank:'rank_brush',suit:'suit_ribbon',wild:'wild_jade'}[action];
+  const required={rank:'rank_brush',suit:'suit_ribbon',wild:'core_high'}[action];
   if(!required||!rescue&&!has(s,required))return {ok:false,reason:required?`需要持有${relic(required).name}`:'不支持这种改牌方式'};
   const cost=BALANCE.editCost;
   if(!Number.isInteger(s.ink)||s.ink<0||s.ink>BALANCE.ink||s.ink%cost!==0)return {ok:false,reason:'改牌额度无效，请重新开始旅程'};
@@ -326,6 +338,10 @@ export function restore(raw){
     const s=JSON.parse(raw),integer=(x,min=0)=>Number.isSafeInteger(x)&&x>=min,signed=x=>Number.isSafeInteger(x);
     if(!s||s.version!==VERSION||s.rulesVersion!==RULES_VERSION||s.scoreVersion!==SCORE_MODEL_VERSION||!MODES[s.mode]||!['starter','prepare','play','settlement','reward','shop','defeat','victory'].includes(s.phase)||typeof s.runId!=='string')return null;
     if(!Array.isArray(s.relics)||s.relics.length>BALANCE.relicSlots||s.relics.some(x=>!relic(x)||DISABLED_RELIC_IDS.includes(x))||new Set(s.relics).size!==s.relics.length||s.relics.filter(x=>CORE_IDS.includes(x)).length!==(s.phase==='starter'?0:1)||!integer(s.round)||s.round>5||!integer(s.coins)||!integer(s.rng)||!signed(s.totalScore)||!integer(s.bestHand))return null;
+    if(s.formedDiscard!==null){
+      const record=s.formedDiscard,prefix=`${s.runId}:round:${record?.round}:tile:`;
+      if(!record||!integer(record.round)||record.round>s.round||!Array.isArray(record.tileIds)||record.tileIds.length<1||record.tileIds.length>2||new Set(record.tileIds).size!==record.tileIds.length||record.tileIds.some(id=>typeof id!=='string'||!id.startsWith(prefix)||!/^(0|[1-9]\d{0,2})$/.test(id.slice(prefix.length))||Number(id.slice(prefix.length))>=136)||s.phase==='starter'||s.phase==='prepare'&&record.round===s.round)return null;
+    }
     if(!s.growth||!integer(s.growth.river)||!integer(s.growth.exchange)||!Number.isFinite(s.growth.coreGrowth)||s.growth.coreGrowth<0||s.growth.coreGrowth>Number.MAX_SAFE_INTEGER||!Array.isArray(s.offers)||new Set(s.offers).size!==s.offers.length||s.offers.some(x=>!relic(x)||DISABLED_RELIC_IDS.includes(x)||has(s,x))||!Array.isArray(s.shop)||s.shop.length||!Array.isArray(s.roundScores)||!s.roundScores.every(signed)||!Array.isArray(s.history))return null;
     if(s.phase==='starter'&&(s.relics.length||s.offers.length!==CORE_IDS.length||s.offers.some(x=>!CORE_IDS.includes(x))))return null;
     if(s.phase!=='starter'&&(s.offers.length>3||s.offers.some(x=>CORE_IDS.includes(x))))return null;
@@ -335,7 +351,10 @@ export function restore(raw){
       const tile=t=>t&&typeof t.id==='string'&&integer(t.original)&&t.original<34&&integer(t.face)&&t.face<34&&typeof t.wild==='boolean'&&(!t.wild||t.face<27)&&typeof t.entered==='boolean';
       if(!['hand','formed','deck','discard'].every(key=>Array.isArray(s[key])&&s[key].every(tile))||s.hand.length>DRAW_BATCH_SIZE||!Array.isArray(s.kongs)||s.kongs.length>4)return null;
       const all=[...s.hand,...s.formed,...s.deck,...s.discard];
+      if(s.wildUsed&&!has(s,'core_high'))return null;
       if(all.length!==136||new Set(all.map(t=>t.id)).size!==136||all.filter(t=>t.wild).length>s.wildUsed||Array.from({length:34},(_,face)=>all.filter(t=>t.original===face).length).some(n=>n!==4))return null;
+      const formedDiscards=s.discard.filter(t=>t.entered),recordedIds=s.formedDiscard?.round===s.round?s.formedDiscard.tileIds:[];
+      if(formedDiscards.length!==recordedIds.length||recordedIds.some(id=>!formedDiscards.some(t=>t.id===id)))return null;
       const editedTiles=all.filter(t=>t.face!==t.original||t.wild).length;
       if(editedTiles!==(BALANCE.ink-s.ink)/BALANCE.editCost)return null;
       if(all.some(t=>!t.id.startsWith(`${s.roundId}:tile:`))||s.formed.some(t=>!t.entered))return null;
