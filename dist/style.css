@@ -170,3 +170,7 @@ body.settlement-open{overflow:hidden}
 .reward-replacements{display:grid;gap:10px;margin:20px 0}.reward-replacements button{display:flex;align-items:center;gap:14px;text-align:left}
 .reward-replacements .relic-emblem{height:46px;width:46px;flex:0 0 46px}
 @media(max-width:650px){.starter-grid{grid-template-columns:1fr}.starter-grid .relic-card-copy{min-height:0}.begin-play{grid-column:1/-1;min-width:0}.rescue-panel{padding:12px}.rescue-panel .free-actions{grid-template-columns:1fr 1fr}}
+.pattern-score-guide{margin:16px 0;padding:12px 14px;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:12px;line-height:1.8}
+.pattern-score-guide summary{cursor:pointer;color:var(--gold)}.pattern-score-guide p{margin:10px 0}
+.pattern-score-guide table{border-collapse:collapse;width:100%;max-width:360px;margin:12px 0;font-variant-numeric:tabular-nums}
+.pattern-score-guide th,.pattern-score-guide td{padding:4px 12px;border-bottom:1px solid var(--line);text-align:right}.pattern-score-guide th:first-child{text-align:left}

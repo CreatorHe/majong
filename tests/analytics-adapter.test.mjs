@@ -63,7 +63,7 @@ test('single-tile process gain is a real delta and duplicate callbacks do not du
   await h.adapter.trackGameAction('commit', before, s, result, { selected_tile_ids: [tileId] });
   const commits = h.events.filter(e => e.name === 'game_action' && e.payload.action === 'commit');
   assert.equal(commits.length, 1);
-  assert.equal(commits[0].payload.after.process_score - commits[0].payload.before.process_score, 20);
+  assert.equal(commits[0].payload.after.process_score - commits[0].payload.before.process_score, 200);
   assert.ok(commits[0].payload.tile_changes.some(t => t[0] === tileId && t[1] === 'hand' && t[2] === 'formed'));
   const { before: prior, after: next, tile_changes: changes } = commits[0].payload;
   assert.equal(prior.hand_count, 12); assert.equal(next.hand_count, 12);
@@ -73,7 +73,7 @@ test('single-tile process gain is a real delta and duplicate callbacks do not du
   assert.equal(changes.filter(t => t[1] === 'deck' && t[2] === 'hand').length, 1);
   assert.equal(changes.length, 2, 'retained candidates do not become fake discard or draw events');
   await h.act('commit', s, () => engine.commit(s, [tileId]), { selected_tile_ids: [tileId], reason_code: 'tile_not_in_hand' });
-  assert.equal(s.totalScore, 20);
+  assert.equal(s.totalScore, 200);
   assert.equal(h.events.at(-1).payload.outcome, 'rejected');
   assert.equal(h.events.at(-1).payload.before.process_score, h.events.at(-1).payload.after.process_score);
   assert.equal(h.events.filter(e => e.name === 'hand_completed').length, 0);
@@ -119,15 +119,17 @@ test('legal below-target remains a hand; terminal failure is recorded after play
   assert.equal(h.events.at(-1).payload.reason, 'completed_below_target');
 });
 
-test('v5 aliases normalize while v2/v3/v4 snapshots and superseded runs retain their original version', async () => {
+test('v6 aliases normalize while v2 through v5 snapshots and superseded runs retain their original version', async () => {
   for (const [version, rulesVersion, scoreVersion, handCount] of [
     [2, 'free-play-v2', 'cumulative-v2', 18], [3, 'free-play-v3', 'exponential-v3', 10],
     [4, 'free-play-v4', 'exponential-v3', 12],
+    [5, 'opening-build-v5', 'four-core-v5', 12],
   ]) {
     const h = harness(), s = await started(h);
-    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v5');
-    assert.equal(h.events.at(-1).context.score_model_version, 'four_core_v5');
-    const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, relics: ['jade'] };
+    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v6');
+    assert.equal(h.events.at(-1).context.score_model_version, 'four_core_v6');
+    const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, ink: 4,
+      relics: version === 5 ? ['core_high', 'ink'] : ['jade'] };
     if (old.hand.length < handCount) old.hand.push(...old.deck.splice(0, handCount - old.hand.length));
     else old.deck.push(...old.hand.splice(handCount));
     const oldSnapshot = h.adapter.captureGameState(old);
@@ -140,10 +142,11 @@ test('v5 aliases normalize while v2/v3/v4 snapshots and superseded runs retain t
     assert.equal(superseded.context.score_model_version, scoreVersion.replaceAll('-', '_'));
     assert.equal(superseded.payload.state.hand_count, handCount);
     assert.equal(h.events.filter(e => e.name === 'game_action').at(-1).payload.before, null);
-    s.rulesVersion = 'opening_build_v5'; s.scoreVersion = 'four_core_v5';
-    assert.equal(h.adapter.captureGameState(s).scoreVersion, 'four_core_v5');
+    assert.equal(superseded.payload.state.ink, 4, 'old resource amounts are not rewritten as V6');
+    s.rulesVersion = 'opening_build_v6'; s.scoreVersion = 'four_core_v6';
+    assert.equal(h.adapter.captureGameState(s).scoreVersion, 'four_core_v6');
     const before = h.adapter.captureGameState(s), count = h.events.length;
-    s.scoreVersion = 'exponential-v3';
+    s.scoreVersion = 'four-core-v5';
     assert.equal(h.adapter.captureGameState(s), null);
     assert.equal((await h.adapter.trackGameAction('select', before, s, true)).queued, false);
     assert.equal(h.events.length, count);
@@ -279,18 +282,20 @@ test('withdraw and reallow during asynchronous action enqueue cannot revive earl
 
 test('prepare records real resources and begin_play starts no duplicate round or score fact', async () => {
   const h = harness(), s = await prepared(h);
-  s.relics.push('rank_brush');
   const round = h.events.find(e => e.name === 'round_started');
   assert.equal(round.payload.state.phase, 'prepare');
   assert.equal(round.payload.state.swaps, 5);
+  assert.equal(round.payload.state.ink, 2);
+  assert.deepEqual(round.payload.state.relic_ids, ['core_high', 'rank_brush']);
   assert.equal(round.payload.record_quality, 'complete');
+  s.relics.push('high_rescue');
   const tile = s.hand.find(t => t.face < 27 && t.face % 9 < 8);
   const originalFace = tile.face, tileId = tile.id;
   await h.act('transform', s, () => engine.transform(s, [tileId], 'rank', 1), {
     selected_tile_ids:[tileId], source_zone:'hand', transform_kind:'rank', transform_value:1, relic_id:'rank_brush',
   });
   let action = h.events.at(-1).payload;
-  assert.equal(action.after.ink - action.before.ink, -1);
+  assert.equal(action.after.ink - action.before.ink, -2);
   assert.equal(action.context.transform_kind, 'rank');
   assert.ok(action.tile_changes.some(t => t[0] === tileId && t[3] === originalFace && t[4] === originalFace + 1));
   const outgoing = s.hand.slice(0, 5).map(t => t.id);
@@ -303,7 +308,17 @@ test('prepare records real resources and begin_play starts no duplicate round or
   action = h.events.at(-1).payload;
   assert.equal(action.before.phase, 'prepare'); assert.equal(action.after.phase, 'play');
   assert.equal(action.before.swaps, 4); assert.equal(action.after.swaps, 0);
+  assert.equal(action.before.ink, 0); assert.equal(action.after.ink, 0, 'begin_play does not refill the shared edit budget');
   assert.equal(h.events.filter(e => e.name === 'round_started').length, 1);
+  const rescueId = s.hand.find(t => t.face < 27 && t.face % 9 < 8).id;
+  await h.act('high_rescue', s, () => engine.highRescue(s, {type:'rank', ids:[rescueId], arg:1}), {
+    selected_tile_ids:[rescueId], rescue_kind:'rank', transform_kind:'rank', transform_value:1,
+  });
+  action = h.events.at(-1).payload;
+  assert.equal(action.outcome, 'rejected');
+  assert.equal(action.reason_code, 'edit_limit');
+  assert.equal(action.before.ink, 0); assert.equal(action.after.ink, 0);
+  assert.equal(action.after.rescue_used, false, 'a rejected rescue edit does not consume the rescue');
   for (const [name, perform, context] of [
     ['exchange', () => engine.exchange(s, [s.hand[0].id]), { selected_tile_ids: [s.hand[0].id] }],
     ['transform', () => engine.transform(s, [s.hand[0].id], 'rank', 1), {selected_tile_ids:[s.hand[0].id], transform_kind:'rank', transform_value:1}],
@@ -337,7 +352,7 @@ test('real app rescue contexts preserve the single rescue and its actual exchang
     assert.equal(action.context.source_zone, kind === 'exchange' ? 'hand' : 'formed');
     assert.equal(action.before.rescue_used, false); assert.equal(action.after.rescue_used, true);
     assert.equal(action.after.swaps, action.before.swaps);
-    assert.equal(action.after.ink - action.before.ink, kind === 'exchange' ? 0 : -1);
+    assert.equal(action.after.ink - action.before.ink, kind === 'exchange' ? 0 : -2);
     assert.equal(action.before.deck_count - action.after.deck_count, kind === 'exchange' ? 3 : 0);
     assert.equal(action.tile_changes.length, kind === 'exchange' ? 6 : 1);
     await h.act('high_rescue', s, () => engine.highRescue(s, {type:kind, ids, arg}), context);
@@ -345,12 +360,58 @@ test('real app rescue contexts preserve the single rescue and its actual exchang
     assert.equal(rejected.outcome, 'rejected');
     assert.deepEqual(rejected.before, rejected.after);
     assert.deepEqual(rejected.tile_changes, []);
+    const ordinaryEditId = s.hand.find(t => t.face < 27 && t.face % 9 < 8).id;
+    await h.act('transform', s, () => engine.transform(s, [ordinaryEditId], 'rank', 1), {
+      selected_tile_ids:[ordinaryEditId], transform_kind:'rank', transform_value:1,
+    });
+    const ordinaryEdit = h.events.at(-1).payload;
+    assert.equal(ordinaryEdit.outcome, kind === 'exchange' ? 'applied' : 'rejected');
+    assert.equal(ordinaryEdit.reason_code, kind === 'exchange' ? null : 'edit_limit');
+    assert.equal(ordinaryEdit.after.ink, 0);
+    assert.equal(ordinaryEdit.after.rescue_used, true);
+    assert.equal(ordinaryEdit.context.source_zone, 'hand');
+  }
+});
+
+test('V6 full-hand repairs keep tile identity, share two ink and emit only the resulting settlement', async () => {
+  for (const [kind, damagedFace, arg, tool] of [
+    ['rank', 3, 1, 'rank_brush'], ['suit', 13, 0, 'suit_ribbon'], ['wild', 13, undefined, 'wild_jade'],
+  ]) {
+    const h = harness(), s = await started(h);
+    if (tool !== 'rank_brush') s.relics.push(tool);
+    s.relics.push('high_rescue');
+    arrange(s, [...ordinary.slice(0, -1), damagedFace]);
+    const tileId = s.formed.at(-1).id;
+    const context = {selected_tile_ids:[tileId], transform_kind:kind, transform_value:arg ?? null, relic_id:tool};
+    await h.act('transform', s, () => engine.transform(s, [tileId], kind, arg), context);
+    const repair = h.events.at(-1).payload;
+    assert.equal(repair.outcome, 'applied'); assert.equal(repair.context.source_zone, 'formed');
+    assert.equal(repair.before.structure_count, 14); assert.equal(repair.after.structure_count, 14);
+    assert.equal(repair.before.ink, 2); assert.equal(repair.after.ink, 0);
+    assert.equal(repair.before.rescue_used, false); assert.equal(repair.after.rescue_used, false);
+    assert.equal(repair.tile_changes.length, 1);
+    assert.deepEqual(repair.tile_changes[0].slice(0, 3), [tileId, 'formed', 'formed']);
+    assert.equal(repair.after.deck_count, repair.before.deck_count);
+    assert.equal(h.events.some(e => e.name === 'hand_completed'), false);
+    await h.act('transform', s, () => engine.transform(s, [tileId], 'rank', 1), {
+      selected_tile_ids:[tileId], transform_kind:'rank', transform_value:1,
+    });
+    assert.equal(h.events.at(-1).payload.outcome, 'rejected');
+    assert.equal(h.events.at(-1).payload.reason_code, 'edit_limit');
+    assert.deepEqual(h.events.at(-1).payload.tile_changes, []);
+    assert.equal(h.events.at(-1).payload.after.ink, 0);
+    const { result } = await h.act('settle', s, () => engine.settle(s));
+    const fact = h.events.find(e => e.name === 'hand_completed')?.payload;
+    assert.ok(fact, `${kind} repaired a legal hand`);
+    assert.equal(fact.win_score, result.total);
+    assert.equal(fact.tiles.find(t => t.id === tileId).effective_face, 4);
+    assert.equal(h.events.filter(e => e.name === 'round_settled').length, 1);
   }
 });
 
 test('full-slot reward replacement, skip_reward and next prepare use actual app field names', async () => {
   const h = harness(), s = await started(h);
-  s.relics.push('jade', 'stone', 'bamboo');
+  s.relics.push('jade', 'stone');
   arrange(s, ordinary); s.roundTarget = 1;
   await h.act('settle', s, () => engine.settle(s));
   await h.act('settlement_continue', s, () => engine.finishSettlement(s));
@@ -369,6 +430,7 @@ test('full-slot reward replacement, skip_reward and next prepare use actual app 
   assert.equal(h.events.at(-1).name, 'round_started');
   assert.equal(h.events.at(-1).payload.state.phase, 'prepare');
   assert.equal(h.events.at(-1).payload.state.rescue_used, false);
+  assert.equal(h.events.at(-1).payload.state.ink, 2);
   await h.act('begin_play', s, () => engine.beginPlay(s));
   arrange(s, ordinary); s.roundTarget = 1;
   await h.act('settle', s, () => engine.settle(s));

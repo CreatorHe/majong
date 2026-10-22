@@ -1,10 +1,10 @@
-<!doctype html><meta charset="utf-8"><title>叠雀 V5 本地验收</title>
+<!doctype html><meta charset="utf-8"><title>叠雀 V6 本地验收</title>
 <style>body{font:17px system-ui;max-width:960px;margin:32px auto;padding:20px;background:#123638;color:#efe5cc}button,input,select{font:inherit;margin:7px;padding:12px}p{line-height:1.6}fieldset{margin:20px 0}</style>
-<h1>V5 本地浏览器验收</h1>
+<h1>V6 本地浏览器验收</h1>
 <p>仅用于本机 QA，不打包上线。固定场景验证流程和分数，不代表随机胡率。固定种子新局只设随机种子，其余通过正式界面操作。</p>
-<fieldset><legend>可复现的正常新局</legend><label>种子 <input id="seed" value="2026102101" type="number"></label><label>模式 <select id="mode"><option value="mcr">国标</option><option value="riichi">日麻</option></select></label><button data-scene="seeded">开始固定种子新局</button></fieldset>
+<fieldset><legend>可复现的正常新局</legend><label>种子 <input id="seed" value="2026102201" type="number"></label><label>模式 <select id="mode"><option value="mcr">国标</option><option value="riichi">日麻</option></select></label><button data-scene="seeded">开始固定种子新局</button></fieldset>
 <fieldset><legend>四路线计分及动画场景（定牌）</legend><button data-scene="high">大番：九莲宝灯</button><button data-scene="pung">刻子：四刻联动</button><button data-scene="held">留牌：十二张幺九</button><button data-scene="growth">成长：三顺联动</button></fieldset>
-<fieldset><legend>P0 流程边界（定牌）</legend><button data-scene="prepare">开局改牌与万能牌</button><button data-scene="rescue">大番补缺一次</button><button data-scene="kong">四张声明杠</button><button data-scene="falsepass">诈胡扣分仍过关</button><button data-scene="falsefail">诈胡未达标</button><button data-scene="reward">四槽奖励替换</button></fieldset>
+<fieldset><legend>P0 流程边界（定牌）</legend><button data-scene="prepare">开局改牌与万能牌</button><button data-scene="repair">满14张后改牌修复</button><button data-scene="rescue">大番补缺一次</button><button data-scene="kong">四张声明杠</button><button data-scene="falsepass">诈胡扣分仍过关</button><button data-scene="falsefail">诈胡未达标</button><button data-scene="reward">四槽奖励替换</button></fieldset>
 <p id="error" role="alert"></p><script type="module">
 import * as E from '/engine.js';
 import {BALANCE} from '/balance.js';
@@ -16,13 +16,14 @@ document.addEventListener('click',event=>{
   if(scene!=='seeded'){
    const core=({high:'core_high',pung:'core_pung',held:'core_held',growth:'core_growth',rescue:'core_high'})[scene]||'core_growth';
    E.chooseStarter(s,core);
-   s.relics=({high:[core,'high_rescue','jade','echo'],pung:[core,'retrigger_meld','stone','jade'],held:[core,'retrigger_held','jade','echo'],growth:[core,'retrigger_meld','jade','river'],prepare:[core,'rank_brush','suit_ribbon','wild_jade'],rescue:[core,'high_rescue','jade','rank_brush']})[scene]||[core,'retrigger_meld','jade','stone'];
+   s.relics=({high:[core,'high_rescue','jade','echo'],pung:[core,'retrigger_meld','stone','jade'],held:[core,'retrigger_held','jade','echo'],growth:[core,'retrigger_meld','jade','river'],prepare:[core,'rank_brush','suit_ribbon','wild_jade'],rescue:[core,'high_rescue','jade','rank_brush'],repair:[core,'rank_brush','suit_ribbon','wild_jade'],kong:[core,'rank_brush','stone','kong_cauldron']})[scene]||[core,'retrigger_meld','jade','stone'];
    if(scene==='growth')s.growth.coreGrowth=Math.round(BALANCE.growthSeed*BALANCE.growthRate**12*1e6)/1e6;
    const pool=[...s.hand,...s.deck];s.hand=[];s.deck=[];s.formed=[];s.discard=[];s.kongs=[];
    const take=faces=>faces.map(face=>{const i=pool.findIndex(t=>t.face===face);if(i<0)throw Error('场景牌不足');return pool.splice(i,1)[0]});
    const ordinary=[1,2,3,10,11,12,19,20,21,4,4,4,13,13];
    if(scene==='prepare')s.hand=take([0,1,2,3,4,5,6,7,8,9,10,11]);
    else if(scene==='rescue'){s.formed=take([1,2,3,10,11,12,19,20,21,4,4,4]);s.hand=take([13,14,0,8,9,17,18,26,27,28,29,30]);}
+   else if(scene==='repair')s.formed=take([1,2,3,10,11,12,19,20,21,4,4,4,13,14]);
    else if(scene==='kong'){s.formed=take([9,10,11,18,19,20,27,27]);s.hand=take([0,0,0,0,3,4,5,13,14,15,16,17]);}
    else {
     const faces=scene==='high'?[0,0,0,1,2,3,4,5,6,7,8,8,8,4]:scene==='pung'?[0,0,0,10,10,10,20,20,20,27,27,27,13,13]:scene.startsWith('false')?[0,2,4,6,8,9,11,13,15,17,18,20,22,24]:ordinary;
@@ -35,7 +36,7 @@ document.addEventListener('click',event=>{
    if(scene==='reward'){E.settle(s);E.finishSettlement(s);s.offers=['suit_ribbon','rank_brush','river'];}
   }
   if(!E.restore(JSON.stringify(s)))throw Error('场景未通过存档校验');
-  localStorage.setItem('jade-run-v5',JSON.stringify(s));location.href='/';
+  localStorage.setItem('jade-run-v6',JSON.stringify(s));location.href='/';
  }catch(error){document.querySelector('#error').textContent=error.message;}
 });
 </script>

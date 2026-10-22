@@ -1,4 +1,5 @@
 import { PATTERN_CATALOG, PATTERN_RELIC_NAMES } from './pattern-catalog.js';
+import { BALANCE } from './balance.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const modes = { mcr: '国标番型', riichi: '日麻役种' };
@@ -56,6 +57,8 @@ export function renderPatternGuide(input = {}) {
   const catalog = PATTERN_CATALOG[mode];
   const count = status => catalog.filter(pattern => pattern.status === status).length;
   const held = catalog.filter(pattern => pattern.status === 'relic' && relics.has(pattern.relicId)).length;
+  const anchors = BALANCE.highAnchors[mode], [lastFan, lastMultiplier] = anchors.at(-1);
+  const formatted = value => Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 6 });
   return `<section class="pattern-guide" aria-labelledby="pattern-guide-title">
     <div class="section-kicker">知牌成局 · 番型图鉴</div>
     <h2 id="pattern-guide-title">这一手，还能怎么叠？</h2>
@@ -68,6 +71,12 @@ export function renderPatternGuide(input = {}) {
     <p class="pattern-mode-note">${mode === 'riichi'
       ? '牌面役暂按门清翻数计奖，后续依试玩调档；不自动赠送门清、暗刻奖励。役满覆盖普通役；未记录的自摸、荣和、暗刻与听牌条件不作推断。宝牌与累计役满档位单独说明，不冒充独立役。'
       : '国标 81 番种逐项列明。基础番型不需要奇物；车轮、连山提供额外加赏。涉及时机、明暗和听牌记录的番型会说明当前不适用原因。'}</p>
+    <details class="pattern-score-guide">
+      <summary>本作计分与大番核心倍率</summary>
+      <p>普通牌型倍率为${mode === 'mcr' ? '1＋总番数÷8' : '1＋总翻数'}，再叠奇物效果。持有天机算筹时改用下表阶梯倍率，两档之间取已达到的档位；基础番型本身不需要核心解锁。</p>
+      <table><thead><tr><th scope="col">总${mode === 'mcr' ? '番' : '翻'}数下限</th><th scope="col">大番核心倍率</th></tr></thead><tbody>${anchors.map(([fan, multiplier]) => `<tr><th scope="row">${fan}</th><td>×${formatted(multiplier)}</td></tr>`).join('')}</tbody></table>
+      <p>超过${lastFan}${mode === 'mcr' ? '番' : '翻'}后，倍率按 ${formatted(lastMultiplier)} × 实际${mode === 'mcr' ? '番' : '翻'}数 ÷ ${lastFan} 线性延伸。合法和牌分＝底分×最终倍率，向下取整；预览按实际牌形与奇物择优。</p>
+    </details>
     <div class="pattern-toolbar">
       <div class="pattern-filters" aria-label="役种筛选">${Object.entries(filters).map(([key, label]) => `<button type="button" data-act="guide-filter" data-filter="${key}" class="${filter === key ? 'active' : ''}" aria-pressed="${filter === key}">${label}</button>`).join('')}</div>
       <label class="pattern-search-label" for="pattern-search"><span>搜索役种</span><input type="search" id="pattern-search" value="${esc(query)}" placeholder="名称、条件或奇物" autocomplete="off" spellcheck="false"></label>

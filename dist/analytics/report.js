@@ -1,4 +1,4 @@
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
+import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
 
 const $ = selector => document.querySelector(selector);
 const params = new URLSearchParams(globalThis.location?.search || '');
@@ -18,7 +18,7 @@ const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '
 export const versionKey = version => version ? JSON.stringify([version.rules_version, version.score_model_version]) : '';
 export const sampleVersions = Object.freeze({ rules_version: GAME_RULES_VERSION, score_model_version: GAME_SCORE_MODEL_VERSION });
 const sampleRelease = GAME_RULES_VERSION.replaceAll('_', '-');
-const sampleStorageKey = mode => `jade-run:analytics:sandbox:last-fixture-v5:${mode}`;
+const sampleStorageKey = mode => `jade-run:analytics:sandbox:last-fixture-v6:${mode}`;
 let testClientPromise = null;
 
 export function reportPresentation(data) {
@@ -26,13 +26,15 @@ export function reportPresentation(data) {
   const v3 = data.rules_version === 'free_play_v3' && data.score_model_version === 'exponential_v3';
   const v4 = data.rules_version === 'free_play_v4' && data.score_model_version === 'exponential_v3';
   const v5 = data.rules_version === V5_RULES_VERSION && data.score_model_version === V5_SCORE_MODEL_VERSION;
+  const v6 = data.rules_version === V6_RULES_VERSION && data.score_model_version === V6_SCORE_MODEL_VERSION;
+  const fourCore = v5 || v6;
   const exponential = v3 || v4;
-  const extendedShapes = exponential || v5;
+  const extendedShapes = exponential || fourCore;
   const freePlay = isSupportedGameVersion(data.rules_version, data.score_model_version);
   const summary = data.summary || {};
   const settlements = data.settlements || {};
   return {
-    v2, v3, v4, v5, freePlay,
+    v2, v3, v4, v5, v6, freePlay,
     handLabel: freePlay ? '合法完整和牌' : '旧版完整成型',
     scoreLabel: freePlay ? '最高和牌分' : '旧版最高整关分',
     maxScore: freePlay ? summary.max_win_score ?? null : summary.max_round_score ?? null,
@@ -40,8 +42,10 @@ export function reportPresentation(data) {
     maxCumulative: freePlay ? settlements.max_cumulative_score ?? null : null,
     passRate: freePlay ? settlements.pass_rate ?? null : null,
     subtitle: freePlay ? '按可判定的合法完整和牌统计' : '旧版口径 · 按预选路线分别统计',
-    notice: v5
-      ? '自由出牌 v5 · 四核心计分。起手准备阶段可换牌 5 次，开始组牌后锁定；4 个奇物槽最多装备 1 件计分核心。各版本的样本与纪录分别统计。'
+    notice: v6
+      ? '起手构筑 v6 · 核心与升降笔占起始 2 槽。每关 2 墨，共可改牌 1 次，准备与组牌共用；两区非杠牌均可改，满 14 个结构位置且未结算仍可用普通工具修复。补缺编辑同耗 2 墨。'
+      : v5
+      ? '起手构筑 v5 · 原版四核心计分。普通工具仅在准备阶段使用；基础 4 墨，改点、换色及补缺编辑耗 1 墨，万能耗 2 墨。准备阶段可换牌 5 次，4 槽最多装备 1 核心。'
       : v4
       ? '自由出牌 v4 · 12 张候选，出几张补几张；基础 7 次换牌，第三关减 2 次，借东风加 2 次。沿用指数计分与番型，但与 v3 分开统计。'
       : v3
@@ -49,7 +53,7 @@ export function reportPresentation(data) {
       : v2 ? '自由出牌 v2 · 累计计分。合法未达标计入番型，诈胡仍达标只计入过关；与 v3 / v4 指数计分分别统计。'
       : '旧版记录 · 按当时的预选路线与整关得分统计，不与自由出牌版本合并。',
     explanation: freePlay
-      ? `出现率 = 含该计分番型的手数 ÷ 可判定的合法完整和牌手数。${extendedShapes ? '普通、七对和特殊牌形都是系统最终拆解' : '普通与七对是系统最终拆解'}，分母不按拆解筛选。合法未过关也计入；诈胡与不完整观测不计入。每手同番型最多一次，多番占比之和可超过 100%。最高和牌分只计终局和牌收益；本关净分含过程分、和牌分与罚分；累计分含此前各关。各项纪录分别取最高值，不一定来自同一手，也不是番型单独贡献。${extendedShapes ? `只纳入已开放的基础与奇物番型；${v5 ? '四核心' : '指数'}计分纪录仅在同一规则和计分版本内比较。` : ''}`
+      ? `出现率 = 含该计分番型的手数 ÷ 可判定的合法完整和牌手数。${extendedShapes ? '普通、七对和特殊牌形都是系统最终拆解' : '普通与七对是系统最终拆解'}，分母不按拆解筛选。合法未过关也计入；诈胡与不完整观测不计入。每手同番型最多一次，多番占比之和可超过 100%。最高和牌分只计终局和牌收益；本关净分含过程分、和牌分与罚分；累计分含此前各关。各项纪录分别取最高值，不一定来自同一手，也不是番型单独贡献。${extendedShapes ? `只纳入已开放的基础与奇物番型；${fourCore ? '四核心' : '指数'}计分纪录仅在同一规则和计分版本内比较。` : ''}${v6 ? '本页直接展示实际上报的总分，不再次放大或重算。' : ''}`
       : '旧版出现率 = 含该计分番型的手数 ÷ 适用预选路线的有效完整成型手数。各行分母可能不同；完整成型但未过关仍计入。每手同番型最多一次，多番占比之和可超过 100%。旧版整关得分沿用历史口径，不能拆分或对比新版和牌分、本关净分与累计分。',
   };
 }
@@ -91,7 +95,7 @@ function updateControls() {
   $('#repeat-button').disabled = state.scope !== 'sandbox' || state.sampleBusy || !previousFixture(state.mode);
   if (!testClientPromise) $('#stop-button').hidden = !previousFixture('mcr') && !previousFixture('riichi');
   $('#test-scope-hint').textContent = state.scope === 'sandbox'
-    ? '写入自由出牌 v5 四核心计分样本；v4、v3、v2 与旧版测试记录仍按版本保留。'
+    ? '写入起手构筑 v6 样本；v5、v4、v3、v2 与旧版测试记录仍按版本保留。'
     : '切换到“测试样本”后可写入验收记录。';
 }
 
@@ -99,7 +103,7 @@ function renderVersions(data) {
   const select = $('#version-select');
   const versions = Array.isArray(data.versions) ? data.versions.filter(v => typeof v.rules_version === 'string' && typeof v.score_model_version === 'string') : [];
   if (state.version && !versions.some(v => versionKey(v) === versionKey(state.version))) versions.push(state.version);
-  select.replaceChildren(new Option('当前玩法 · 四核心 v5', ''));
+  select.replaceChildren(new Option('当前玩法 · 四核心 v6', ''));
   for (const version of versions) select.add(new Option(`${version.rules_version} / ${version.score_model_version}`, versionKey(version)));
   select.value = versionKey(state.version);
   $('#version-caption').textContent = data.rules_version && data.score_model_version
@@ -278,7 +282,7 @@ export function makeFixture(mode, makeId = () => crypto.randomUUID()) {
       round_start_score: example.start, cumulative_before: example.start + example.process,
       cumulative_after: cumulative, target_score: 1000, record_quality: example.quality,
       shape: example.shape, tiles, declared_kongs: [], decomposition: example.legal ? { groups } : null,
-      credited_pattern_ids: example.patterns, unlock_pattern_ids: [], owned_relic_ids: ['core_high'],
+      credited_pattern_ids: example.patterns, unlock_pattern_ids: [], owned_relic_ids: ['core_high', 'rank_brush'],
     };
     const context = { mode, ...sampleVersions, app_release: sampleRelease, run_id: makeId(), round_attempt_id: makeId(), hand_id: settlement_id };
     const events = [{ event_name: 'round_settled', payload, context }];

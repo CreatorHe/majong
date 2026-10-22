@@ -1,6 +1,6 @@
 # 叠雀：行为埋点与趣味报告设计
 
-更新：2026 年 10 月 21 日。本文保留原目标方案。**基础链路已实现；当前适配起手构筑 v5（`opening_build_v5 / four_core_v5`），保留 v4、v3、v2 和 legacy 独立统计，由主玩法会话统一试玩、构建和发布；现实对照仍延期。** v5 采用12张候选、prepare阶段5次换牌、beginPlay后进入play、4奇物槽最多1计分核心及每关一次大番补缺；复用既有事件与数据库表，状态及动作证据由共享schema校验。真实app的skip_reward、rescue_kind、replaced_relic_id已接入适配器。分组P0回归94/94通过（adapter22、server29、client/runtime/report43），不表示v5已完成浏览器验收或上线。新版以 [字段契约](FREE_PLAY_ANALYTICS_CONTRACT.md) 与 [玩法接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md) 为准，尤其合法和牌/诈胡与过关独立、新版共同分母、三类分数分列和版本隔离；下文旧路线、3+2、国标仅7种对子与只按成型过关等表述仅保留设计历史，不作为新版实现依据。已实现范围及当前限制见 [采集实现说明](ANALYTICS_IMPLEMENTATION.md)。
+更新：2026 年 10 月 22 日。本文保留原目标方案。**基础链路已实现；当前适配起手构筑 v6（`opening_build_v6 / four_core_v6`），保留 v5～v2 和 legacy 独立统计，由主玩法会话统一试玩、构建和发布；现实对照仍延期。** v6 初始核心＋升降笔占2槽，每关2墨共享一次编辑，准备与组牌两区非杠牌可改，满14未结算也可普通修复；prepare阶段5次弃换及每关一次补缺沿用，补缺编辑同耗共用2墨。state/action/context/terminal全部复用v5，不新增字段或数据库表；统计只读实际总分，不重算底分十倍或大番档位。V5历史分组P0回归为94/94（adapter22、server29、client/runtime/report43），不作为V6结果；本轮总数待各组完成后统一记录，不表示V6已完成浏览器验收或上线。新版以 [字段契约](FREE_PLAY_ANALYTICS_CONTRACT.md) 与 [玩法接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md) 为准，尤其合法和牌/诈胡与过关独立、新版共同分母、三类分数分列和版本隔离；下文旧路线、3+2、国标仅7种对子与只按成型过关等表述仅保留设计历史，不作为新版实现依据。已实现范围及当前限制见 [采集实现说明](ANALYTICS_IMPLEMENTATION.md)。
 
 目标：观察玩家如何组牌、选择奇物、达成番型和完成挑战；用可追溯的真实数据生成番型统计榜、分数纪录与趣味报告。优先回答“哪些番型在本游戏里最常做成”“哪些构筑能打出高分”，并在口径明确时加入现实实战参考。
 

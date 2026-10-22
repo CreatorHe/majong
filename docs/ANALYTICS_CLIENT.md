@@ -1,6 +1,6 @@
 # 浏览器采集 SDK 与接入边界
 
-状态：采集 SDK、共享 runtime 与统计页适配起手构筑 v5（四核心计分），同时保留 v1/v2/v3/v4 数据读取与待发队列。**本次修改由主玩法会话统一接线、构建、验证和发布；本文不表示 v5 埋点已经在线生效。** 主玩法接入位置见 [自由出牌接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md)，完整字段与分数口径见 [采集契约](FREE_PLAY_ANALYTICS_CONTRACT.md)。
+状态：采集 SDK、共享 runtime 与统计页适配起手构筑 v6（四核心计分），同时保留 v1～v5 数据读取与待发队列。**本次修改由主玩法会话统一接线、构建、验证和发布；本文不表示 v6 埋点已经在线生效。** 主玩法接入位置见 [自由出牌接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md)，完整字段与分数口径见 [采集契约](FREE_PLAY_ANALYTICS_CONTRACT.md)。
 
 SDK 负责采集开关、持久队列与传输；适配器负责从真实动作前后状态抽取白名单事实。正式游戏匿名统计默认开启，但既有关闭选择优先；sandbox 仍需主动开启。禁止通过 DOM 文本、渲染次数或轮询分数推测和牌、计分或奇物触发。
 
@@ -23,7 +23,7 @@ const analytics = getGameAnalytics(); // 首次浏览器调用才创建；后续
 // SSR 默认得到 null；业务适配器已处理此情况。
 ```
 
-游戏页不能在每次动作或面板挂载时重新 `createAnalytics()`。runtime 默认 `scope='production'`、`entry='game'`，版本读取共享 schema 的最新常量，目前为 `rulesVersion='opening_build_v5'`、`scoreModelVersion='four_core_v5'`；`appRelease` 从规则版本的下划线转为连字符，目前为 `opening-build-v5`。`getGameAnalytics(clientOptions?)` 只在首次创建时应用参数；已存在实例不会因为后续参数改变身份或版本。升级恢复的旧 v2/v3/v4 队列保留完整原信封，包括版本、事件 ID 和发生时间，不自动改写成 v5。
+游戏页不能在每次动作或面板挂载时重新 `createAnalytics()`。runtime 默认 `scope='production'`、`entry='game'`，版本读取共享 schema 的最新常量，目前为 `rulesVersion='opening_build_v6'`、`scoreModelVersion='four_core_v6'`；`appRelease` 从规则版本的下划线转为连字符，目前为 `opening-build-v6`。`getGameAnalytics(clientOptions?)` 只在首次创建时应用参数；已存在实例不会因为后续参数改变身份或版本。升级恢复的旧 v2～v5 队列保留完整原信封，包括版本、事件 ID 和发生时间，不自动改写成 v6。
 
 正式游戏 runtime 显式传 `defaultEnabled:true`。SDK 只在 production、偏好可读且没有保存选择（null/undefined）时默认启用；已保存 `denied` 始终关闭，不能因升级、刷新或新标签页被覆盖。偏好不可读时保守不默认开启，`lastError='preference_storage_unavailable'`，设置面板说明暂未开启并保留手动入口。默认启用或恢复 allowed 不重写 allowed 偏好；仅显式 `setConsent(true/false)` 保存玩家选择。普通模块导入和未配置的 SSR 仍没有副作用。
 
@@ -68,7 +68,7 @@ unsubscribe();
 
 `track()` 返回 `{queued:true,event_id,durable}`；同 ID 事实已在待发队列时另有 `duplicate:true`。`queued` 只表示当前 outbox 接纳，`durable:true` 才表示已经可靠持久化，二者都不是服务器 ACK。内存中接纳但尚未持久化不能当作永久完成。
 
-拒绝返回 `{queued:false,reason}`，包括 `consent_required / collector_busy / invalid_event / event_too_large / queue_limit / event_id_conflict`。适配器统一捕获采集异常，不让采集阻断玩法。只发送白名单字段；任意全文、URL 参数、输入内容与完整 game 对象不进入 payload。基础事件清理未列字段，v2～v5 共享校验对额外字段直接拒绝。
+拒绝返回 `{queued:false,reason}`，包括 `consent_required / collector_busy / invalid_event / event_too_large / queue_limit / event_id_conflict`。适配器统一捕获采集异常，不让采集阻断玩法。只发送白名单字段；任意全文、URL 参数、输入内容与完整 game 对象不进入 payload。基础事件清理未列字段，v2～v6 共享校验对额外字段直接拒绝。
 
 `getStatus()` / `flush()` 返回：
 
@@ -105,13 +105,15 @@ SDK 自动发送 `session_started`。连续 30 分钟无 track 操作后下一�
 
 基础短标签限制 `[A-Za-z0-9_.:-]`、最长 64 字符。boot 只捕获自身控件和外壳页面；游戏操作由适配器显式调用，不全局监听所有点击或异常。
 
-### 自由出牌 v2～v4 与起手构筑 v5
+### 自由出牌 v2～v4 与起手构筑 v5/v6
 
-各版本继续使用 `game_action / run_started / run_resumed / round_started / run_ended / round_settled / hand_completed`，v5 不新增事件名。版本必须成对使用 `free_play_v2 / cumulative_v2`、`free_play_v3 / exponential_v3`、`free_play_v4 / exponential_v3` 或 `opening_build_v5 / four_core_v5`；v5 不能继续标为 exponential_v3。模式、稳定挑战 ID 及事件要求的关卡、结算 ID 必须明确。SDK 用共享 `isGameEvent()` 分派，再调用 `validateGamePayload()`；v1 hand_completed 原契约仍兼容，不得将旧 payload 改标成新版。
+各版本继续使用 `game_action / run_started / run_resumed / round_started / run_ended / round_settled / hand_completed`，v6 不新增事件名或字段。版本必须成对使用 `free_play_v2 / cumulative_v2`、`free_play_v3 / exponential_v3`、`free_play_v4 / exponential_v3`、`opening_build_v5 / four_core_v5` 或 `opening_build_v6 / four_core_v6`；v6 不能标为 four_core_v5。模式、稳定挑战 ID 及事件要求的关卡、结算 ID 必须明确。SDK 用共享 `isGameEvent()` 分派，再调用 `validateGamePayload()`；v1 hand_completed 原契约仍兼容，不得将旧 payload 改标成新版。
 
-v3～v5 分数接受至 `Number.MAX_SAFE_INTEGER` 的安全整数，净分和累计分可为负值；v2 保留原来的 `10^12` 分数范围。v4 计分沿用 v3，但 v5 已改为四核心计分，不能混排纪录。状态候选上限分别为 v2 的 18 张、v3 的 10 张和 v4/v5 的 12 张。校验上限和精确算术来自共享 schema，SDK 不另设限制，也不在读回旧队列时改写数值。
+v3～v6 分数接受至 `Number.MAX_SAFE_INTEGER` 的安全整数，净分和累计分可为负值；v2 保留原来的 `10^12` 分数范围。v4 计分沿用 v3，v5/v6 各有独立四核心计分版本，不能混排纪录。状态候选上限分别为 v2 的 18 张、v3 的 10 张和 v4～v6 的 12 张。校验上限和精确算术来自共享 schema，SDK 不另设限制，也不在读回旧队列时改写数值。v6 底分尺度与档位调整已由引擎计入实际结果，SDK、报告都不再乘十或另算大番倍率。
 
-v5 按 `prepare → beginPlay → play` 推进；5 次基础换牌仅在起手准备阶段使用，进入组牌后不能返回准备阶段。4 个奇物槽最多装备 1 件计分核心，已装备核心保存在状态 `relic_ids` 和终局 `owned_relic_ids`。v5 状态新增 `rescue_used`，动作 context 新增 `rescue_type / replace_relic_id`，用于记录每关一次的大番补缺及换装事实；校验完全依赖共享 schema，不向旧版状态附加这些字段，也不在 SDK 另写一套核心或阶段判定。
+v5/v6 都按 `prepare → beginPlay → play` 推进；5 次基础换牌仅在起手准备阶段使用，进入组牌后不能返回准备阶段。v6 初始装备核心与升降笔，共占 2 槽；基础六关仍最多 4 槽、1 核心。每关共 2 墨，普通改点、换色、万能和补缺编辑均耗 2 墨，即准备与组牌共用最多 1 次改牌；进入 play 不补墨。候选与成型区非杠牌都可用普通工具，满 14 个结构位置且未结算时也可修复。补缺弃换仍须未满 14，不耗墨，与补缺编辑共用每关一次的机会。基础六关不刷新墨泉，不新增分析字段来伪造使用次数。
+
+v5 历史规则保留：初始仅核心，普通工具仅准备阶段可用，基础 4 墨；普通改点/换色和补缺编辑耗 1 墨，万能耗 2 墨。v6 复用 v5 的 state/action/context/terminal 字段：状态 `ink / rescue_used / relic_ids`，动作 `transform / high_rescue` 及 context `source_zone / transform_kind / transform_value / rescue_type / replace_relic_id`，终局 `owned_relic_ids` 足以记录实际资源和操作。校验完全依赖共享 schema，不向旧版状态附加字段，也不在 SDK 另写一套核心或阶段判定。
 
 v4 的历史口径仍为 12 张候选、基础 7 次换牌、第三关减 2 次、借东风加 2 次。各版本继续使用 `deck_count / swaps / relic_ids`：已发牌且存在 `round_attempt_id` 的关卡状态，可用 `136 - deck_count` 分析已摸牌数；home/starter 不作此推导。资料供后续分层分析，本轮不新增资源或核心报表接口。
 
@@ -119,15 +121,15 @@ v4 的历史口径仍为 12 张候选、基础 7 次换牌、第三关减 2 次�
 | --- | --- |
 | game_action | 记录真实动作结果、状态前后、被改动实体与有限上下文；预览、重绘不当作成功操作 |
 | 生命周期 | 开局、续玩、进关、主动结束独立；恢复不伪造历史开局或进关 |
-| round_settled | 每关一次真实终局，分别记录合法性与累计达标，包含诈胡过关；v5 沿用终局字段，读取冻结结算的 total/delta/cumulative 等真实值 |
+| round_settled | 每关一次真实终局，分别记录合法性与累计达标，包含诈胡过关；v5/v6 沿用终局字段，读取冻结结算的 total/delta/cumulative 等真实值 |
 | hand_completed | 仅合法完整和牌；合法未达标仍保留；与 round_settled 共用同一结算事实 |
 | 统计分数 | 和牌分、过程分、罚分、本关净分和累计分分列；passed 比较终局累计与门槛，净分和累计可负 |
-| 牌面证据 | 14 为结构张数；声明 k 杠时实际 14+k 张，最多18张；保留实际拆解与万能最终定色；v3～v5 支持 orphans、knitted、unconnected 特殊牌形 |
+| 牌面证据 | 14 为结构张数；声明 k 杠时实际 14+k 张，最多18张；保留实际拆解与万能最终定色；v3～v6 支持 orphans、knitted、unconnected 特殊牌形 |
 | 观测完整度 | partial 事实保留，但不进入完整观测番型分母和关卡统计 |
 
 完整 payload 见 [共享采集契约](FREE_PLAY_ANALYTICS_CONTRACT.md)，主游戏应调用 [适配器接口](FREE_PLAY_ANALYTICS_INTEGRATION.md)，而不是在 app 内再次拼装全部字段。同手多个番型可以并存，无番型的合法完整和牌仍需记录空数组作为分母。普通、七对和特殊牌形表示最终拆解，不是玩家预选路线。最高分是包含该番型的客户端上报和牌分、本关净分或累计分，不是番型独立贡献或防作弊认证成绩。
 
-统计页独立识别 v1～v5：v1 保留预选路线分母及旧整关分；v2～v5 都显示和牌分、本关净分、累计分，旧自由出牌记录不能退回 v1 口径。筛选键与请求参数同时保留规则和计分版本：v3/v4 即使共用 `exponential_v3`，也不能合并样本和纪录。v3/v4 说明保留，v5 单独显示起手准备和四核心计分，不能标成旧指数模型。只纳入共享目录中的 base/relic 项，unavailable 不进入榜单。特殊形状展示为十三幺／国士无双、组合龙、不靠，不会误标为普通牌形。验收按钮默认写 v5 sandbox 样本，包含新核心持有证据，并使用独立的 v5 本地样本编号缓存；历史版本仍能按版本读取。冻结 steps 不逐步上报，不因播放或跳过重复产生终局。
+统计页独立识别 v1～v6：v1 保留预选路线分母及旧整关分；v2～v6 都显示和牌分、本关净分、累计分，旧自由出牌记录不能退回 v1 口径。筛选键与请求参数同时保留规则和计分版本：v3/v4 即使共用 `exponential_v3`，也不能合并样本和纪录。v5 保留原准备阶段工具及墨量说明，v6 单独说明两区共享改牌，不改写历史规则。只纳入共享目录中的 base/relic 项，unavailable 不进入榜单。特殊形状展示为十三幺／国士无双、组合龙、不靠，不会误标为普通牌形。验收按钮默认写 v6 sandbox 样本，包含核心与升降笔持有证据，并使用独立的 v6 本地样本编号缓存；历史版本仍能按版本读取。样本分数是传输验证数据，报告直读上报值，不在展示时加倍。冻结 steps 不逐步上报，不因播放或跳过重复产生终局。
 
 SDK 队列持久化与主游戏存档目前仍不是同一原子事务。适配器已实现稳定事件/业务 ID、冻结发生时间、白名单证据和页面内重复动作保护，但不能宣称已经具备完整回放或关卡结束时零丢失。是否生效取决于主会话接入动作入口并统一发布。
 
@@ -153,6 +155,6 @@ SDK 队列持久化与主游戏存档目前仍不是同一原子事务。适配�
 
 ## 验证与注入
 
-现有 `analytics-client.test.mjs / analytics-runtime.test.mjs / analytics-report.test.mjs` 共 43 项检查通过。本轮仅扩展原有 P0，未增加脚本或测试项：v5 runtime 与版本配对、prepare/begin_play/high_rescue 字段通过 SDK、旧 v2/v3/v4 原队列完整恢复、候选及安全整数上限、v1～v5 报告隔离和 sandbox 共享校验。既有默认开启、已存 denied 刷新保持关闭、双通道撤回、偏好写入失败，以及离线/ACK/独占锁/lease/持久失败保护均保留。依照项目 AGENTS，不新增外围 UI 自动化脚本；本轮未做浏览器验收、构建或发布，页面真实显示与完整玩法试玩由主会话验收，测试通过不能替代实际试玩。
+本轮现有 `analytics-client.test.mjs / analytics-runtime.test.mjs / analytics-report.test.mjs` 共 43 项检查通过，仅扩展原有 P0，未增加脚本或测试项：v6 runtime 与版本配对、两槽初始构筑和2墨→0的满14普通修复事件通过 SDK、旧 v2～v5 原队列完整恢复、候选及安全整数上限、v1～v6 报告隔离、原分数直读及 sandbox 共享校验。既有默认开启、已存 denied 刷新保持关闭、双通道撤回、偏好写入失败，以及离线/ACK/独占锁/lease/持久失败保护均保留。这是客户端三组结果，不代表其他组或完整玩法验收；本轮未做浏览器验收、构建或发布，完整流程由主会话验收，测试通过不能替代实际试玩。
 
 `createAnalytics` 的 `defaultEnabled` 显式选项默认为 false，仅 production 缺少保存偏好时可生效。可注入 `storage:{load,save,clear}`、`preferenceStorage:{getItem,setItem}`、`fetch`、`clock`、`uuid`、`locks`、`setTimeout`、`clearTimeout`，可通过 `autoFlush:false` 手动 flush 验证；`maxEvents / maxBytes / maxAgeMs / requestTimeoutMs` 可用于受控测试。`subscribe` 会立即提供一次当前状态，返回解除订阅函数。

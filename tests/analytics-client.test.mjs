@@ -595,15 +595,27 @@ test('versioned lifecycle and actions preserve rule limits and old outboxes acro
   assert.equal((await h.client.track('game_action', rescue, v5Context)).queued, true);
   assert.equal(h.storage.peek().events.at(-1).payload.after.rescue_used, true);
   assert.equal((await h.client.track('game_action', { ...begin, context: action.context }, v5Context)).reason, 'invalid_event');
-  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State]]) {
+  const v6Context = { ...gameContext, rules_version: 'opening_build_v6', score_model_version: 'four_core_v6' };
+  const v6State = { ...v5State, ink: 2, relic_ids: ['core_high', 'rank_brush'] };
+  assert.equal((await h.client.track('round_started', { state: v6State, record_quality: 'complete' }, v6Context)).queued, true);
+  assert.equal((await h.client.track('round_started', { state: v6State, record_quality: 'complete' }, { ...v6Context, score_model_version: 'four_core_v5' })).reason, 'invalid_event');
+  const fullState = { ...v6State, phase: 'play', formed_count: 14, structure_count: 14 };
+  const repair = {
+    ...begin, action: 'transform', before: fullState, after: { ...fullState, ink: 0 }, selected_tile_ids: ['tile-1'],
+    tile_changes: [['tile-1', 'formed', 'formed', 0, 1, false, false, true, true]],
+    context: { ...begin.context, source_zone: 'formed', transform_kind: 'rank', transform_value: 1, relic_id: 'rank_brush' },
+  };
+  assert.equal((await h.client.track('game_action', repair, v6Context)).queued, true);
+  assert.equal(h.storage.peek().events.at(-1).payload.after.ink, 0);
+  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State], [v6Context, v6State]]) {
     assert.equal((await h.client.track('round_started', { state: { ...state, hand_count: state.hand_count + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
     assert.equal((await h.client.track('round_started', { state: { ...state, total_score: Number.MAX_SAFE_INTEGER + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
   }
-  const storedOld = h.storage.peek().events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(event.rules_version));
+  const storedOld = h.storage.peek().events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5'].includes(event.rules_version));
   h.client.dispose();
-  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v5', scoreModelVersion: 'four_core_v5', appRelease: 'opening-build-v5' });
+  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v6', scoreModelVersion: 'four_core_v6', appRelease: 'opening-build-v6' });
   await upgraded.ready; await upgraded.flush();
-  const deliveredOld = h.requests.at(-1).body.events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(event.rules_version));
+  const deliveredOld = h.requests.at(-1).body.events.filter(event => ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5'].includes(event.rules_version));
   assert.deepEqual(deliveredOld, storedOld);
   upgraded.dispose();
 });

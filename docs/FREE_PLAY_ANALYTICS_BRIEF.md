@@ -1,6 +1,6 @@
 # 自由出牌 v2 玩法埋点接入任务
 
-状态：下文保留v2初始接入任务记录。当前已适配v5起手构筑与四核心计分，以[当前字段契约](FREE_PLAY_ANALYTICS_CONTRACT.md)和[接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md)为准；旧版成型替换、商店、版本2等约定不作为v5实现依据。由用户指定会话 `01a15d2c-14e7-7071-855d-7f04072d8ef2` 执行；主玩法会话负责引擎、界面与最终统一发布。
+状态：下文保留v2初始接入任务记录。当前接入v6起手构筑、共享一次改牌与四核心计分，以[当前字段契约](FREE_PLAY_ANALYTICS_CONTRACT.md)和[接入说明](FREE_PLAY_ANALYTICS_INTEGRATION.md)为准；旧版成型替换、商店、版本2等约定不作为v6实现依据。由用户指定会话 `01a15d2c-14e7-7071-855d-7f04072d8ef2` 执行；主玩法会话负责引擎、界面与最终统一发布。
 
 规则依据：[自由出牌与结算计划](FREE_PLAY_AND_SETTLEMENT_PLAN.md)。复用已上线 SDK、Worker、D1、同意开关及正式／测试隔离，不另建采集系统。
 
