@@ -57,9 +57,14 @@ export const V8_RULES_VERSION = 'opening_build_v8';
 export const V8_SCORE_MODEL_VERSION = 'four_core_v6';
 export const V9_RULES_VERSION = 'nine_batch_v9';
 export const V9_SCORE_MODEL_VERSION = 'fan_score_v9';
+// The restored V5 challenge is a new population, never a continuation of the
+// original V5 release. Reuse its payload contract, not its reporting identity.
+export const HARD_RULES_VERSION = 'hard_opening_build_v5';
+export const HARD_SCORE_MODEL_VERSION = 'hard_four_core_v5';
 export const GAME_RULES_VERSION = V9_RULES_VERSION;
 export const GAME_SCORE_MODEL_VERSION = V9_SCORE_MODEL_VERSION;
-export const GAME_VERSION_PAIRS = Object.freeze({ free_play_v2: 'cumulative_v2', free_play_v3: 'exponential_v3', free_play_v4: 'exponential_v3', [V5_RULES_VERSION]: V5_SCORE_MODEL_VERSION, [V6_RULES_VERSION]: V6_SCORE_MODEL_VERSION, [V7_RULES_VERSION]: V7_SCORE_MODEL_VERSION, [V8_RULES_VERSION]: V8_SCORE_MODEL_VERSION, [V9_RULES_VERSION]: V9_SCORE_MODEL_VERSION });
+export const GAME_VERSION_PAIRS = Object.freeze({ free_play_v2: 'cumulative_v2', free_play_v3: 'exponential_v3', free_play_v4: 'exponential_v3', [V5_RULES_VERSION]: V5_SCORE_MODEL_VERSION, [V6_RULES_VERSION]: V6_SCORE_MODEL_VERSION, [V7_RULES_VERSION]: V7_SCORE_MODEL_VERSION, [V8_RULES_VERSION]: V8_SCORE_MODEL_VERSION, [V9_RULES_VERSION]: V9_SCORE_MODEL_VERSION, [HARD_RULES_VERSION]: HARD_SCORE_MODEL_VERSION });
+export const variantForRules = rules => rules === HARD_RULES_VERSION ? 'hard_v5' : rules === V9_RULES_VERSION ? 'easy_v9' : 'history';
 export const isSupportedGameVersion = (rules, score) => Object.hasOwn(GAME_VERSION_PAIRS, rules) && GAME_VERSION_PAIRS[rules] === score;
 export const GAME_EVENT_NAMES = Object.freeze(['game_action', 'run_started', 'run_resumed', 'round_started', 'run_ended', 'round_settled', 'hand_completed']);
 const LEGACY_GAME_ACTIONS = Object.freeze(['start', 'starter', 'select', 'commit', 'kong', 'exchange', 'replace', 'transform', 'settle', 'settlement_skip', 'settlement_complete', 'settlement_continue', 'reward', 'buy', 'sell', 'refresh_shop', 'next_round', 'retire', 'resume']);
@@ -83,13 +88,13 @@ export const UNLOCK_PATTERN_CATALOG = Object.freeze([
 export const V2_PATTERN_CATALOG = Object.freeze([...PATTERN_CATALOG.map(pattern => Object.freeze({ ...pattern, kind: 'base' })), ...UNLOCK_PATTERN_CATALOG]);
 export const GAME_PATTERN_CATALOG = V3_PATTERN_CATALOG;
 export const V9_PATTERN_CATALOG = Object.freeze(V3_PATTERN_CATALOG.filter(pattern => pattern.kind === 'base'));
-const openingBuildRules = rulesVersion => [V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION].includes(rulesVersion);
+const openingBuildRules = rulesVersion => [V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION, HARD_RULES_VERSION].includes(rulesVersion);
 const formedDiscardRules = rulesVersion => [V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION].includes(rulesVersion);
-const extendedRules = rulesVersion => ['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION].includes(rulesVersion);
-const candidateLimitFor = rulesVersion => ({ free_play_v2: 18, free_play_v3: 10, free_play_v4: 12, [V5_RULES_VERSION]: 12, [V6_RULES_VERSION]: 12, [V7_RULES_VERSION]: 12, [V8_RULES_VERSION]: 12, [V9_RULES_VERSION]: 9 })[rulesVersion];
+const extendedRules = rulesVersion => ['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION, HARD_RULES_VERSION].includes(rulesVersion);
+const candidateLimitFor = rulesVersion => ({ free_play_v2: 18, free_play_v3: 10, free_play_v4: 12, [V5_RULES_VERSION]: 12, [V6_RULES_VERSION]: 12, [V7_RULES_VERSION]: 12, [V8_RULES_VERSION]: 12, [V9_RULES_VERSION]: 9, [HARD_RULES_VERSION]: 12 })[rulesVersion];
 export const RELIC_IDS = V9_RELIC_IDS;
 export const gamePatternCatalog = (rulesVersion = GAME_RULES_VERSION) => rulesVersion === 'free_play_v2' ? V2_PATTERN_CATALOG : rulesVersion === V9_RULES_VERSION ? V9_PATTERN_CATALOG : extendedRules(rulesVersion) ? GAME_PATTERN_CATALOG : [];
-export const relicIdsForVersion = (rulesVersion = GAME_RULES_VERSION) => rulesVersion === V9_RULES_VERSION ? V9_RELIC_IDS : rulesVersion === V8_RULES_VERSION ? V8_RELIC_IDS : rulesVersion === V7_RULES_VERSION ? V7_RELIC_IDS : rulesVersion === V6_RULES_VERSION ? V6_RELIC_IDS : rulesVersion === V5_RULES_VERSION ? V5_RELIC_IDS : ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(rulesVersion) ? V2_RELIC_IDS : [];
+export const relicIdsForVersion = (rulesVersion = GAME_RULES_VERSION) => rulesVersion === V9_RULES_VERSION ? V9_RELIC_IDS : rulesVersion === V8_RULES_VERSION ? V8_RELIC_IDS : rulesVersion === V7_RULES_VERSION ? V7_RELIC_IDS : rulesVersion === V6_RULES_VERSION ? V6_RELIC_IDS : [V5_RULES_VERSION, HARD_RULES_VERSION].includes(rulesVersion) ? V5_RELIC_IDS : ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(rulesVersion) ? V2_RELIC_IDS : [];
 export function patternIdForName(mode, name, rulesVersion = GAME_RULES_VERSION) {
   if (typeof name !== 'string') return null;
   if (rulesVersion === V9_RULES_VERSION && V3_PATTERN_CATALOG.some(pattern => pattern.mode === mode && pattern.kind === 'unlock' && pattern.name === name)) return null;

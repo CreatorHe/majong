@@ -330,18 +330,23 @@ test('default-enabled tabs synchronize opt-out through storage and broadcast wit
     });
     const h = setup({ defaultEnabled: true, locks: locksManager() }); await h.client.ready;
     const second = createAnalytics(h.config); await second.ready;
+    const hardStorage = memoryStore();
+    const hard = createAnalytics({ ...h.config, storage: hardStorage, rulesVersion: 'hard_opening_build_v5', scoreModelVersion: 'hard_four_core_v5' }); await hard.ready;
+    assert.equal(hard.getStatus().coordination, 'owner');
     const sandbox = createAnalytics({ ...h.config, scope: 'sandbox' }); await sandbox.ready;
     assert.equal(second.getStatus().coordination, 'blocked');
     assert.equal(sandbox.getStatus().consent, 'unknown');
     await second.setConsent(false);
     if (transport === 'storage') for (const callback of callbacks) callback({ key: 'jade-run:analytics:v1:production:consent', newValue: 'denied' });
-    await Promise.all([h.client.ready, second.ready]);
+    await Promise.all([h.client.ready, second.ready, hard.ready]);
+    assert.equal(hard.getStatus().consent, 'denied', transport);
+    assert.equal(hard.getStatus().queued, 0); assert.equal(hardStorage.peek(), null);
     assert.equal(h.client.getStatus().consent, 'denied', transport);
     assert.equal(h.client.getStatus().queued, 0); assert.equal(h.storage.peek(), null);
     assert.equal(sandbox.getStatus().consent, 'unknown', 'production revocation does not change sandbox');
-    await h.client.flush(); await second.flush();
+    await h.client.flush(); await second.flush(); await hard.flush();
     assert.equal(h.requests.length, 0);
-    h.client.dispose(); second.dispose(); sandbox.dispose();
+    h.client.dispose(); second.dispose(); sandbox.dispose(); hard.dispose();
     const refreshed = createAnalytics(h.config); await refreshed.ready;
     assert.equal(refreshed.getStatus().consent, 'denied', transport);
     assert.equal(refreshed.getStatus().queued, 0); refreshed.dispose();
@@ -731,4 +736,85 @@ test('v2 settlement facts retain signed cumulative scoring and forbid false wins
   assert.equal(stored.payload.passed, true);
   assert.equal(stored.payload.result_type, 'false_win');
   assert.equal(stored.payload.cumulative_after, 1080);
+});
+
+
+test('a restored mixed-version outbox preserves queued identities and starts a correctly attributed session', async () => {
+  const h = setup({ rulesVersion: 'nine_batch_v9', scoreModelVersion: 'fan_score_v9' });
+  await h.client.setConsent(true);
+  await h.client.track('screen_viewed', view);
+  const before = h.storage.peek().events;
+  const oldSession = h.storage.peek().session.id;
+  h.client.dispose();
+  const hard = createAnalytics({ ...h.config, rulesVersion: 'hard_opening_build_v5', scoreModelVersion: 'hard_four_core_v5' });
+  await hard.ready;
+  await hard.track('screen_viewed', view);
+  const queued = h.storage.peek().events;
+  assert.deepEqual(queued.slice(0, before.length), before, 'offline easy events are neither relabeled nor replaced');
+  assert.notEqual(h.storage.peek().session.id, oldSession);
+  assert.ok(queued.slice(before.length).every(event => event.rules_version === 'hard_opening_build_v5' && event.score_model_version === 'hard_four_core_v5'));
+  assert.equal(queued.filter(event => event.event_name === 'session_started').length, 2);
+  await hard.flush();
+  assert.equal(hard.getStatus().queued, 0);
+  hard.dispose();
+});
+
+
+test('easy and hard in the same production scope collect concurrently with independent locks and outboxes', async () => {
+  const manager = locksManager(), lockNames = [];
+  const locks = { request(name, options, callback) { lockNames.push(name); return manager.request(name, options, callback); } };
+  const easy = setup({ locks, rulesVersion: 'nine_batch_v9', scoreModelVersion: 'fan_score_v9' });
+  const hard = setup({ locks, preferenceStorage: easy.config.preferenceStorage, rulesVersion: 'hard_opening_build_v5', scoreModelVersion: 'hard_four_core_v5' });
+  await Promise.all([easy.client.setConsent(true), hard.client.setConsent(true)]);
+  assert.equal(easy.client.getStatus().coordination, 'owner');
+  assert.equal(hard.client.getStatus().coordination, 'owner');
+  assert.deepEqual(new Set(lockNames), new Set(['jade-run:analytics:v1:production', 'jade-run:analytics:v1:production:hard_v5']));
+  assert.equal((await easy.client.track('screen_viewed', view)).queued, true);
+  const easyBefore = easy.storage.peek();
+  assert.equal((await hard.client.track('screen_viewed', view)).queued, true);
+  assert.deepEqual(easy.storage.peek(), easyBefore, 'hard cannot overwrite the existing easy outbox');
+  assert.ok(easy.storage.peek().events.every(event => event.rules_version === 'nine_batch_v9'));
+  assert.ok(hard.storage.peek().events.every(event => event.rules_version === 'hard_opening_build_v5'));
+  assert.notEqual(easy.storage.peek().session.id, hard.storage.peek().session.id);
+  await Promise.all([easy.client.flush(), hard.client.flush()]);
+  assert.equal(easy.client.getStatus().queued, 0);
+  assert.equal(hard.client.getStatus().queued, 0);
+  assert.ok(easy.requests.at(-1).body.events.every(event => event.rules_version === 'nine_batch_v9'));
+  assert.ok(hard.requests.at(-1).body.events.every(event => event.rules_version === 'hard_opening_build_v5'));
+  assert.deepEqual([...easy.prefs.keys()], ['jade-run:analytics:v1:production:consent'], 'opt-out remains shared');
+  easy.client.dispose(); hard.client.dispose();
+});
+
+test('shared withdrawal invalidates a closed opposite-mode outbox, while untouched legacy V9 queues survive', async () => {
+  const easy = { rulesVersion: 'nine_batch_v9', scoreModelVersion: 'fan_score_v9' };
+  const hard = { rulesVersion: 'hard_opening_build_v5', scoreModelVersion: 'hard_four_core_v5' };
+  for (const [closedVersion, activeVersion] of [[hard, easy], [easy, hard]]) {
+    const closed = setup(closedVersion);
+    await closed.client.setConsent(true);
+    await closed.client.track('screen_viewed', view);
+    const oldIds = new Set(closed.storage.peek().events.map(event => event.event_id));
+    closed.client.dispose();
+    const active = setup({ ...activeVersion, preferenceStorage: closed.config.preferenceStorage });
+    await active.client.ready;
+    await active.client.setConsent(false);
+    const reopened = createAnalytics(closed.config);
+    await reopened.ready;
+    assert.equal(reopened.getStatus().consent, 'denied');
+    await reopened.setConsent(true);
+    assert.ok(closed.storage.peek().events.every(event => !oldIds.has(event.event_id)), 'withdrawn events cannot reenter a queue');
+    await reopened.track('screen_viewed', view);
+    await reopened.flush();
+    const sent = closed.requests.filter(request => request.url === '/api/events').flatMap(request => request.body.events);
+    assert.ok(sent.length > 0);
+    assert.ok(sent.every(event => !oldIds.has(event.event_id)), 'withdrawn events cannot be transmitted');
+    reopened.dispose(); active.client.dispose();
+  }
+  const legacy = setup(easy);
+  await legacy.client.setConsent(true);
+  await legacy.client.track('screen_viewed', view);
+  const snapshot = legacy.storage.peek(); delete snapshot.revocation;
+  await legacy.storage.save(snapshot); legacy.client.dispose();
+  const resumed = createAnalytics(legacy.config); await resumed.ready; await resumed.flush();
+  assert.deepEqual(legacy.requests.at(-1).body.events.map(event => event.event_id), snapshot.events.map(event => event.event_id), 'old V9 queues without a withdrawal marker retain every valid event');
+  resumed.dispose();
 });

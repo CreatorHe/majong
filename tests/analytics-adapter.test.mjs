@@ -685,3 +685,22 @@ test('V9 exhausted short hands retain their penalty and lifecycle without becomi
     else assert.equal(s.phase, 'reward');
   }
 });
+
+test('restored V5 maps both rules and all four cores to an isolated reporting identity', async () => {
+  const hard = await import('../dist/hard/engine.js');
+  for (const mode of ['mcr', 'riichi']) for (const core of hard.CORE_IDS) {
+    const h = harness(), s = hard.newRun(mode, 1234);
+    await h.adapter.trackGameAction('start', null, s, s);
+    await h.act('starter', s, () => hard.chooseStarter(s, core), { relic_id: core });
+    await h.act('begin_play', s, () => hard.beginPlay(s));
+    arrange(s, ordinary);
+    await h.act('settle', s, () => hard.settle(s));
+    const terminal = h.events.find(event => event.name === 'round_settled');
+    assert.ok(terminal, `${mode}/${core} must persist a settlement`);
+    assert.equal(terminal.payload.record_quality, 'complete');
+    assert.ok(terminal.payload.owned_relic_ids.includes(core));
+    assert.ok(h.events.every(event => event.context.rules_version === 'hard_opening_build_v5' && event.context.score_model_version === 'hard_four_core_v5'));
+    assert.equal(h.adapter.captureGameState({ ...s, variant: undefined }).rulesVersion, 'opening_build_v5', 'historical V5 is never relabeled');
+    assert.equal(h.adapter.captureGameState(engine.newRun(mode, 1234)).rulesVersion, 'nine_batch_v9');
+  }
+});

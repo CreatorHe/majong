@@ -24,6 +24,8 @@ export function mountAnalyticsBoot(options = {}) {
     <p class="analytics-settings-detail">不采集姓名、联系方式或输入内容。你可以随时关闭，尚未发送的记录会一并清空；已保存到服务器的记录不会因此自动删除。</p>
     <div class="analytics-settings-actions"><button type="button" data-deny>关闭并清空待发送记录</button><button type="button" data-allow>开启匿名统计</button><button type="button" data-retry hidden>重试保存记录</button></div>
     <a class="analytics-settings-report" href="/analytics/">查看番型统计 <span aria-hidden="true">→</span></a>`;
+  const reportURL = /^\/hard(?:\/|$)/.test(globalThis.location?.pathname ?? '') ? '/analytics/?variant=hard_v5' : '/analytics/?variant=easy_v9';
+  for (const link of [shell.querySelector('[data-analytics-stats]'), dialog.querySelector('.analytics-settings-report')]) link.setAttribute('href', reportURL);
   doc.body.append(shell, dialog);
   let disposed = false;
   const action = (name, event) => client.track('ui_action', {

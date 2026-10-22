@@ -1,5 +1,5 @@
 import { getGameAnalytics } from './runtime.js';
-import { GAME_ACTIONS, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, gamePatternCatalog, relicIdsForVersion, patternIdForName, validateGamePayload } from './game-schema.js';
+import { HARD_RULES_VERSION, HARD_SCORE_MODEL_VERSION, GAME_ACTIONS, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, gamePatternCatalog, relicIdsForVersion, patternIdForName, validateGamePayload } from './game-schema.js';
 
 // This module observes committed engine transitions. It never scores, mutates a
 // game/save, repairs a hand, or reads an unplayed wall's faces.
@@ -20,6 +20,7 @@ function gameVersions(game) {
     : game?.version === 8 ? [V8_RULES_VERSION, V8_SCORE_MODEL_VERSION]
     : game?.version === 9 ? [V9_RULES_VERSION, V9_SCORE_MODEL_VERSION] : null;
   if (!versions || game.rulesVersion?.replaceAll('-', '_') !== versions[0] || game.scoreVersion?.replaceAll('-', '_') !== versions[1]) return null;
+  if (game.version === 5 && game.variant === 'hard_v5') return { rulesVersion: HARD_RULES_VERSION, scoreVersion: HARD_SCORE_MODEL_VERSION };
   return { rulesVersion: versions[0], scoreVersion: versions[1] };
 }
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -126,7 +127,7 @@ function settlementPayload(game, result, quality, rulesVersion) {
   const unlocks = [...patterns.unlocks];
   for (const gain of legal ? result.gains ?? [] : []) {
     if (gain.kind !== 'unlock') continue;
-    if (['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION].includes(rulesVersion)) {
+    if (['free_play_v3', 'free_play_v4', HARD_RULES_VERSION, V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION, V9_RULES_VERSION].includes(rulesVersion)) {
       const patternId = patternIdForName(game.mode, gain.name, rulesVersion);
       const entry = gamePatternCatalog(rulesVersion).find(row => row.pattern_id === patternId && row.kind === 'unlock');
       if (!entry) return null; // Relic bonuses have distinct IDs from their base patterns.

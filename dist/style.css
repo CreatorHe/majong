@@ -174,3 +174,7 @@ body.settlement-open{overflow:hidden}
 .pattern-score-guide summary{cursor:pointer;color:var(--gold)}.pattern-score-guide p{margin:10px 0}
 .pattern-score-guide table{border-collapse:collapse;width:100%;max-width:360px;margin:12px 0;font-variant-numeric:tabular-nums}
 .pattern-score-guide th,.pattern-score-guide td{padding:4px 12px;border-bottom:1px solid var(--line);text-align:right}.pattern-score-guide th:first-child{text-align:left}
+
+.hard-mode-button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 14px;font-size:12px;border:1px solid #d680bc;border-radius:6px;background:linear-gradient(110deg,#922c54,#71347f);color:#fff2fa;font-weight:600;text-decoration:none;box-shadow:0 4px 18px #70284b28}
+.hard-mode-button:hover{background:linear-gradient(110deg,#aa3565,#864298);border-color:#f0a3d2}
+.hard-mode-button:focus-visible{outline:3px solid #f2badc;outline-offset:4px}

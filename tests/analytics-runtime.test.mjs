@@ -41,3 +41,21 @@ test('explicit test client injection never constructs a second SDK', () => {
   assert.equal(disposed, 0);
   assert.equal(getGameAnalytics(), null);
 });
+
+test('hard entry initializes session context before boot or engine actions while easy remains v9', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'location');
+  try {
+    for (const [pathname, rules, score] of [['/hard/', 'hard_opening_build_v5', 'hard_four_core_v5'], ['/', 'nine_batch_v9', 'fan_score_v9']]) {
+      Object.defineProperty(globalThis, 'location', { configurable: true, value: { pathname } });
+      let received;
+      configureGameAnalytics({ createClient(options) { received = options; return { dispose() {} }; } });
+      getGameAnalytics();
+      assert.equal(received.rulesVersion, rules);
+      assert.equal(received.scoreModelVersion, score);
+      resetGameAnalytics();
+    }
+  } finally {
+    resetGameAnalytics();
+    if (original) Object.defineProperty(globalThis, 'location', original); else delete globalThis.location;
+  }
+});

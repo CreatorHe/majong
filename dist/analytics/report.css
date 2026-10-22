@@ -39,3 +39,5 @@
   .summary-strip>.terminal-summary strong{font-size:14px;margin:0 3px}
   .summary-strip[data-model=legacy]>div:nth-child(3){grid-column:1/-1}
 }
+
+.variant-filter{margin-bottom:22px}.variant-filter .segmented{width:max-content;max-width:100%}.variant-filter p{font-size:11px;color:var(--muted);margin-top:9px}.variant-filter [data-variant=hard_v5][aria-pressed=true]{background:linear-gradient(110deg,#813654,#61397e)}.route-summary{margin-bottom:24px}#route-rows td{font-size:12px;font-variant-numeric:tabular-nums}

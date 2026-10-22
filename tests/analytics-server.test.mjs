@@ -1168,3 +1168,46 @@ test('older actions still replay while V9 phases, tools and discards carry bound
   assert.equal(validateGamePayload(v9Bounded.event_name, v9Bounded.payload, v9Bounded).ok, true);
   assert.ok(Buffer.byteLength(JSON.stringify(v9Bounded)) < 8192);
 });
+
+test('restored hard V5, easy V9 and historical V5 never share totals, records or route denominators', async t => {
+  const f = await fixture(t);
+  const hardRules = 'hard_opening_build_v5', hardScore = 'hard_four_core_v5';
+  const facts = V5_CORE_IDS.map((core, i) => {
+    const event = scoreParts({ ...v3Hand(), rules_version: hardRules, score_model_version: hardScore }, { win: (i + 1) * 1000, target: 2500 });
+    event.payload.owned_relic_ids = [core]; return event;
+  });
+  const old = scoreParts({ ...v3Hand(), rules_version: V5_RULES_VERSION, score_model_version: V5_SCORE_MODEL_VERSION }, { win: 9999999, target: 100 });
+  const easy = makeFixture('mcr').filter(event => event.event_name === 'round_settled')[0];
+  const easyEvent = { ...hand(), ...easy.context, event_name: easy.event_name, payload: easy.payload };
+  const japanese = scoreParts({ ...v3Hand('normal', 'riichi'), rules_version: hardRules, score_model_version: hardScore }, { win: 9000, target: 100 });
+  japanese.payload.owned_relic_ids = ['core_high'];
+  const accepted = await f.send([...facts, old, easyEvent, japanese]);
+  assert.deepEqual(accepted.body.rejected, []);
+  const read = async query => {
+    const result = await handleAnalytics(request(`/api/reports/patterns?${query}`), f.env);
+    return { status: result.status, body: await result.json() };
+  };
+  const hard = (await read('variant=hard_v5&mode=mcr')).body;
+  assert.equal(hard.rules_version, hardRules);
+  assert.equal(hard.summary.completed_hands, 4);
+  assert.equal(hard.summary.max_win_score, 4000);
+  assert.equal(hard.routes.length, 4);
+  assert.ok(hard.routes.every(route => route.total === 1 && route.legal === 1));
+  assert.deepEqual(hard.routes.map(route => route.passed), [0, 0, 1, 1]);
+  assert.ok(hard.patterns.every(pattern => pattern.denominator === 4));
+  const high = (await read('variant=hard_v5&mode=mcr&core_id=core_high')).body;
+  assert.equal(high.settlements.total, 1);
+  assert.equal(high.summary.max_win_score, 1000);
+  assert.equal(high.routes[0].mean_round_score, 1000);
+  assert.ok(high.patterns.every(pattern => pattern.denominator === 1));
+  const current = (await read('mode=mcr')).body;
+  assert.equal(current.rules_version, V9_RULES_VERSION, 'hard activity never changes the default dashboard');
+  assert.equal(current.summary.completed_hands, 1);
+  assert.equal(current.summary.max_win_score, easy.payload.win_score);
+  assert.equal(current.routes, null);
+  assert.equal((await read('variant=hard_v5&mode=riichi')).body.summary.max_win_score, 9000);
+  assert.equal((await read(`rules_version=${V5_RULES_VERSION}`)).body.summary.max_win_score, 9999999);
+  for (const query of ['variant=easy_v9&core_id=core_high', `variant=hard_v5&rules_version=${V9_RULES_VERSION}`, 'variant=bogus', 'variant=hard_v5&core_id=wild_jade']) assert.equal((await read(query)).status, 400);
+  const forged = { ...facts[0], event_id: crypto.randomUUID(), score_model_version: V5_SCORE_MODEL_VERSION };
+  assert.equal((await f.send([forged])).body.rejected[0].reason, 'incompatible_game_version');
+});

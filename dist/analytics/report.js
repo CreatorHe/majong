@@ -1,14 +1,17 @@
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
+import { HARD_RULES_VERSION, HARD_SCORE_MODEL_VERSION, V5_CORE_IDS, variantForRules, GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, V9_RULES_VERSION, V9_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
 
 const $ = selector => document.querySelector(selector);
 const params = new URLSearchParams(globalThis.location?.search || '');
 const state = {
+  variant: ['easy_v9', 'hard_v5', 'history'].includes(params.get('variant')) ? params.get('variant') : params.get('rules_version') ? variantForRules(params.get('rules_version')) : 'easy_v9',
+  core: V5_CORE_IDS.includes(params.get('core_id')) ? params.get('core_id') : '',
   mode: params.get('mode') === 'riichi' ? 'riichi' : 'mcr',
   scope: params.get('scope') === 'sandbox' ? 'sandbox' : 'production',
   version: params.get('rules_version') && params.get('score_model_version')
     ? { rules_version: params.get('rules_version'), score_model_version: params.get('score_model_version') } : null,
   data: null, loading: false, requestId: 0, controller: null, sampleBusy: false,
 };
+const routeNames = { core_high: '大番路线', core_pung: '刻子路线', core_held: '留牌路线', core_growth: '成长路线' };
 const numberFormat = new Intl.NumberFormat('zh-CN');
 const percentFormat = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 2 });
 const dateFormat = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -30,14 +33,15 @@ export function reportPresentation(data) {
   const v7 = data.rules_version === V7_RULES_VERSION && data.score_model_version === V7_SCORE_MODEL_VERSION;
   const v8 = data.rules_version === V8_RULES_VERSION && data.score_model_version === V8_SCORE_MODEL_VERSION;
   const v9 = data.rules_version === V9_RULES_VERSION && data.score_model_version === V9_SCORE_MODEL_VERSION;
-  const fourCore = v5 || v6 || v7 || v8;
+  const hard = data.rules_version === HARD_RULES_VERSION && data.score_model_version === HARD_SCORE_MODEL_VERSION;
+  const fourCore = v5 || v6 || v7 || v8 || hard;
   const exponential = v3 || v4;
   const extendedShapes = exponential || fourCore || v9;
   const freePlay = isSupportedGameVersion(data.rules_version, data.score_model_version);
   const summary = data.summary || {};
   const settlements = data.settlements || {};
   return {
-    v2, v3, v4, v5, v6, v7, v8, v9, freePlay,
+    v2, v3, v4, v5, v6, v7, v8, v9, hard, freePlay,
     handLabel: v9 ? '有番型的完整和牌' : freePlay ? '合法完整和牌' : '旧版完整成型',
     scoreLabel: freePlay ? '最高和牌分' : '旧版最高整关分',
     maxScore: freePlay ? summary.max_win_score ?? null : summary.max_round_score ?? null,
@@ -50,7 +54,9 @@ export function reportPresentation(data) {
     terminalNotice: v9
       ? '过关按终局累计分判断。日麻无役为 0 分且无罚分，未完成扣目标的 10%；两者都不计诈胡或合法和牌分母。'
       : '过关按终局累计分判断；诈胡仍达标计入过关，始终不计入番型。',
-    notice: v9
+    notice: hard
+      ? '高难度模式 · V5 四路线复刻。12 张候选，出几张补几张，准备阶段可换牌 5 次；4 个奇物槽最多 1 个计分核心。与轻松模式、原版 V5 历史数据分别统计，纪录不混排。'
+      : v9
       ? '九张成批 v9 · 无核心，每批 9 张候选，出牌后余牌全弃并刷新。按固定基数 1000 与番数档位倍率结算，没有过程分或发币；改点、换色、万能与补缺工具按实际持有记录。'
       : v8
       ? '起手构筑 v8 · 改点、换色和万能仅在准备阶段可用。每关 5 次普通换牌，准备与组牌共用，每次 1～5 张；满 14 未结算也可换候选，最终留牌参与结算。高番补缺每关一次：准备阶段改点或换色共耗 2 墨，组牌阶段未满 14 可弃换至多 3 张。'
@@ -91,7 +97,8 @@ function message(text, tone = '') {
 }
 
 function updateURL() {
-  const query = new URLSearchParams({ mode: state.mode, scope: state.scope });
+  const query = new URLSearchParams({ mode: state.mode, scope: state.scope, variant: state.variant });
+  if (state.variant === 'hard_v5' && state.core) query.set('core_id', state.core);
   if (state.version) {
     query.set('rules_version', state.version.rules_version);
     query.set('score_model_version', state.version.score_model_version);
@@ -100,6 +107,12 @@ function updateURL() {
 }
 
 function updateControls() {
+  document.querySelectorAll('[data-variant]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.variant === state.variant)); button.disabled = state.sampleBusy; });
+  $('#core-filter').hidden = state.variant !== 'hard_v5';
+  $('#core-select').value = state.core;
+  $('#core-select').disabled = state.sampleBusy;
+  $('.version-field').hidden = state.variant !== 'history';
+  $('.back-link').href = state.variant === 'hard_v5' ? '/hard/' : '/';
   document.querySelectorAll('[data-mode]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode)); button.disabled = state.sampleBusy; });
   document.querySelectorAll('[data-scope]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.scope === state.scope)); button.disabled = state.sampleBusy; });
   $('#refresh-button').disabled = state.loading || state.sampleBusy;
@@ -107,11 +120,11 @@ function updateControls() {
   $('.summary-strip').setAttribute('aria-busy', String(state.loading));
   $('#scope-badge').textContent = state.scope === 'sandbox' ? '测试样本 · 独立统计' : '正式样本';
   $('#scope-badge').dataset.scope = state.scope;
-  $('#sample-button').disabled = state.scope !== 'sandbox' || state.sampleBusy;
-  $('#repeat-button').disabled = state.scope !== 'sandbox' || state.sampleBusy || !previousFixture(state.mode);
+  $('#sample-button').disabled = state.scope !== 'sandbox' || state.variant !== 'easy_v9' || state.sampleBusy;
+  $('#repeat-button').disabled = state.scope !== 'sandbox' || state.variant !== 'easy_v9' || state.sampleBusy || !previousFixture(state.mode);
   if (!testClientPromise) $('#stop-button').hidden = !previousFixture('mcr') && !previousFixture('riichi');
   $('#test-scope-hint').textContent = state.scope === 'sandbox'
-    ? '写入九张成批 v9 样本；v8、v7、v6、v5、v4、v3、v2 与旧版测试记录仍按版本保留。'
+    ? (state.variant === 'easy_v9' ? '写入轻松模式 v9 测试样本；高难与历史数据保持独立。' : '此写入工具仅生成轻松模式样本；高难请通过实际试玩采集，不会向当前范围写入错误玩法。')
     : '切换到“测试样本”后可写入验收记录。';
 }
 
@@ -119,7 +132,7 @@ function renderVersions(data) {
   const select = $('#version-select');
   const versions = Array.isArray(data.versions) ? data.versions.filter(v => typeof v.rules_version === 'string' && typeof v.score_model_version === 'string') : [];
   if (state.version && !versions.some(v => versionKey(v) === versionKey(state.version))) versions.push(state.version);
-  select.replaceChildren(new Option('当前玩法 · 九张成批 v9', ''));
+  select.replaceChildren(new Option(state.variant === 'hard_v5' ? '高难度 · V5 四路线' : state.variant === 'history' ? '早期版本' : '轻松 · 九张成批 V9', ''));
   for (const version of versions) select.add(new Option(`${version.rules_version} / ${version.score_model_version}`, versionKey(version)));
   select.value = versionKey(state.version);
   $('#version-caption').textContent = data.rules_version && data.score_model_version
@@ -164,6 +177,13 @@ function renderRows() {
 }
 
 function renderReport(data) {
+  $('#route-summary').hidden = !Array.isArray(data.routes);
+  $('#route-rows').replaceChildren();
+  for (const route of data.routes ?? []) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${escapeHTML(routeNames[route.core_id] ?? route.core_id)}</td><td>${integer(route.total)} / ${integer(route.legal)}</td><td>${route.total ? percentFormat.format(route.pass_rate) : '—'}<small class="denominator">${integer(route.passed)} 关达标</small></td><td>${integer(route.mean_round_score)} / ${integer(route.max_win_score)}</td>`;
+    $('#route-rows').append(row);
+  }
   renderVersions(data);
   $('#summary-hands').textContent = integer(data.summary.completed_hands);
   $('#summary-occurrences').textContent = integer(data.summary.pattern_occurrences);
@@ -202,6 +222,8 @@ function renderReport(data) {
 
 function clearReport() {
   state.data = null;
+  $('#route-summary').hidden = true;
+  $('#route-rows').replaceChildren();
   ['#summary-hands', '#summary-occurrences', '#summary-max', '#summary-net', '#summary-cumulative', '#summary-pass-rate', '#summary-terminals', '#summary-false-wins', '#summary-false-passed', '#summary-no-yaku', '#summary-incomplete'].forEach(selector => { $(selector).textContent = '—'; });
   $('#summary-passed').textContent = '正在读取终局记录';
   $('#pattern-rows').replaceChildren();
@@ -224,7 +246,8 @@ async function loadReport() {
   updateControls();
   updateURL();
   message('正在读取服务端记录…');
-  const query = new URLSearchParams({ mode: state.mode, scope: state.scope });
+  const query = new URLSearchParams({ mode: state.mode, scope: state.scope, variant: state.variant });
+  if (state.variant === 'hard_v5' && state.core) query.set('core_id', state.core);
   if (state.version) {
     query.set('rules_version', state.version.rules_version);
     query.set('score_model_version', state.version.score_model_version);
@@ -373,6 +396,12 @@ async function sendSamples(repeat) {
 }
 
 function initializeReport() {
+  document.querySelectorAll('[data-variant]').forEach(button => button.addEventListener('click', () => {
+    if (state.variant === button.dataset.variant) return;
+    state.variant = button.dataset.variant; state.version = null; state.core = '';
+    $('#pattern-search').value = ''; loadReport();
+  }));
+  $('#core-select').addEventListener('change', event => { state.core = event.target.value; loadReport(); });
   document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
     if (state.mode === button.dataset.mode) return;
     state.mode = button.dataset.mode;

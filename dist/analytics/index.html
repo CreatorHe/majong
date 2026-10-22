@@ -28,6 +28,11 @@
 
     <p class="collection-notice"><span class="notice-dot" aria-hidden="true"></span><span id="collection-copy">每手按结算编号记账，国标与日麻、不同玩法版本分别统计。</span></p>
 
+    <div class="variant-filter"><span class="field-label" id="variant-label">玩法</span><div class="segmented" role="group" aria-labelledby="variant-label">
+      <button type="button" data-variant="easy_v9" aria-pressed="true">轻松模式</button>
+      <button type="button" data-variant="hard_v5" aria-pressed="false">高难度模式</button>
+      <button type="button" data-variant="history" aria-pressed="false">历史版本</button>
+    </div><p>不同玩法、国标与日麻分别记账，得分纪录不混排。</p></div>
     <section class="filter-panel" aria-label="统计筛选">
       <div class="filter-group">
         <span class="field-label" id="mode-label">规则</span>
@@ -43,6 +48,7 @@
           <button type="button" data-scope="sandbox" aria-pressed="false">测试样本</button>
         </div>
       </div>
+      <label id="core-filter" for="core-select" hidden><span class="field-label">高难路线</span><select id="core-select"><option value="">全部四路线</option><option value="core_high">大番路线</option><option value="core_pung">刻子路线</option><option value="core_held">留牌路线</option><option value="core_growth">成长路线</option></select></label>
       <label class="version-field" for="version-select"><span class="field-label">玩法 / 计分版本</span><select id="version-select"><option value="">当前玩法 · 九张成批 v9</option></select></label>
       <button type="button" id="refresh-button" class="secondary refresh-button"><span aria-hidden="true">↻</span> 刷新记录</button>
     </section>
@@ -59,6 +65,10 @@
       <div class="summary-context"><span id="scope-badge" class="scope-badge">正式样本</span><p id="version-caption">版本读取中</p><small id="received-caption">尚无接收记录</small></div>
     </section>
 
+    <section id="route-summary" class="ledger route-summary" hidden aria-labelledby="route-title">
+      <div class="ledger-toolbar"><div><h2 id="route-title">高难路线表现</h2><p class="route-label">仅统计完整观测的已结算关卡；未结算退出不计入，过关率不是整趟通关率。</p></div></div>
+      <div class="table-scroll"><table><thead><tr><th>路线</th><th>结算 / 合法和牌</th><th>单关过关率</th><th>平均本关净分 / 最高和牌分</th></tr></thead><tbody id="route-rows"></tbody></table></div>
+    </section>
     <section id="pattern-ledger" class="ledger" aria-labelledby="ledger-title" tabindex="-1">
       <div class="ledger-toolbar">
         <div><p class="eyebrow" id="ledger-subtitle">按可判定的合法完整和牌统计</p><h2 id="ledger-title">最常计入得分的番型</h2></div>

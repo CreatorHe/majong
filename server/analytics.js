@@ -1,5 +1,5 @@
 import { DEFAULT_RULES_VERSION, DEFAULT_SCORE_MODEL_VERSION, PATTERNS_BY_ID, patternsForMode } from './catalog.js';
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, GAME_VERSION_PAIRS, isSupportedGameVersion, isGameEvent, validateGamePayload } from '../dist/analytics/game-schema.js';
+import { HARD_RULES_VERSION, V5_CORE_IDS, variantForRules, GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, GAME_VERSION_PAIRS, isSupportedGameVersion, isGameEvent, validateGamePayload } from '../dist/analytics/game-schema.js';
 
 const MAX_BATCH_BYTES = 32 * 1024;
 const MAX_EVENT_BYTES = 8 * 1024;
@@ -184,9 +184,12 @@ async function collect(request, db, scope, now) {
   return reply(result);
 }
 async function report(url, db, now) {
-  if ([...url.searchParams.keys()].some(key => !['mode', 'scope', 'rules_version', 'score_model_version'].includes(key))) throw new RequestError('invalid_report_filter');
+  if ([...url.searchParams.keys()].some(key => !['mode', 'scope', 'rules_version', 'score_model_version', 'variant', 'core_id'].includes(key))) throw new RequestError('invalid_report_filter');
   const mode = url.searchParams.get('mode') || 'mcr';
   const scope = url.searchParams.get('scope') || 'production';
+  const variant = url.searchParams.get('variant');
+  const coreId = url.searchParams.get('core_id');
+  if ((variant !== null && !['easy_v9', 'hard_v5', 'history'].includes(variant)) || (coreId !== null && !V5_CORE_IDS.includes(coreId))) throw new RequestError('invalid_report_filter');
   const rules = url.searchParams.get('rules_version');
   const score = url.searchParams.get('score_model_version');
   if (!['mcr', 'riichi'].includes(mode) || !['production', 'sandbox'].includes(scope) || (rules !== null && !label(rules)) || (score !== null && !label(score))) throw new RequestError('invalid_report_filter');
@@ -194,17 +197,19 @@ async function report(url, db, now) {
     SELECT rules_version, score_model_version, received_at FROM completed_hands WHERE scope = ? AND mode = ?
     UNION ALL SELECT rules_version, score_model_version, received_at FROM round_settlements WHERE scope = ? AND mode = ?
   ) GROUP BY rules_version, score_model_version ORDER BY last_received_at DESC, rules_version DESC`).bind(scope, mode, scope, mode).all();
-  const versions = versionRows.results.map(({ rules_version, score_model_version }) => ({ rules_version, score_model_version }));
+  const versions = versionRows.results.map(({ rules_version, score_model_version }) => ({ rules_version, score_model_version })).filter(version => variant === null || variantForRules(version.rules_version) === variant);
   // A score model may span multiple rules. A score-only filter selects the
   // newest supported rule, independent of which historical version arrived last.
   const latestRulesForScore = score ? Object.entries(GAME_VERSION_PAIRS).reverse().find(([, model]) => model === score)?.[0] : null;
   const selected = rules || (score && !latestRulesForScore) ? versions.find(v => (!rules || v.rules_version === rules) && (!score || v.score_model_version === score)) : null;
-  const rulesVersion = rules || latestRulesForScore || selected?.rules_version || (score ? DEFAULT_RULES_VERSION : GAME_RULES_VERSION);
+  const defaultRules = variant === 'hard_v5' ? HARD_RULES_VERSION : variant === 'history' ? DEFAULT_RULES_VERSION : GAME_RULES_VERSION;
+  const rulesVersion = rules || latestRulesForScore || selected?.rules_version || (score ? DEFAULT_RULES_VERSION : defaultRules);
   const scoreVersion = score || GAME_VERSION_PAIRS[rulesVersion] || selected?.score_model_version || DEFAULT_SCORE_MODEL_VERSION;
   const cumulative = isSupportedGameVersion(rulesVersion, scoreVersion);
   if (!cumulative && (Object.hasOwn(GAME_VERSION_PAIRS, rulesVersion) || Object.values(GAME_VERSION_PAIRS).includes(scoreVersion))) throw new RequestError('incompatible_game_version');
+  if ((variant !== null && variantForRules(rulesVersion) !== variant) || (coreId !== null && rulesVersion !== HARD_RULES_VERSION)) throw new RequestError('incompatible_report_filter');
   const values = [scope, mode, rulesVersion, scoreVersion];
-  const context = { mode, scope, rules_version: rulesVersion, score_model_version: scoreVersion, versions, generated_at: new Date(now).toISOString() };
+  const context = { mode, scope, variant: variantForRules(rulesVersion), core_id: coreId, rules_version: rulesVersion, score_model_version: scoreVersion, versions, generated_at: new Date(now).toISOString() };
   if (cumulative) return reportGame(db, values, context);
   const where = "h.scope = ? AND h.mode = ? AND h.rules_version = ? AND h.score_model_version = ? AND h.record_quality = 'complete'";
   const [totals, shapes, counts] = await db.batch([
@@ -223,7 +228,11 @@ async function report(url, db, now) {
   return reply({ ...context, summary: { ...totals.results[0], max_win_score: null, max_cumulative_score: null, pattern_occurrences: patterns.reduce((total, row) => total + row.count, 0) }, patterns, settlements: null, denominator_basis: 'eligible_routes', collection_status: 'legacy' });
 }
 async function reportGame(db, values, context) {
-  const where = "s.scope = ? AND s.mode = ? AND s.rules_version = ? AND s.score_model_version = ? AND s.record_quality = 'complete'";
+  let where = "s.scope = ? AND s.mode = ? AND s.rules_version = ? AND s.score_model_version = ? AND s.record_quality = 'complete'";
+  if (context.core_id) {
+    where += " AND EXISTS (SELECT 1 FROM json_each(s.payload_json, '$.owned_relic_ids') r WHERE r.value = ?)";
+    values = [...values, context.core_id];
+  }
   const [totals, counts, settled] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS completed_hands, MAX(s.win_score) AS max_win_score, MAX(s.round_score) AS max_round_score, MAX(s.cumulative_after) AS max_cumulative_score, MIN(s.received_at) AS first_received_at, MAX(s.received_at) AS last_received_at FROM round_settlements s WHERE ${where} AND s.legal = 1`).bind(...values),
     db.prepare(`SELECT p.pattern_id, COUNT(*) AS count, MAX(s.win_score) AS max_win_score, MAX(s.round_score) AS max_round_score, MAX(s.cumulative_after) AS max_cumulative_score FROM settlement_patterns p JOIN round_settlements s ON s.scope = p.scope AND s.client_id = p.client_id AND s.settlement_id = p.settlement_id WHERE ${where} AND s.legal = 1 GROUP BY p.pattern_id`).bind(...values),
@@ -244,9 +253,17 @@ async function reportGame(db, values, context) {
     const count = Number(row?.count || 0), denominator = Number(summary.completed_hands);
     return { ...pattern, count, denominator, rate: denominator ? count / denominator : null, max_win_score: row?.max_win_score ?? null, max_round_score: row?.max_round_score ?? null, max_cumulative_score: row?.max_cumulative_score ?? null };
   });
+  let routes = null;
+  if (context.rules_version === HARD_RULES_VERSION) {
+    const rows = await db.prepare(`SELECT r.value AS core_id, COUNT(*) AS total, COALESCE(SUM(s.legal), 0) AS legal, COALESCE(SUM(s.passed), 0) AS passed, MAX(CASE WHEN s.legal = 1 THEN s.win_score END) AS max_win_score, AVG(s.round_score) AS mean_round_score FROM round_settlements s JOIN json_each(s.payload_json, '$.owned_relic_ids') r WHERE ${where} AND r.value IN ('core_high','core_pung','core_held','core_growth') GROUP BY r.value`).bind(...values).all();
+    routes = V5_CORE_IDS.filter(core => !context.core_id || core === context.core_id).map(core_id => {
+      const row = rows.results.find(row => row.core_id === core_id);
+      return { core_id, total: row?.total ?? 0, legal: row?.legal ?? 0, passed: row?.passed ?? 0, pass_rate: row?.total ? row.passed / row.total : null, max_win_score: row?.max_win_score ?? null, mean_round_score: row?.mean_round_score ?? null };
+    });
+  }
   const settlements = settled.results[0];
   settlements.pass_rate = settlements.total ? settlements.passed / settlements.total : null;
-  return reply({ ...context, summary: { ...summary, pattern_occurrences: patterns.reduce((total, row) => total + row.count, 0) }, patterns, settlements, denominator_basis: 'legal_complete_settlements', collection_status: 'gameplay_adapter_ready' });
+  return reply({ ...context, summary: { ...summary, pattern_occurrences: patterns.reduce((total, row) => total + row.count, 0) }, patterns, settlements, routes, denominator_basis: 'legal_complete_settlements', collection_status: 'gameplay_adapter_ready' });
 }
 
 export async function handleAnalytics(request, env) {

@@ -1,4 +1,4 @@
-import { GAME_EVENT_NAMES, isGameEvent, validateGamePayload } from './game-schema.js';
+import { HARD_RULES_VERSION, HARD_SCORE_MODEL_VERSION, GAME_EVENT_NAMES, isGameEvent, validateGamePayload } from './game-schema.js';
 
 /** Small analytics outbox controlled by the saved collection preference. */
 const DAY = 86400000;
@@ -57,7 +57,11 @@ export function createIndexedDBStore(namespace, indexedDB = globalThis.indexedDB
 export function createAnalytics(options = {}) {
   const scope = options.scope === 'test' ? 'sandbox' : options.scope ?? 'production';
   if (!['production', 'sandbox'].includes(scope)) throw new TypeError('Unknown analytics scope');
-  const namespace = `jade-run:analytics:v1:${scope}`;
+  const preferenceNamespace = `jade-run:analytics:v1:${scope}`;
+  // Preserve the established V9 outbox. Hard mode owns a separate IndexedDB
+  // snapshot and lock, so simultaneous easy/hard tabs can both collect.
+  const hard = options.rulesVersion === HARD_RULES_VERSION && options.scoreModelVersion === HARD_SCORE_MODEL_VERSION;
+  const namespace = preferenceNamespace + (hard ? ':hard_v5' : '');
   const prefs = options.preferenceStorage === undefined ? browserStorage() : options.preferenceStorage;
   let store = options.storage ?? createIndexedDBStore(namespace, options.indexedDB);
   const fetcher = options.fetch ?? globalThis.fetch?.bind(globalThis);
@@ -77,7 +81,7 @@ export function createAnalytics(options = {}) {
   let coordination = 'idle', releaseLock = null;
   let channel = null;
   try {
-    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') channel = new BroadcastChannel(`${namespace}:consent`);
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') channel = new BroadcastChannel(`${preferenceNamespace}:consent`);
   } catch {}
   let consent = 'unknown', disposed = false, epoch = 0;
   let state = { credentials: null, session: null, events: [] };
@@ -99,10 +103,18 @@ export function createAnalytics(options = {}) {
     serial = result.catch(() => {});
     return result;
   }
+  function revocationKey() {
+    try { return prefs ? prefs.getItem(`${preferenceNamespace}:revoked`) ?? null : null; }
+    catch { return undefined; } // Unreadable withdrawal state cannot authorize an old outbox.
+  }
   function preference(value) {
     try {
       if (!prefs) throw new Error('preference_storage_unavailable');
-      prefs.setItem(`${namespace}:consent`, value);
+      if (value === 'denied') {
+        const token = globalThis.crypto?.randomUUID?.() ?? `${now()}-${Math.random().toString(36).slice(2)}`;
+        prefs.setItem(`${preferenceNamespace}:revoked`, token);
+      }
+      prefs.setItem(`${preferenceNamespace}:consent`, value);
     } catch { lastError = 'preference_storage_unavailable'; }
   }
   function unlock() { releaseLock?.(); releaseLock = null; coordination = 'idle'; }
@@ -143,8 +155,12 @@ export function createAnalytics(options = {}) {
     storageMode = 'memory'; deliveryPaused = true; retryAt = 0; lastError = 'storage_unavailable';
   }
   function savedState(saved) {
-    if (!saved || !Array.isArray(saved.events)) return null;
+    const revoked = revocationKey();
+    // A closed other-mode page cannot receive broadcasts. Reject its stale
+    // snapshot after any shared withdrawal, even after consent is enabled again.
+    if (revoked === undefined || !saved || !Array.isArray(saved.events) || (saved.revocation ?? null) !== revoked) return null;
     return {
+      revocation: revoked,
       credentials: saved.credentials && typeof saved.credentials.client_id === 'string' && typeof saved.credentials.write_token === 'string' ? saved.credentials : null,
       session: saved.session && typeof saved.session.id === 'string' && Number.isFinite(saved.session.lastActivity) ? saved.session : null,
       events: saved.events.filter(event => event?.schema_version === 1 && typeof event.event_id === 'string' && names.has(event.event_name)),
@@ -201,8 +217,11 @@ export function createAnalytics(options = {}) {
     return true;
   }
   function ensureSession() {
-    if (!state.session || now() - state.session.lastActivity >= 30 * 60000 || now() < state.session.lastActivity) {
-      state.session = { id: uuid(), lastActivity: now() };
+    const contextKey = `${options.rulesVersion ?? 'unintegrated-v1'}/${options.scoreModelVersion ?? 'unintegrated-v1'}`;
+    // Navigation between easy and hard keeps queued envelopes intact, but starts
+    // a correctly attributed session instead of inheriting the previous page's.
+    if (!state.session || state.session.contextKey !== contextKey || now() - state.session.lastActivity >= 30 * 60000 || now() < state.session.lastActivity) {
+      state.session = { id: uuid(), lastActivity: now(), contextKey };
       state.events.push(envelope('session_started', {
         entry: options.entry ?? 'game', viewport: options.viewport ?? 'wide', has_save: Boolean(options.hasSave),
       }));
@@ -269,7 +288,9 @@ export function createAnalytics(options = {}) {
         try { saved = await store.load(); storageFault = null; storageMode = 'persistent'; } catch { pauseStorage('load'); }
       }
       if (!active(generation)) return;
-      if (savedState(saved)) state = savedState(saved);
+      const restored = savedState(saved);
+      if (restored) state = restored;
+      else state = { credentials: null, session: null, events: [], revocation: revocationKey() ?? null };
       ensureSession(); prune(); await save(generation); emit(); schedule();
     });
     emit();
@@ -457,12 +478,12 @@ export function createAnalytics(options = {}) {
     channel?.close();
     void serial.finally(unlock);
   }
-  function storageChanged(event) { if (event.key === `${namespace}:consent` && event.newValue === 'denied') void setConsent(false); }
+  function storageChanged(event) { if (event.key === `${preferenceNamespace}:consent` && event.newValue === 'denied') void changeConsent(false, false); }
   globalThis.addEventListener?.('storage', storageChanged);
-  if (channel) channel.onmessage = event => { if (event.data?.consent === 'denied') void setConsent(false); };
+  if (channel) channel.onmessage = event => { if (event.data?.consent === 'denied') void changeConsent(false, false); };
   let remembered, preferenceReadable = false;
   try {
-    if (prefs) { remembered = prefs.getItem(`${namespace}:consent`); preferenceReadable = true; }
+    if (prefs) { remembered = prefs.getItem(`${preferenceNamespace}:consent`); preferenceReadable = true; }
   } catch { lastError = 'preference_storage_unavailable'; }
   if (!preferenceReadable && scope === 'production' && options.defaultEnabled === true) lastError = 'preference_storage_unavailable';
   // Defaults apply only to an absent, readable preference in the real game.
