@@ -1,4 +1,4 @@
-import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
+import { GAME_RULES_VERSION, GAME_SCORE_MODEL_VERSION, V5_RULES_VERSION, V5_SCORE_MODEL_VERSION, V6_RULES_VERSION, V6_SCORE_MODEL_VERSION, V7_RULES_VERSION, V7_SCORE_MODEL_VERSION, V8_RULES_VERSION, V8_SCORE_MODEL_VERSION, isSupportedGameVersion } from './game-schema.js';
 
 const $ = selector => document.querySelector(selector);
 const params = new URLSearchParams(globalThis.location?.search || '');
@@ -18,7 +18,7 @@ const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '
 export const versionKey = version => version ? JSON.stringify([version.rules_version, version.score_model_version]) : '';
 export const sampleVersions = Object.freeze({ rules_version: GAME_RULES_VERSION, score_model_version: GAME_SCORE_MODEL_VERSION });
 const sampleRelease = GAME_RULES_VERSION.replaceAll('_', '-');
-const sampleStorageKey = mode => `jade-run:analytics:sandbox:last-fixture-v7:${mode}`;
+const sampleStorageKey = mode => `jade-run:analytics:sandbox:last-fixture-v8:${mode}`;
 let testClientPromise = null;
 
 export function reportPresentation(data) {
@@ -28,14 +28,15 @@ export function reportPresentation(data) {
   const v5 = data.rules_version === V5_RULES_VERSION && data.score_model_version === V5_SCORE_MODEL_VERSION;
   const v6 = data.rules_version === V6_RULES_VERSION && data.score_model_version === V6_SCORE_MODEL_VERSION;
   const v7 = data.rules_version === V7_RULES_VERSION && data.score_model_version === V7_SCORE_MODEL_VERSION;
-  const fourCore = v5 || v6 || v7;
+  const v8 = data.rules_version === V8_RULES_VERSION && data.score_model_version === V8_SCORE_MODEL_VERSION;
+  const fourCore = v5 || v6 || v7 || v8;
   const exponential = v3 || v4;
   const extendedShapes = exponential || fourCore;
   const freePlay = isSupportedGameVersion(data.rules_version, data.score_model_version);
   const summary = data.summary || {};
   const settlements = data.settlements || {};
   return {
-    v2, v3, v4, v5, v6, v7, freePlay,
+    v2, v3, v4, v5, v6, v7, v8, freePlay,
     handLabel: freePlay ? '合法完整和牌' : '旧版完整成型',
     scoreLabel: freePlay ? '最高和牌分' : '旧版最高整关分',
     maxScore: freePlay ? summary.max_win_score ?? null : summary.max_round_score ?? null,
@@ -43,7 +44,9 @@ export function reportPresentation(data) {
     maxCumulative: freePlay ? settlements.max_cumulative_score ?? null : null,
     passRate: freePlay ? settlements.pass_rate ?? null : null,
     subtitle: freePlay ? '按可判定的合法完整和牌统计' : '旧版口径 · 按预选路线分别统计',
-    notice: v7
+    notice: v8
+      ? '起手构筑 v8 · 改点、换色和万能仅在准备阶段可用。每关 5 次普通换牌，准备与组牌共用，每次 1～5 张；满 14 未结算也可换候选，最终留牌参与结算。高番补缺每关一次：准备阶段改点或换色共耗 2 墨，组牌阶段未满 14 可弃换至多 3 张。'
+      : v7
       ? '起手构筑 v7 · 整趟挑战可弃牌一次，弃去 1～2 张非杠成型牌，不立即摸牌、得分或耗墨。天机算筹自带固定点数、三花色万能，仍共用每关一次的 2 墨改牌额度。沿用 v6 四核心计分，两个规则版本独立统计。'
       : v6
       ? '起手构筑 v6 · 核心与升降笔占起始 2 槽。每关 2 墨，共可改牌 1 次，准备与组牌共用；两区非杠牌均可改，满 14 个结构位置且未结算仍可用普通工具修复。补缺编辑同耗 2 墨。'
@@ -56,7 +59,7 @@ export function reportPresentation(data) {
       : v2 ? '自由出牌 v2 · 累计计分。合法未达标计入番型，诈胡仍达标只计入过关；与 v3 / v4 指数计分分别统计。'
       : '旧版记录 · 按当时的预选路线与整关得分统计，不与自由出牌版本合并。',
     explanation: freePlay
-      ? `出现率 = 含该计分番型的手数 ÷ 可判定的合法完整和牌手数。${extendedShapes ? '普通、七对和特殊牌形都是系统最终拆解' : '普通与七对是系统最终拆解'}，分母不按拆解筛选。合法未过关也计入；诈胡与不完整观测不计入。每手同番型最多一次，多番占比之和可超过 100%。最高和牌分只计终局和牌收益；本关净分含过程分、和牌分与罚分；累计分含此前各关。各项纪录分别取最高值，不一定来自同一手，也不是番型单独贡献。${extendedShapes ? `只纳入已开放的基础与奇物番型；${fourCore ? '四核心' : '指数'}计分纪录仅在同一规则和计分版本内比较。` : ''}${v6 || v7 ? '本页直接展示实际上报的总分，不再次放大或重算。' : ''}`
+      ? `出现率 = 含该计分番型的手数 ÷ 可判定的合法完整和牌手数。${extendedShapes ? '普通、七对和特殊牌形都是系统最终拆解' : '普通与七对是系统最终拆解'}，分母不按拆解筛选。合法未过关也计入；诈胡与不完整观测不计入。每手同番型最多一次，多番占比之和可超过 100%。最高和牌分只计终局和牌收益；本关净分含过程分、和牌分与罚分；累计分含此前各关。各项纪录分别取最高值，不一定来自同一手，也不是番型单独贡献。${extendedShapes ? `只纳入已开放的基础与奇物番型；${fourCore ? '四核心' : '指数'}计分纪录仅在同一规则和计分版本内比较。` : ''}${v6 || v7 || v8 ? '本页直接展示实际上报的总分，不再次放大或重算。' : ''}`
       : '旧版出现率 = 含该计分番型的手数 ÷ 适用预选路线的有效完整成型手数。各行分母可能不同；完整成型但未过关仍计入。每手同番型最多一次，多番占比之和可超过 100%。旧版整关得分沿用历史口径，不能拆分或对比新版和牌分、本关净分与累计分。',
   };
 }
@@ -98,7 +101,7 @@ function updateControls() {
   $('#repeat-button').disabled = state.scope !== 'sandbox' || state.sampleBusy || !previousFixture(state.mode);
   if (!testClientPromise) $('#stop-button').hidden = !previousFixture('mcr') && !previousFixture('riichi');
   $('#test-scope-hint').textContent = state.scope === 'sandbox'
-    ? '写入起手构筑 v7 样本；v6、v5、v4、v3、v2 与旧版测试记录仍按版本保留。'
+    ? '写入起手构筑 v8 样本；v7、v6、v5、v4、v3、v2 与旧版测试记录仍按版本保留。'
     : '切换到“测试样本”后可写入验收记录。';
 }
 
@@ -106,7 +109,7 @@ function renderVersions(data) {
   const select = $('#version-select');
   const versions = Array.isArray(data.versions) ? data.versions.filter(v => typeof v.rules_version === 'string' && typeof v.score_model_version === 'string') : [];
   if (state.version && !versions.some(v => versionKey(v) === versionKey(state.version))) versions.push(state.version);
-  select.replaceChildren(new Option('当前玩法 · 起手构筑 v7', ''));
+  select.replaceChildren(new Option('当前玩法 · 起手构筑 v8', ''));
   for (const version of versions) select.add(new Option(`${version.rules_version} / ${version.score_model_version}`, versionKey(version)));
   select.value = versionKey(state.version);
   $('#version-caption').textContent = data.rules_version && data.score_model_version

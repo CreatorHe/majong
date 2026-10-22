@@ -53,9 +53,11 @@ export const V6_RULES_VERSION = 'opening_build_v6';
 export const V6_SCORE_MODEL_VERSION = 'four_core_v6';
 export const V7_RULES_VERSION = 'opening_build_v7';
 export const V7_SCORE_MODEL_VERSION = 'four_core_v6';
-export const GAME_RULES_VERSION = V7_RULES_VERSION;
-export const GAME_SCORE_MODEL_VERSION = V7_SCORE_MODEL_VERSION;
-export const GAME_VERSION_PAIRS = Object.freeze({ free_play_v2: 'cumulative_v2', free_play_v3: 'exponential_v3', free_play_v4: 'exponential_v3', [V5_RULES_VERSION]: V5_SCORE_MODEL_VERSION, [V6_RULES_VERSION]: V6_SCORE_MODEL_VERSION, [V7_RULES_VERSION]: V7_SCORE_MODEL_VERSION });
+export const V8_RULES_VERSION = 'opening_build_v8';
+export const V8_SCORE_MODEL_VERSION = 'four_core_v6';
+export const GAME_RULES_VERSION = V8_RULES_VERSION;
+export const GAME_SCORE_MODEL_VERSION = V8_SCORE_MODEL_VERSION;
+export const GAME_VERSION_PAIRS = Object.freeze({ free_play_v2: 'cumulative_v2', free_play_v3: 'exponential_v3', free_play_v4: 'exponential_v3', [V5_RULES_VERSION]: V5_SCORE_MODEL_VERSION, [V6_RULES_VERSION]: V6_SCORE_MODEL_VERSION, [V7_RULES_VERSION]: V7_SCORE_MODEL_VERSION, [V8_RULES_VERSION]: V8_SCORE_MODEL_VERSION });
 export const isSupportedGameVersion = (rules, score) => Object.hasOwn(GAME_VERSION_PAIRS, rules) && GAME_VERSION_PAIRS[rules] === score;
 export const GAME_EVENT_NAMES = Object.freeze(['game_action', 'run_started', 'run_resumed', 'round_started', 'run_ended', 'round_settled', 'hand_completed']);
 const LEGACY_GAME_ACTIONS = Object.freeze(['start', 'starter', 'select', 'commit', 'kong', 'exchange', 'replace', 'transform', 'settle', 'settlement_skip', 'settlement_complete', 'settlement_continue', 'reward', 'buy', 'sell', 'refresh_shop', 'next_round', 'retire', 'resume']);
@@ -68,6 +70,7 @@ export const V5_CORE_IDS = Object.freeze(['core_high', 'core_pung', 'core_held',
 export const V5_RELIC_IDS = Object.freeze([...V5_CORE_IDS, 'retrigger_meld', 'retrigger_held', 'high_rescue', ...V2_RELIC_IDS]);
 export const V6_RELIC_IDS = Object.freeze([...V5_RELIC_IDS]);
 export const V7_RELIC_IDS = Object.freeze(V6_RELIC_IDS.filter(id => id !== 'wild_jade'));
+export const V8_RELIC_IDS = Object.freeze([...V7_RELIC_IDS]);
 export const UNLOCK_PATTERN_CATALOG = Object.freeze([
   { pattern_id: 'mcr.all_258', mode: 'mcr', name: '将将胡', description: '实际触发将令：有效牌仅含 2、5、8 数牌', fan: null, routes: both, kind: 'unlock', relic_id: 'jiang' },
   { pattern_id: 'riichi.all_258', mode: 'riichi', name: '将将胡', description: '实际触发将令：有效牌仅含 2、5、8 数牌', fan: null, routes: both, kind: 'unlock', relic_id: 'jiang' },
@@ -76,12 +79,13 @@ export const UNLOCK_PATTERN_CATALOG = Object.freeze([
 ].map(pattern => Object.freeze(pattern)));
 export const V2_PATTERN_CATALOG = Object.freeze([...PATTERN_CATALOG.map(pattern => Object.freeze({ ...pattern, kind: 'base' })), ...UNLOCK_PATTERN_CATALOG]);
 export const GAME_PATTERN_CATALOG = V3_PATTERN_CATALOG;
-const openingBuildRules = rulesVersion => [V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION].includes(rulesVersion);
-const extendedRules = rulesVersion => ['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION].includes(rulesVersion);
-const candidateLimitFor = rulesVersion => ({ free_play_v2: 18, free_play_v3: 10, free_play_v4: 12, [V5_RULES_VERSION]: 12, [V6_RULES_VERSION]: 12, [V7_RULES_VERSION]: 12 })[rulesVersion];
-export const RELIC_IDS = V7_RELIC_IDS;
+const openingBuildRules = rulesVersion => [V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION].includes(rulesVersion);
+const formedDiscardRules = rulesVersion => [V7_RULES_VERSION, V8_RULES_VERSION].includes(rulesVersion);
+const extendedRules = rulesVersion => ['free_play_v3', 'free_play_v4', V5_RULES_VERSION, V6_RULES_VERSION, V7_RULES_VERSION, V8_RULES_VERSION].includes(rulesVersion);
+const candidateLimitFor = rulesVersion => ({ free_play_v2: 18, free_play_v3: 10, free_play_v4: 12, [V5_RULES_VERSION]: 12, [V6_RULES_VERSION]: 12, [V7_RULES_VERSION]: 12, [V8_RULES_VERSION]: 12 })[rulesVersion];
+export const RELIC_IDS = V8_RELIC_IDS;
 export const gamePatternCatalog = (rulesVersion = GAME_RULES_VERSION) => rulesVersion === 'free_play_v2' ? V2_PATTERN_CATALOG : extendedRules(rulesVersion) ? GAME_PATTERN_CATALOG : [];
-export const relicIdsForVersion = (rulesVersion = GAME_RULES_VERSION) => rulesVersion === V7_RULES_VERSION ? V7_RELIC_IDS : rulesVersion === V6_RULES_VERSION ? V6_RELIC_IDS : rulesVersion === V5_RULES_VERSION ? V5_RELIC_IDS : ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(rulesVersion) ? V2_RELIC_IDS : [];
+export const relicIdsForVersion = (rulesVersion = GAME_RULES_VERSION) => rulesVersion === V8_RULES_VERSION ? V8_RELIC_IDS : rulesVersion === V7_RULES_VERSION ? V7_RELIC_IDS : rulesVersion === V6_RULES_VERSION ? V6_RELIC_IDS : rulesVersion === V5_RULES_VERSION ? V5_RELIC_IDS : ['free_play_v2', 'free_play_v3', 'free_play_v4'].includes(rulesVersion) ? V2_RELIC_IDS : [];
 export function patternIdForName(mode, name, rulesVersion = GAME_RULES_VERSION) {
   if (typeof name !== 'string') return null;
   const parentName = name.split(' · ')[0].replace(/\s*[×x]\d+$/u, '');
@@ -118,7 +122,7 @@ const STATE_FIELDS = ['phase', 'round_no', 'formed_count', 'structure_count', 'k
 export function validateGameState(s, rulesVersion = GAME_RULES_VERSION) {
   const limit = scoreLimitFor(rulesVersion);
   const openingBuild = openingBuildRules(rulesVersion);
-  const v7 = rulesVersion === V7_RULES_VERSION;
+  const v7 = formedDiscardRules(rulesVersion);
   return Object.hasOwn(GAME_VERSION_PAIRS, rulesVersion) && keys(s, [...STATE_FIELDS, ...(openingBuild ? ['rescue_used'] : []), ...(v7 ? ['formed_discard'] : [])]) && ['home', 'starter', 'play', 'settlement', 'reward', 'shop', 'victory', 'defeat', ...(openingBuild ? ['prepare'] : [])].includes(s.phase) && int(s.round_no, 1, 6) && int(s.formed_count, 0, 18) && int(s.structure_count, 0, 14) && int(s.kong_count, 0, 4) && s.formed_count - s.kong_count === s.structure_count && int(s.hand_count, 0, candidateLimitFor(rulesVersion)) && int(s.deck_count, 0, 136) && int(s.discard_count, 0, 136) && int(s.coins, 0, 1_000_000_000) && int(s.ink, 0, 1000) && int(s.swaps, 0, 1000) && signed(s.total_score, limit) && signed(s.round_score, limit) && int(s.process_score, 0, limit) && signed(s.round_start_score, limit) && (s.target_score === null || int(s.target_score, 1, limit)) && knownRelics(s.relic_ids, rulesVersion) && int(s.single_count, 0, 4) && bool(s.wild_used) && (!openingBuild || bool(s.rescue_used)) && (!v7 || validFormedDiscard(s.formed_discard, s.round_no)) && BigInt(s.total_score) === BigInt(s.round_start_score) + BigInt(s.round_score);
 }
 const ORPHAN_FACES = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
@@ -195,7 +199,7 @@ function validateTerminal(p, context, eventName) {
 }
 function validateAction(p, rulesVersion) {
   const openingBuild = openingBuildRules(rulesVersion);
-  const v7 = rulesVersion === V7_RULES_VERSION;
+  const v7 = formedDiscardRules(rulesVersion);
   if (!keys(p, ['action_id', 'action', 'input_method', 'outcome', 'reason_code', 'before', 'after', 'selected_tile_ids', 'tile_changes', 'evidence_truncated', 'context']) || !id(p.action_id) || !(v7 ? GAME_ACTIONS : openingBuild ? OPENING_BUILD_ACTIONS : LEGACY_GAME_ACTIONS).includes(p.action) || !['pointer', 'keyboard', 'programmatic'].includes(p.input_method) || !['applied', 'rejected', 'noop', 'blocked'].includes(p.outcome) || (p.reason_code !== null && !smallId(p.reason_code)) || (p.before === null && p.after === null) || (p.before !== null && !validateGameState(p.before, rulesVersion)) || (p.after !== null && !validateGameState(p.after, rulesVersion)) || !uniqueIds(p.selected_tile_ids, 0, 18) || !bool(p.evidence_truncated) || !Array.isArray(p.tile_changes) || p.tile_changes.length > 36) return 'invalid_game_action';
   const changes = new Set();
   for (const change of p.tile_changes) {
@@ -208,6 +212,13 @@ function validateAction(p, rulesVersion) {
   if (p.action === 'high_rescue' && ((p.outcome === 'applied' && c.rescue_type === null) || c.transform_kind !== (['rank', 'suit'].includes(c.rescue_type) ? c.rescue_type : null))) return 'invalid_action_context';
   if (!['transform', 'high_rescue'].includes(p.action) && (c.transform_kind !== null || c.transform_value !== null)) return 'invalid_action_context';
   if (c.transform_kind === 'rank' ? ![-1, 1].includes(c.transform_value) : c.transform_kind === 'suit' ? ![0, 1, 2].includes(c.transform_value) : c.transform_value !== null) return 'invalid_action_context';
+  if (rulesVersion === V8_RULES_VERSION && p.outcome === 'applied' && ['transform', 'exchange', 'high_rescue'].includes(p.action)) {
+    const a = p.before, b = p.after;
+    const edit = p.action === 'transform' || (p.action === 'high_rescue' && c.rescue_type !== 'exchange');
+    const phases = edit ? ['prepare'] : p.action === 'high_rescue' ? ['play'] : ['prepare', 'play'];
+    if (!a || !b || !phases.includes(a.phase) || b.phase !== a.phase || (p.action === 'high_rescue' && c.rescue_type === 'exchange' && a.structure_count >= 14)) return 'invalid_action_phase';
+    if (!uniqueIds(p.selected_tile_ids, 1, edit ? 1 : p.action === 'high_rescue' ? 3 : 5)) return 'invalid_action_selection';
+  }
   if (v7 && p.action === 'transform' && c.transform_kind === 'wild' && p.outcome === 'applied' && (c.relic_id !== 'core_high' || !p.before?.relic_ids.includes('core_high') || !p.after?.relic_ids.includes('core_high'))) return 'wild_requires_core_high';
   if (p.outcome !== 'applied' && p.before && p.after && ['total_score', 'round_score', 'process_score', 'coins', 'ink', 'swaps', ...(openingBuild ? ['rescue_used'] : [])].some(key => p.before[key] !== p.after[key])) return 'rejected_action_mutates_state';
   if (v7 && p.outcome !== 'applied' && p.before && p.after && !sameFormedDiscard(p.before.formed_discard, p.after.formed_discard)) return 'rejected_action_mutates_state';

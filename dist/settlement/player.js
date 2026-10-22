@@ -118,6 +118,7 @@ export class SettlementPlayer{
         this.tiles.set(id,node);row.append(node);
       }
       const caption=make('span','jr-group-label',group.label||({sequence:'顺子',triplet:'刻子',kong:'杠',pair:'雀头',ungrouped:''}[group.type]));caption.title=group.label||'';
+      if(group.description)caption.append(make('small','jr-group-description',group.description));
       wrap.append(row,caption);hand.append(wrap);
     }
     this.scene.append(hand);

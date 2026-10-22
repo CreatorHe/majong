@@ -66,7 +66,9 @@ function presentationGroup(tileIds, faces, index, shape, mode) {
   const groupName = special ? ({ orphans: mode === 'riichi' ? '国士无双' : '十三幺', knitted: '组合龙', unconnected: '不靠牌' })[shape]
     : type === 'pair' && shape === 'pairs' ? '对子'
     : ({ kong: '杠', pair: '雀头', triplet: '刻子', sequence: '顺子' })[type];
-  return { id: `group-${index}`, type, label: groupName, tileIds: [...tileIds] };
+  const description = special ? ({ orphans: '六种一九数牌＋七种字牌，再重复一种', knitted: '三种花色分别取 147、258、369', unconnected: '数牌取自组合龙，字牌互不重复' })[shape]
+    : ({ kong: '四张相同', pair: '两张相同', triplet: '三张相同', sequence: '同花色三张连续' })[type];
+  return { id: `group-${index}`, type, label: groupName, description, tileIds: [...tileIds] };
 }
 
 /**

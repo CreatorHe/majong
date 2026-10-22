@@ -5,27 +5,27 @@ import { mcrPatterns } from './mcr-patterns.js';
 import { PATTERN_CATALOG } from './pattern-catalog.js';
 import {BALANCE, CORE_IDS, STARTER_RELIC_ID, TARGETS, DISABLED_RELIC_IDS, COMPATIBLE_RELICS, FIRST_COMPATIBLE, highFanMultiplier} from './balance.js';
 export {BALANCE, CORE_IDS, STARTER_RELIC_ID, TARGETS};
-export const VERSION = 7;
+export const VERSION = 8;
 export const MODES = { mcr: { name: '国标番型', short: '国标', unit: '番', scale: 8 }, riichi: { name: '日麻役种', short: '日麻', unit: '翻', scale: 1 } };
 export const ROUND_NAMES = ['初见青山', '竹影入局', '风过空谷', '云深不知', '月照千峰', '登临绝顶'];
 // Cumulative targets, provisional playtest values for one complete hand per round.
 
 export const target = s => s.roundTarget ?? TARGETS[s.mode][s.round];
 export const RELICS = [
-  {id:'core_high',name:'天机算筹',icon:'筹',kind:'核心',core:true,desc:'大番路线：番数达到档位时跃升倍率；自带花色万能能力，保留点数，仅变万／筒／索，与其他改牌共用每关一次额度，不另占槽。',price:0},
-  {id:'core_pung',name:'叠岳印',icon:'岳',kind:'核心',core:true,get desc(){return `刻子路线：每次刻子或杠计分，倍率 ×${BALANCE.pungFactor}。`;},price:0},
-  {id:'core_held',name:'藏锋匣',icon:'藏',kind:'核心',core:true,get desc(){return `留牌路线：合法和牌时，候选区前${BALANCE.heldBaseCount}张幺九牌每次计分 ×${BALANCE.heldFactor}，第${BALANCE.heldBaseCount+1}～${BALANCE.handSize}张每次 ×${BALANCE.heldBurstFactor}；重复触发沿用该张牌的档位。`;},price:0},
-  {id:'core_growth',name:'长春梳',icon:'生',kind:'核心',core:true,get desc(){return `成长路线：从${BALANCE.growthSeed*BALANCE.baseScale}有效底分开始，每次合法顺子计分储存底分 ×${BALANCE.growthRate}；跨关保留。`;},price:0},
-  {id:'retrigger_meld',name:'复鸣铃',icon:'鸣',kind:'联动',desc:'每副面子额外计分一次，重触发面子的底分、倍率和明确允许的成长；不重复发钱。',price:8},
+  {id:'core_high',name:'天机算筹',icon:'筹',kind:'核心',core:true,desc:'大番路线：番数达到档位时跃升倍率；自带花色万能能力，保留点数，仅变万／筒／索，仅准备阶段可用，与其他改牌共用每关一次额度，不另占槽。',price:0},
+  {id:'core_pung',name:'叠岳印',icon:'岳',kind:'核心',core:true,get desc(){return `刻子路线：每组刻子（三张相同牌）或杠（四张相同牌）计分，倍率 ×${BALANCE.pungFactor}。`;},price:0},
+  {id:'core_held',name:'藏锋匣',icon:'藏',kind:'核心',core:true,get desc(){return `留牌路线：合法和牌时，候选区前${BALANCE.heldBaseCount}张幺九牌（一、九数牌及所有字牌）每次计分 ×${BALANCE.heldFactor}，第${BALANCE.heldBaseCount+1}～${BALANCE.handSize}张每次 ×${BALANCE.heldBurstFactor}；重复触发沿用该张牌的档位。`;},price:0},
+  {id:'core_growth',name:'长春梳',icon:'生',kind:'核心',core:true,get desc(){return `成长路线：从${BALANCE.growthSeed*BALANCE.baseScale}有效底分开始，每组顺子（同花色连续三张数牌）合法计分，储存底分 ×${BALANCE.growthRate}；跨关保留。`;},price:0},
+  {id:'retrigger_meld',name:'复鸣铃',icon:'鸣',kind:'联动',desc:'每组顺子、刻子或杠额外计分一次，重触发这组牌的底分、倍率和明确允许的成长；不重复发钱。',price:8},
   {id:'retrigger_held',name:'余音扇',icon:'余',kind:'联动',desc:'合法和牌时，候选区留牌计分效果额外触发一次。',price:8},
-  {id:'high_rescue',name:'补缺符',icon:'补',kind:'辅助',get desc(){return `需天机算筹：每关组牌未满14时，额外弃换最多${BALANCE.highRescueSize}张，或花共用${BALANCE.editCost}墨改一张数牌点数±1／花色；两种方式共用一次，不额外赠送改牌次数。`;},price:8},
+  {id:'high_rescue',name:'补缺符',icon:'补',kind:'辅助',get desc(){return `需天机算筹：准备阶段花共用${BALANCE.editCost}墨改一张数牌点数±1／花色，或组牌未满14时额外弃换最多${BALANCE.highRescueSize}张；两种方式每关共用一次，不额外赠送改牌次数。`;},price:8},
   { id: 'jade', name: '温玉', icon: '玉', kind: '基础', get desc(){return `合法和牌时，整手底分 +${BALANCE.jadeBase*BALANCE.baseScale}。`;}, price: 5 },
   { id: 'river', name: '流云梳', icon: '川', kind: '顺子', get desc(){return `合法和牌每组顺子永久成长 ${BALANCE.riverBase*BALANCE.baseScale} 底分；本次即享全部累计成长。`;}, price: 6 },
   { id: 'stone', name: '刻石', icon: '山', kind: '刻子', get desc(){return `合法和牌每次刻子或杠计分 +${BALANCE.stoneBase*BALANCE.baseScale} 底分；每组只获得 1 铜钱。`;}, price: 6 },
   { id: 'bamboo', name: '青竹', icon: '竹', kind: '花色', get desc(){return `合法和牌每张有效索子 +${BALANCE.suitBase*BALANCE.baseScale} 底分。`;}, price: 5 },
   { id: 'mirror', name: '圆镜', icon: '◎', kind: '花色', get desc(){return `合法和牌每张有效筒子 +${BALANCE.suitBase*BALANCE.baseScale} 底分。`;}, price: 5 },
   { id: 'seal', name: '朱印', icon: '萬', kind: '花色', get desc(){return `合法和牌每张有效万子 +${BALANCE.suitBase*BALANCE.baseScale} 底分。`;}, price: 5 },
-  { id: 'echo', name: '回响铃', icon: '回', kind: '连动', desc: '最终至少 3 组数牌面子同花色，和牌分 ×1.5；七对解释比较对子。', price: 8 },
+  { id: 'echo', name: '回响铃', icon: '回', kind: '连动', desc: '最终至少 3 组数牌面子（顺子、刻子或杠）同花色，和牌分 ×1.5；七对解释比较对子。', price: 8 },
   { id: 'coin', name: '聚宝钱', icon: '貝', kind: '经济', desc: '按结算前铜钱，每持有 5 枚倍率 +0.1，最多 +1。', price: 7 },
   { id: 'ink', name: '墨泉', icon: '墨', kind: '辅助', desc: '基础六关暂不开放；不刷新，也不增加改牌次数。', price: 5 },
   { id: 'wind', name: '借东风', icon: '風', kind: '辅助', desc: '本版暂不开放，不增加换牌次数。', price: 5 },
@@ -33,12 +33,12 @@ export const RELICS = [
   { id: 'pair', name: '成双玉', icon: '双', kind: '七对', get desc(){return `最终采用七对解释和牌时，整手底分 +${BALANCE.pairBase*BALANCE.baseScale}；国标允许四同牌拆两对。`;}, price: 6 },
   { id: 'wheel', name: '车轮秘卷', icon: '輪', kind: '秘卷', desc: '七对解释组成 2～8 筒各一对，和牌分 ×3。日麻解锁大车轮，国标为连七对额外加赏。', price: 8 },
   { id: 'jiang', name: '将令', icon: '將', kind: '秘卷', get desc(){return `合法和牌每张 2、5、8 数牌 +${BALANCE.jiangBase*BALANCE.baseScale} 底分；全手仅含这些牌时解锁将将胡，和牌分 ×2.5。`;}, price: 8 },
-  { id: 'mountain', name: '连山印', icon: '岳', kind: '秘卷', get desc(){return `每组刻子或杠 +${BALANCE.mountainBase*BALANCE.baseScale} 底分；同花色三组连续刻子类面子，和牌分 ×2。`;}, price: 8 },
+  { id: 'mountain', name: '连山印', icon: '岳', kind: '秘卷', get desc(){return `每组刻子或杠 +${BALANCE.mountainBase*BALANCE.baseScale} 底分；同花色三组点数连续的刻子或杠，和牌分 ×2。`;}, price: 8 },
   { id: 'reserve', name: '留白扇', icon: '白', kind: '收束', desc: '本版暂不开放，不按剩余换牌次数计分。', price: 6 },
   { id: 'single_seal', name: '独行印', icon: '独', kind: '单张', get desc(){return `每关前 4 次有效单张出牌各 +${BALANCE.singleBase*BALANCE.baseScale} 过程分；仅实体首次入区触发。`;}, price: 5 },
   { id: 'kong_cauldron', name: '四方鼎', icon: '鼎', kind: '杠', get desc(){return `合法和牌每个已声明的杠 +${BALANCE.kongBase*BALANCE.baseScale} 底分，可与刻子奇物联动。`;}, price: 6 },
-  { id: 'rank_brush', name: '升降笔', icon: '笔', kind: '改牌', get desc(){return `准备或组牌阶段，候选及成型区非杠数牌点数 ±1，范围 1～9；消耗共用${BALANCE.editCost}墨，满14未结算也可用。`;}, price: 5 },
-  { id: 'suit_ribbon', name: '换色绫', icon: '绫', kind: '改牌', get desc(){return `准备或组牌阶段，候选及成型区非杠数牌换花色、保持点数；消耗共用${BALANCE.editCost}墨，满14未结算也可用。`;}, price: 5 },
+  { id: 'rank_brush', name: '升降笔', icon: '笔', kind: '改牌', get desc(){return `仅准备阶段可改一张候选数牌点数 ±1，范围 1～9；消耗共用${BALANCE.editCost}墨。`;}, price: 5 },
+  { id: 'suit_ribbon', name: '换色绫', icon: '绫', kind: '改牌', get desc(){return `仅准备阶段可改一张候选数牌花色、保持点数；消耗共用${BALANCE.editCost}墨。`;}, price: 5 },
   { id: 'wild_jade', name: '百相玉', icon: '相', kind: '改牌', desc: '能力已并入天机算筹，不再作为独立奇物刷新或占槽。', price: 8 },
 ];
 export const relic = id => RELICS.find(r => r.id === id);
@@ -63,7 +63,7 @@ export const BASE_PATTERNS = Object.fromEntries(Object.entries(PATTERN_CATALOG).
 export function patterns(mode, groups, pair, shape='normal') {
   return mode === 'mcr' ? mcrPatterns(groups,pair,shape) : riichiPatterns(groups,pair,shape);
 }
-export const RULES_VERSION = 'opening-build-v7';
+export const RULES_VERSION = 'opening-build-v8';
 export const SCORE_MODEL_VERSION = 'four-core-v6';
 export function specialStatus(s, groups = [], pair = [], shape = 'normal') {
   const all = groups.flat().concat(pair), full = shape === 'pairs' ? groups.length === 7 : groups.length === 4 && pair.length === 2;
@@ -71,7 +71,7 @@ export function specialStatus(s, groups = [], pair = [], shape = 'normal') {
   return [
     {id:'wheel',name:s.mode==='mcr'?'连七对 · 车轮加赏':'大车轮',mult:3,ready:full&&shape==='pairs'&&groups.every(g=>g[0]>=10&&g[0]<=16)&&new Set(groups.map(g=>g[0])).size===7,progress:`${groups.filter(g=>g.length===2&&g[0]>=10&&g[0]<=16).length}/7 对`,condition:'七对解释 · 2～8 筒各一对'},
     {id:'jiang',name:'将将胡',mult:2.5,ready:full&&all.every(t=>t<27&&[2,5,8].includes(rank(t))),progress:`${all.filter(t=>t<27&&[2,5,8].includes(rank(t))).length}/${all.length} 张`,condition:'完整牌型仅含 2、5、8 数牌'},
-    {id:'mountain',name:s.mode==='mcr'?'一色三节高 · 连山加赏':'三连刻',mult:2,ready:full&&pungs.some(t=>t<27&&suit(t)===suit(t+2)&&pungs.includes(t+1)&&pungs.includes(t+2)),progress:`${pungs.length}/3 刻子类面子`,condition:'同花色三组点数连续的刻子或杠'},
+    {id:'mountain',name:s.mode==='mcr'?'一色三节高 · 连山加赏':'三连刻',mult:2,ready:full&&pungs.some(t=>t<27&&suit(t)===suit(t+2)&&pungs.includes(t+1)&&pungs.includes(t+2)),progress:`${pungs.length}/3 组刻子或杠`,condition:'同花色三组点数连续的刻子或杠'},
   ].filter(x=>has(s,x.id));
 }
 
@@ -85,7 +85,7 @@ export function inspect(s, proposedIds = []) {
     const legal = complete && decompose(formed, s.kongs, s.mode).length > 0;
     const canComplete = legal || canCompleteByAdding(formed, s.kongs, s.mode);
     return { valid:true, count:n, remaining:14-n, complete, legal, canComplete, risk:canComplete?'safe':'needs_repair',
-      reason:complete ? legal?'牌形成立，可以预览结算':'当前结算将诈胡；可检查剩余改牌次数、工具或声明杠的调整机会' : canComplete?`还需 ${14-n} 个结构位置`:'仅靠追加牌不能完成当前牌形；可检查改牌工具、补缺资格或继续承担诈胡风险' };
+      reason:complete ? legal?'牌形成立，可以预览结算':'当前结算将诈胡；可检查成型弃除或声明杠的调整机会' : canComplete?`还需 ${14-n} 个结构位置`:'仅靠追加牌不能完成当前牌形；可检查成型弃除、换牌或补缺资格，或继续承担诈胡风险' };
   } catch {
     return { valid:true, count:n, remaining:14-n, complete, legal:null, canComplete:null, risk:'unknown', reason:'暂时无法计算牌形，请稍后重试；可以继续调整' };
   }
@@ -215,7 +215,7 @@ export function addRelic(s,id,replaceId=null) {
   if(s.phase==='reward'){s.phase='shop';s.shop=[];s.offers=[];}
   return true;
 }
-export function beginPlay(s){if(s.phase!=='prepare')return false;s.phase='play';s.swaps=0;return true;}
+export function beginPlay(s){if(s.phase!=='prepare')return false;s.phase='play';return true;}
 
 export function chooseStarter(s,id) {if(s.phase!=='starter'||!CORE_IDS.includes(id)||!s.offers.includes(id)||!addRelic(s,id))return false;s.offers=[];startRound(s);return true;}
 export function commit(s,ids) {
@@ -249,7 +249,7 @@ export function declareKong(s,ids) {
 }
 function redraw(s,ids){const used=new Set(ids);s.discard.push(...s.hand.filter(t=>used.has(t.id)));s.hand=s.hand.filter(t=>!used.has(t.id));for(let i=0;i<ids.length;i++)s.hand.push(s.deck.pop());sortHand(s);}
 export function exchange(s,ids) {
-  if(s.phase!=='prepare'||s.swaps<1||!validIds(ids,s.hand,1,BALANCE.openingExchangeSize)||s.deck.length<ids.length)return false;
+  if(!['prepare','play'].includes(s.phase)||s.swaps<1||!validIds(ids,s.hand,1,BALANCE.openingExchangeSize)||s.deck.length<ids.length)return false;
   redraw(s,ids);s.swaps--;s.openingSwapsUsed++;return true;
 }
 export function replaceFormed(){return {ok:false,reason:'本版本不支持替换成型牌'};}
@@ -266,19 +266,21 @@ export function discardFormed(s,ids) {
   return {ok:true,count:ids.length,tileIds:[...ids]};
 }
 export function highRescue(s,request={}){
-  if(s.phase!=='play'||structuralCount(s)>=14||s.rescueUsed||!has(s,'core_high')||!has(s,'high_rescue'))return {ok:false,reason:'补缺需天机算筹和补缺符，且本关未使用、成型区未满14'};
+  if(!['prepare','play'].includes(s.phase)||s.rescueUsed||!has(s,'core_high')||!has(s,'high_rescue'))return {ok:false,reason:'补缺需天机算筹和补缺符，且本关未使用'};
   const {type,ids,arg}=request;
   if(type==='exchange'){
+    if(s.phase!=='play'||structuralCount(s)>=14)return {ok:false,reason:'补缺弃换仅在组牌阶段、成型区未满14时开放'};
     if(!validIds(ids,s.hand,1,BALANCE.highRescueSize)||s.deck.length<ids.length)return {ok:false,reason:`请选择1～${BALANCE.highRescueSize}张候选牌`};
     redraw(s,ids);s.rescueUsed=true;return {ok:true,type,count:ids.length};
   }
   if(!['rank','suit'].includes(type))return {ok:false,reason:'补缺仅支持弃换、点数±1或换花色'};
+  if(s.phase!=='prepare')return {ok:false,reason:'补缺改牌只在准备阶段开放'};
   const result=applyTransform(s,ids,type,arg,true);if(result.ok)s.rescueUsed=true;return result;
 }
 
-export function transform(s,ids,action,arg){if(!['prepare','play'].includes(s.phase))return {ok:false,reason:'改牌只在准备或组牌阶段开放'};return applyTransform(s,ids,action,arg,false);}
+export function transform(s,ids,action,arg){if(s.phase!=='prepare')return {ok:false,reason:'改牌只在准备阶段开放'};return applyTransform(s,ids,action,arg,false);}
 function applyTransform(s,ids,action,arg,rescue=false) {
-  if(!validIds(ids,available(s),1,1))return {ok:false,reason:'请选择一张候选或成型区的非杠牌'};
+  if(!validIds(ids,available(s),1,1))return {ok:false,reason:'请选择一张候选数牌'};
   if(lockedIds(s).has(ids[0]))return {ok:false,reason:'杠内牌已经锁定，不能改写'};
   const t=available(s).find(t=>t.id===ids[0]);
   if(t.face>=27)return {ok:false,reason:'字牌不能改点数、改花色或变为万能牌'};
@@ -286,7 +288,7 @@ function applyTransform(s,ids,action,arg,rescue=false) {
   if(!required||!rescue&&!has(s,required))return {ok:false,reason:required?`需要持有${relic(required).name}`:'不支持这种改牌方式'};
   const cost=BALANCE.editCost;
   if(!Number.isInteger(s.ink)||s.ink<0||s.ink>BALANCE.ink||s.ink%cost!==0)return {ok:false,reason:'改牌额度无效，请重新开始旅程'};
-  if(s.ink<cost)return {ok:false,reason:'本关改牌次数已用完；准备与组牌共用一次'};
+  if(s.ink<cost)return {ok:false,reason:'本关改牌次数已用完；点数、花色和万能牌共用一次'};
   let face=t.face,wild=t.wild;
   if(action==='rank') {
     if(![-1,1].includes(arg)||rank(t)+arg<1||rank(t)+arg>9)return {ok:false,reason:'点数只能在 1～9 内增减 1'};
@@ -364,8 +366,8 @@ export function restore(raw){
         for(const id of k.tileIds){kongIds.add(id);if(s.formed.find(t=>t.id===id).face!==k.face)return null;}
       }
       if(structuralCount(s)>14||s.totalScore!==s.roundStartScore+s.score)return null;
-      if(s.phase==='prepare'&&(s.formed.length||s.kongs.length||s.batches.length||s.processScore||s.last||s.rescueUsed||s.swaps+s.openingSwapsUsed!==BALANCE.openingExchanges))return null;
-      if(['play','settlement','reward','shop','victory'].includes(s.phase)&&s.swaps!==0)return null;
+      if(s.swaps+s.openingSwapsUsed!==BALANCE.openingExchanges)return null;
+      if(s.phase==='prepare'&&(s.formed.length||s.kongs.length||s.batches.length||s.processScore||s.last||s.rescueUsed&&(s.ink!==0||s.wildUsed!==0)))return null;
       if(s.last){
         if(s.last.settlementId!==s.settlementId||!s.last.valid||typeof s.last.legal!=='boolean'||typeof s.last.passed!=='boolean'||!signed(s.last.cumulativeAfter)||s.last.cumulativeAfter!==s.totalScore||s.last.roundScore!==s.score||s.last.passed!==(s.last.cumulativeAfter>=s.roundTarget)||!Array.isArray(s.last.steps)||!Array.isArray(s.last.patterns)||!Array.isArray(s.last.gains)||!s.last.tiers)return null;
         if(structuralCount(s)!==14||s.last.target!==s.roundTarget||s.last.cumulativeBefore+s.last.delta!==s.last.cumulativeAfter||s.last.total-s.last.penalty!==s.last.delta)return null;

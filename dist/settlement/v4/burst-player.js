@@ -47,7 +47,7 @@ export function createBurstPlan(input, { durationMs = BURST_DURATION } = {}) {
   const snapshot = {
     settlementId: input.settlementId, handResult: 'agari', mode: cleanText(input.mode), rulesVersion: cleanText(input.rulesVersion),
     presentation: { effectId: cleanText(input.presentation?.effectId) || 'normal', label: cleanText(input.presentation?.label), seal: cleanText(input.presentation?.seal) },
-    hand: { tiles, heldTiles, decomposition: (input.hand?.decomposition || []).map(g => ({ label: cleanText(g.label), tileIds: [...(g.tileIds || [])] })) }, patterns: (input.patterns || []).map(p => ({ id: cleanText(p.id), label: cleanText(p.label), valueText: cleanText(p.valueText) })),
+    hand: { tiles, heldTiles, decomposition: (input.hand?.decomposition || []).map(g => ({ label: cleanText(g.label), description: cleanText(g.description), tileIds: [...(g.tileIds || [])] })) }, patterns: (input.patterns || []).map(p => ({ id: cleanText(p.id), label: cleanText(p.label), valueText: cleanText(p.valueText) })),
     tiers: { scoreTier: clamp(Number(input.tiers?.scoreTier) || 0, 0, 2), multiplierTier: clamp(Number(input.tiers?.multiplierTier) || 0, 0, 2), patternTier: clamp(Number(input.tiers?.patternTier) || 0, 0, 2) },
     relics: (input.relics || []).map(r => ({ id: cleanText(r.id), label: cleanText(r.label), imageUrl: cleanText(r.imageUrl) })), totals, steps,
   };
@@ -131,7 +131,9 @@ export function createBurstPlayer(root, options = {}) {
     for (const group of groups) {
       const wrap = make('div', 'jr-burst-group'), row = make('div', 'jr-burst-group-tiles');
       for (const id of group.tileIds) { const tile = tileById.get(id); if (tile) addTile(tile, row); }
-      wrap.append(row, make('span', 'jr-burst-group-label', group.label)); hand.append(wrap);
+      const caption = make('span', 'jr-burst-group-label', group.label);
+      if (group.description) caption.append(make('small', 'jr-burst-group-description', group.description));
+      wrap.append(row, caption); hand.append(wrap);
     }
     const scoredIds = new Set(snapshot.steps.flatMap(step => step.tileIds));
     const held = (snapshot.hand.heldTiles || []).filter(tile => scoredIds.has(tile.id));

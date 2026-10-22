@@ -623,18 +623,60 @@ test('versioned lifecycle and actions preserve rule limits and old outboxes acro
   assert.deepEqual(h.storage.peek().events.at(-1).payload.after.formed_discard, { round_no: 1, tile_ids: ['tile-1', 'tile-2'] });
   assert.equal((await h.client.track('game_action', discard, v6Context)).reason, 'invalid_event');
   assert.equal((await h.client.track('game_action', { ...discard, after: { ...discard.after, ink: 0 } }, v7Context)).reason, 'invalid_event');
-  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State], [v6Context, v6State], [v7Context, v7State]]) {
+  const v7Repair = { ...repair, before: { ...repair.before, formed_discard: null }, after: { ...repair.after, formed_discard: null } };
+  assert.equal((await h.client.track('game_action', v7Repair, v7Context)).queued, true, 'v7 play-phase editing stays valid');
+  const v8Context = { ...v7Context, rules_version: 'opening_build_v8' };
+  const v8State = { ...v7State, relic_ids: ['core_high', 'rank_brush', 'high_rescue'] };
+  assert.equal((await h.client.track('round_started', { state: v8State, record_quality: 'complete' }, v8Context)).queued, true);
+  assert.equal((await h.client.track('round_started', { state: { ...v8State, openingSwapsUsed: 0 }, record_quality: 'complete' }, v8Context)).reason, 'invalid_event');
+  const prepareEdit = {
+    ...repair, before: v8State, after: { ...v8State, ink: 0 },
+    tile_changes: [['tile-1', 'hand', 'hand', 0, 1, false, false, false, false]],
+    context: { ...repair.context, source_zone: 'hand' },
+  };
+  assert.equal((await h.client.track('game_action', prepareEdit, v8Context)).queued, true);
+  assert.equal((await h.client.track('game_action', v7Repair, v8Context)).reason, 'invalid_event', 'v8 editing is prepare-only');
+  const v8Begin = { ...begin, before: { ...v8State, swaps: 3 }, after: { ...v8State, phase: 'play', swaps: 3 } };
+  assert.equal((await h.client.track('game_action', v8Begin, v8Context)).queued, true);
+  assert.equal(h.storage.peek().events.at(-1).payload.after.swaps, 3, 'entering play preserves the shared exchange budget');
+  const exchangeBefore = { ...v8Begin.after, formed_count: 14, structure_count: 14, deck_count: 110 };
+  const exchange = {
+    ...begin, action: 'exchange', before: exchangeBefore,
+    after: { ...exchangeBefore, deck_count: 109, discard_count: 1, swaps: 2 }, selected_tile_ids: ['tile-1'],
+    tile_changes: [['tile-1', 'hand', 'discard', 0, null, false, null, false, null], ['tile-new', 'deck', 'hand', null, 1, null, false, null, false]],
+    context: { ...begin.context, source_zone: 'hand' },
+  };
+  assert.equal((await h.client.track('game_action', exchange, v8Context)).queued, true, 'full structure still allows ordinary candidate exchange');
+  assert.equal((await h.client.track('game_action', { ...exchange, selected_tile_ids: ['t1', 't2', 't3', 't4', 't5', 't6'] }, v8Context)).reason, 'invalid_event');
+  const prepareRescue = {
+    ...prepareEdit, action: 'high_rescue', after: { ...prepareEdit.after, rescue_used: true },
+    context: { ...prepareEdit.context, rescue_type: 'rank', relic_id: 'high_rescue' },
+  };
+  assert.equal((await h.client.track('game_action', prepareRescue, v8Context)).queued, true);
+  assert.equal((await h.client.track('game_action', { ...prepareRescue, before: { ...prepareRescue.before, phase: 'play' }, after: { ...prepareRescue.after, phase: 'play' } }, v8Context)).reason, 'invalid_event');
+  const playRescue = {
+    ...exchange, action: 'high_rescue', before: { ...exchangeBefore, formed_count: 12, structure_count: 12 },
+    after: { ...exchange.after, formed_count: 12, structure_count: 12, swaps: 3, rescue_used: true },
+    context: { ...exchange.context, rescue_type: 'exchange', relic_id: 'high_rescue' },
+  };
+  assert.equal((await h.client.track('game_action', playRescue, v8Context)).queued, true);
+  assert.equal((await h.client.track('game_action', { ...playRescue, before: { ...playRescue.before, phase: 'prepare' }, after: { ...playRescue.after, phase: 'prepare' } }, v8Context)).reason, 'invalid_event');
+  assert.equal((await h.client.track('game_action', { ...playRescue, before: exchangeBefore }, v8Context)).reason, 'invalid_event', 'rescue exchange remains unavailable at full structure');
+  for (const [context, state] of [[v3Context, highState], [v4Context, v4State], [v5Context, v5State], [v6Context, v6State], [v7Context, v7State], [v8Context, v8State]]) {
     assert.equal((await h.client.track('round_started', { state: { ...state, hand_count: state.hand_count + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
     assert.equal((await h.client.track('round_started', { state: { ...state, total_score: Number.MAX_SAFE_INTEGER + 1 }, record_quality: 'complete' }, context)).reason, 'invalid_event');
   }
-  const oldVersions = ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5', 'opening_build_v6'];
+  const oldVersions = ['free_play_v2', 'free_play_v3', 'free_play_v4', 'opening_build_v5', 'opening_build_v6', 'opening_build_v7'];
   const storedOld = h.storage.peek().events.filter(event => oldVersions.includes(event.rules_version));
   assert.ok(storedOld.some(event => event.rules_version === 'opening_build_v6'));
+  assert.ok(storedOld.some(event => event.rules_version === 'opening_build_v7' && event.payload.action === 'transform' && event.payload.before.phase === 'play'));
   assert.ok(storedOld.filter(event => event.rules_version === 'opening_build_v6').every(event => !Object.hasOwn(event.payload.state ?? event.payload.after, 'formed_discard')));
   h.client.dispose();
-  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v7', scoreModelVersion: 'four_core_v6', appRelease: 'opening-build-v7' });
-  await upgraded.ready; await upgraded.flush();
-  const deliveredOld = h.requests.at(-1).body.events.filter(event => oldVersions.includes(event.rules_version));
+  const upgraded = createAnalytics({ ...h.config, rulesVersion: 'opening_build_v8', scoreModelVersion: 'four_core_v6', appRelease: 'opening-build-v8' });
+  await upgraded.ready;
+  for (let batch = 0; batch < 5 && upgraded.getStatus().queued; batch++) await upgraded.flush();
+  assert.equal(upgraded.getStatus().queued, 0);
+  const deliveredOld = h.requests.flatMap(request => request.body.events ?? []).filter(event => oldVersions.includes(event.rules_version));
   assert.deepEqual(deliveredOld, storedOld);
   upgraded.dispose();
 });

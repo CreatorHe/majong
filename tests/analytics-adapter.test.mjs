@@ -42,6 +42,23 @@ function arrange(s, faces, kongFaces = []) {
   s.kongs = kongFaces.map((face, i) => ({ id: `${s.roundId}:kong:${i}`, face, tileIds: s.formed.filter(tile => tile.face === face).slice(0,4).map(tile => tile.id) }));
   s.hand = pool.splice(0, s.version >= 4 ? 12 : s.version === 3 ? 10 : 18); s.deck = pool; s.discard = [];
 }
+function stageCandidates(s, faces) {
+  const pool = [...s.hand, ...s.deck];
+  const tiles = faces.map(face => {
+    const index = pool.findIndex(tile => tile.face === face);
+    assert.ok(index >= 0, `candidate fixture tile ${face} exists`);
+    return pool.splice(index, 1)[0];
+  });
+  s.hand = tiles.slice(0, 12);
+  s.deck = [...pool, ...tiles.slice(12).reverse()];
+  return tiles.map(t => t.id);
+}
+async function commitStaged(h, s, ids) {
+  await h.act('begin_play', s, () => engine.beginPlay(s));
+  for (const selected of [ids.slice(0,12), ids.slice(12)]) {
+    if (selected.length) await h.act('commit', s, () => engine.commit(s, selected), {selected_tile_ids:selected});
+  }
+}
 
 test('snapshot is immutable, null-safe, contains no deck faces and never mutates the game', async () => {
   const h = harness(), s = await started(h);
@@ -68,7 +85,7 @@ test('single-tile process gain is a real delta and duplicate callbacks do not du
   const { before: prior, after: next, tile_changes: changes } = commits[0].payload;
   assert.equal(prior.hand_count, 12); assert.equal(next.hand_count, 12);
   assert.equal(136 - prior.deck_count, 12); assert.equal(136 - next.deck_count, 13);
-  assert.equal(next.swaps, 0); assert.equal(prior.swaps, next.swaps);
+  assert.equal(next.swaps, 5); assert.equal(prior.swaps, next.swaps);
   assert.equal(prior.discard_count, next.discard_count);
   assert.equal(changes.filter(t => t[1] === 'deck' && t[2] === 'hand').length, 1);
   assert.equal(changes.length, 2, 'retained candidates do not become fake discard or draw events');
@@ -119,18 +136,19 @@ test('legal below-target remains a hand; terminal failure is recorded after play
   assert.equal(h.events.at(-1).payload.reason, 'completed_below_target');
 });
 
-test('v7 aliases normalize while v2 through v6 snapshots and superseded runs retain their original version', async () => {
+test('v8 aliases normalize while v2 through v7 snapshots and superseded runs retain their original version', async () => {
   for (const [version, rulesVersion, scoreVersion, handCount] of [
     [2, 'free-play-v2', 'cumulative-v2', 18], [3, 'free-play-v3', 'exponential-v3', 10],
     [4, 'free-play-v4', 'exponential-v3', 12],
     [5, 'opening-build-v5', 'four-core-v5', 12],
     [6, 'opening-build-v6', 'four-core-v6', 12],
+    [7, 'opening-build-v7', 'four-core-v6', 12],
   ]) {
     const h = harness(), s = await started(h);
-    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v7');
+    assert.equal(h.events.at(-1).context.rules_version, 'opening_build_v8');
     assert.equal(h.events.at(-1).context.score_model_version, 'four_core_v6');
-    const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, ink: version === 6 ? 2 : 4,
-      relics: version >= 5 ? ['core_high', 'wild_jade'] : ['jade'] };
+    const old = { ...structuredClone(s), version, rulesVersion, scoreVersion, ink: version >= 6 ? 2 : 4, swaps:0,
+      relics: version === 7 ? ['core_high', 'rank_brush'] : version >= 5 ? ['core_high', 'wild_jade'] : ['jade'] };
     if (old.hand.length < handCount) old.hand.push(...old.deck.splice(0, handCount - old.hand.length));
     else old.deck.push(...old.hand.splice(handCount));
     const oldSnapshot = h.adapter.captureGameState(old);
@@ -143,10 +161,10 @@ test('v7 aliases normalize while v2 through v6 snapshots and superseded runs ret
     assert.equal(superseded.context.score_model_version, scoreVersion.replaceAll('-', '_'));
     assert.equal(superseded.payload.state.hand_count, handCount);
     assert.equal(h.events.filter(e => e.name === 'game_action').at(-1).payload.before, null);
-    assert.equal(superseded.payload.state.ink, old.ink, 'old resource amounts are not rewritten as V7');
-    assert.equal('formed_discard' in superseded.payload.state, false);
-    if (version >= 5) assert.ok(superseded.payload.state.relic_ids.includes('wild_jade'));
-    s.rulesVersion = 'opening_build_v7'; s.scoreVersion = 'four_core_v6';
+    assert.equal(superseded.payload.state.ink, old.ink, 'old resource amounts are not rewritten as V8');
+    assert.equal('formed_discard' in superseded.payload.state, version === 7);
+    if ([5,6].includes(version)) assert.ok(superseded.payload.state.relic_ids.includes('wild_jade'));
+    s.rulesVersion = 'opening_build_v8'; s.scoreVersion = 'four_core_v6';
     assert.equal(h.adapter.captureGameState(s).scoreVersion, 'four_core_v6');
     const before = h.adapter.captureGameState(s), count = h.events.length;
     s.scoreVersion = 'four-core-v5';
@@ -205,14 +223,14 @@ for (const k of [1,4]) test(`${k} declared kongs preserve ${14+k} physical tiles
 });
 
 test('wildcard effective face and unlock patterns come from actual terminal result', async () => {
-  const h = harness(), s = await started(h, 'riichi');
-  const faces = [10,10,11,11,12,12,13,13,14,14,15,15,16,16];
-  arrange(s, faces); s.relics.push('wheel');
-  s.formed[0].face = 1;
-  await h.act('transform', s, () => engine.transform(s, [s.formed[0].id], 'wild'), {
-    selected_tile_ids:[s.formed[0].id], transform_kind:'wild',
+  const h = harness(), s = await prepared(h, 'riichi');
+  const ids = stageCandidates(s, [1,10,11,11,12,12,13,13,14,14,15,15,16,16]);
+  s.relics.push('wheel');
+  await h.act('transform', s, () => engine.transform(s, [ids[0]], 'wild'), {
+    selected_tile_ids:[ids[0]], transform_kind:'wild',
   });
   assert.equal(h.events.at(-1).payload.context.relic_id, 'core_high');
+  await commitStaged(h, s, ids);
   await h.act('settle', s, () => engine.settle(s));
   const fact = h.events.find(e => e.name === 'hand_completed').payload;
   const wild = fact.tiles.find(t => t.wild);
@@ -311,10 +329,16 @@ test('prepare records real resources and begin_play starts no duplicate round or
   assert.equal(action.after.swaps - action.before.swaps, -1);
   assert.equal(action.before.deck_count - action.after.deck_count, 5);
   assert.equal(action.tile_changes.filter(t => t[1] === 'hand' && t[2] === 'discard').length, 5);
+  const prepareRescueId = s.hand.find(t => t.face < 27 && t.face % 9 < 8).id;
+  await h.act('high_rescue', s, () => engine.highRescue(s, {type:'rank', ids:[prepareRescueId], arg:1}), {
+    selected_tile_ids:[prepareRescueId], rescue_kind:'rank', transform_kind:'rank', transform_value:1,
+  });
+  assert.equal(h.events.at(-1).payload.reason_code, 'edit_limit');
+  assert.equal(h.events.at(-1).payload.after.rescue_used, false);
   await h.act('begin_play', s, () => engine.beginPlay(s));
   action = h.events.at(-1).payload;
   assert.equal(action.before.phase, 'prepare'); assert.equal(action.after.phase, 'play');
-  assert.equal(action.before.swaps, 4); assert.equal(action.after.swaps, 0);
+  assert.equal(action.before.swaps, 4); assert.equal(action.after.swaps, 4);
   assert.equal(action.before.ink, 0); assert.equal(action.after.ink, 0, 'begin_play does not refill the shared edit budget');
   assert.equal(h.events.filter(e => e.name === 'round_started').length, 1);
   const rescueId = s.hand.find(t => t.face < 27 && t.face % 9 < 8).id;
@@ -323,9 +347,21 @@ test('prepare records real resources and begin_play starts no duplicate round or
   });
   action = h.events.at(-1).payload;
   assert.equal(action.outcome, 'rejected');
-  assert.equal(action.reason_code, 'edit_limit');
+  assert.equal(action.reason_code, 'invalid_phase');
   assert.equal(action.before.ink, 0); assert.equal(action.after.ink, 0);
   assert.equal(action.after.rescue_used, false, 'a rejected rescue edit does not consume the rescue');
+  for (const count of [1,2,3,5]) {
+    const ids = s.hand.slice(0,count).map(t => t.id);
+    await h.act('exchange', s, () => engine.exchange(s, ids), {selected_tile_ids:ids});
+    const exchange = h.events.at(-1).payload;
+    assert.equal(exchange.outcome, 'applied');
+    assert.equal(exchange.before.swaps - exchange.after.swaps, 1);
+    assert.equal(exchange.before.deck_count - exchange.after.deck_count, count);
+    assert.equal(exchange.before.ink, exchange.after.ink);
+    assert.equal(s.swaps + s.openingSwapsUsed, 5);
+  }
+  assert.equal(s.swaps, 0); assert.equal(s.openingSwapsUsed, 5);
+  assert.ok(engine.restore(JSON.stringify(s)), 'spent ordinary exchanges survive a play-phase save');
   for (const [name, perform, context] of [
     ['exchange', () => engine.exchange(s, [s.hand[0].id]), { selected_tile_ids: [s.hand[0].id] }],
     ['transform', () => engine.transform(s, [s.hand[0].id], 'rank', 1), {selected_tile_ids:[s.hand[0].id], transform_kind:'rank', transform_value:1}],
@@ -343,10 +379,10 @@ test('prepare records real resources and begin_play starts no duplicate round or
 
 test('real app rescue contexts preserve the single rescue and its actual exchange or transform', async () => {
   for (const kind of ['exchange', 'rank', 'suit']) {
-    const h = harness(), s = await started(h);
+    const h = harness(), s = await prepared(h);
     s.relics.push('high_rescue');
     const tile = s.hand.find(t => t.face < 27 && t.face % 9 < 8);
-    if (kind !== 'exchange') await h.act('commit', s, () => engine.commit(s, [tile.id]), {selected_tile_ids:[tile.id]});
+    if (kind === 'exchange') await h.act('begin_play', s, () => engine.beginPlay(s));
     const ids = kind === 'exchange' ? s.hand.slice(0, 3).map(t => t.id) : [tile.id];
     const arg = kind === 'rank' ? 1 : kind === 'suit' ? (Math.floor(tile.face / 9) + 1) % 3 : undefined;
     const context = {selected_tile_ids:ids, rescue_kind:kind,
@@ -356,12 +392,13 @@ test('real app rescue contexts preserve the single rescue and its actual exchang
     assert.equal(action.outcome, 'applied');
     assert.equal(action.context.rescue_type, kind);
     assert.equal(action.context.transform_kind, kind === 'exchange' ? null : kind);
-    assert.equal(action.context.source_zone, kind === 'exchange' ? 'hand' : 'formed');
+    assert.equal(action.context.source_zone, 'hand');
     assert.equal(action.before.rescue_used, false); assert.equal(action.after.rescue_used, true);
     assert.equal(action.after.swaps, action.before.swaps);
     assert.equal(action.after.ink - action.before.ink, kind === 'exchange' ? 0 : -2);
     assert.equal(action.before.deck_count - action.after.deck_count, kind === 'exchange' ? 3 : 0);
     assert.equal(action.tile_changes.length, kind === 'exchange' ? 6 : 1);
+    assert.ok(engine.restore(JSON.stringify(s)), 'a consumed rescue restores in its actual phase');
     await h.act('high_rescue', s, () => engine.highRescue(s, {type:kind, ids, arg}), context);
     const rejected = h.events.at(-1).payload;
     assert.equal(rejected.outcome, 'rejected');
@@ -372,33 +409,42 @@ test('real app rescue contexts preserve the single rescue and its actual exchang
       selected_tile_ids:[ordinaryEditId], transform_kind:'rank', transform_value:1,
     });
     const ordinaryEdit = h.events.at(-1).payload;
-    assert.equal(ordinaryEdit.outcome, kind === 'exchange' ? 'applied' : 'rejected');
-    assert.equal(ordinaryEdit.reason_code, kind === 'exchange' ? null : 'edit_limit');
-    assert.equal(ordinaryEdit.after.ink, 0);
+    assert.equal(ordinaryEdit.outcome, 'rejected');
+    assert.equal(ordinaryEdit.reason_code, kind === 'exchange' ? 'invalid_phase' : 'edit_limit');
+    assert.equal(ordinaryEdit.after.ink, kind === 'exchange' ? 2 : 0);
     assert.equal(ordinaryEdit.after.rescue_used, true);
     assert.equal(ordinaryEdit.context.source_zone, 'hand');
+    if (kind !== 'exchange') {
+      await h.act('begin_play', s, () => engine.beginPlay(s));
+      const exchangeIds = s.hand.slice(0,3).map(t => t.id);
+      await h.act('high_rescue', s, () => engine.highRescue(s, {type:'exchange', ids:exchangeIds}), {
+        selected_tile_ids:exchangeIds, rescue_kind:'exchange',
+      });
+      assert.equal(h.events.at(-1).payload.outcome, 'rejected', 'prepare edit consumes the same later rescue exchange');
+      assert.deepEqual(h.events.at(-1).payload.before, h.events.at(-1).payload.after);
+    }
   }
 });
 
-test('V7 full-hand repairs keep tile identity, share two ink and attribute wild to the high core', async () => {
+test('V8 edits only in prepare; full hands may refresh candidates and settle the final held score', async () => {
   for (const [kind, damagedFace, arg, tool] of [
     ['rank', 3, 1, 'rank_brush'], ['suit', 13, 0, 'suit_ribbon'], ['wild', 13, undefined, 'core_high'],
   ]) {
-    const h = harness(), s = await started(h);
+    const h = harness(), s = await prepared(h);
     if (!s.relics.includes(tool)) s.relics.push(tool);
     s.relics.push('high_rescue');
-    arrange(s, [...ordinary.slice(0, -1), damagedFace]);
-    const tileId = s.formed.at(-1).id;
+    const ids = stageCandidates(s, [damagedFace, ...ordinary.slice(0, -1)]);
+    const tileId = ids[0];
     const context = {selected_tile_ids:[tileId], transform_kind:kind, transform_value:arg ?? null};
     await h.act('transform', s, () => engine.transform(s, [tileId], kind, arg), context);
     const repair = h.events.at(-1).payload;
-    assert.equal(repair.outcome, 'applied'); assert.equal(repair.context.source_zone, 'formed');
+    assert.equal(repair.outcome, 'applied'); assert.equal(repair.context.source_zone, 'hand');
     if (kind === 'wild') assert.equal(repair.context.relic_id, 'core_high');
-    assert.equal(repair.before.structure_count, 14); assert.equal(repair.after.structure_count, 14);
+    assert.equal(repair.before.structure_count, 0); assert.equal(repair.after.structure_count, 0);
     assert.equal(repair.before.ink, 2); assert.equal(repair.after.ink, 0);
     assert.equal(repair.before.rescue_used, false); assert.equal(repair.after.rescue_used, false);
     assert.equal(repair.tile_changes.length, 1);
-    assert.deepEqual(repair.tile_changes[0].slice(0, 3), [tileId, 'formed', 'formed']);
+    assert.deepEqual(repair.tile_changes[0].slice(0, 3), [tileId, 'hand', 'hand']);
     assert.equal(repair.after.deck_count, repair.before.deck_count);
     assert.equal(h.events.some(e => e.name === 'hand_completed'), false);
     await h.act('transform', s, () => engine.transform(s, [tileId], 'rank', 1), {
@@ -408,6 +454,12 @@ test('V7 full-hand repairs keep tile identity, share two ink and attribute wild 
     assert.equal(h.events.at(-1).payload.reason_code, 'edit_limit');
     assert.deepEqual(h.events.at(-1).payload.tile_changes, []);
     assert.equal(h.events.at(-1).payload.after.ink, 0);
+    await commitStaged(h, s, ids);
+    await h.act('transform', s, () => engine.transform(s, [tileId], kind, arg), context);
+    const denied = h.events.at(-1).payload;
+    assert.equal(denied.outcome, 'rejected'); assert.equal(denied.reason_code, 'invalid_phase');
+    assert.equal(denied.before.structure_count, 14);
+    assert.deepEqual(denied.before, denied.after); assert.deepEqual(denied.tile_changes, []);
     const { result } = await h.act('settle', s, () => engine.settle(s));
     const fact = h.events.find(e => e.name === 'hand_completed')?.payload;
     assert.ok(fact, `${kind} repaired a legal hand`);
@@ -416,7 +468,7 @@ test('V7 full-hand repairs keep tile identity, share two ink and attribute wild 
     assert.equal(h.events.filter(e => e.name === 'round_settled').length, 1);
   }
   for (const core of ['core_pung', 'core_held', 'core_growth']) {
-    const h = harness(), s = await started(h, 'mcr', core);
+    const h = harness(), s = await prepared(h, 'mcr', core);
     const tileId = s.hand.find(t => t.face < 27).id;
     await h.act('transform', s, () => engine.transform(s, [tileId], 'wild'), {
       selected_tile_ids:[tileId], transform_kind:'wild', relic_id:'wild_jade',
@@ -426,6 +478,33 @@ test('V7 full-hand repairs keep tile identity, share two ink and attribute wild 
     assert.equal(rejected.outcome, 'rejected'); assert.equal(rejected.reason_code, 'missing_relic');
     assert.deepEqual(rejected.before, rejected.after); assert.deepEqual(rejected.tile_changes, []);
   }
+  const h = harness(), s = await started(h, 'mcr', 'core_held');
+  arrange(s, ordinary);
+  stageCandidates(s, [1,2,3,4,5,6,10,11,12,13,14,15]);
+  for (const face of [27,28,29,30,31]) {
+    const index = s.deck.findIndex(t => t.face === face);
+    s.deck.push(s.deck.splice(index,1)[0]);
+  }
+  const previousPreview = engine.currentSettlementPreview(s), ids = s.hand.slice(0,5).map(t => t.id);
+  await h.act('exchange', s, () => engine.exchange(s, ids), {selected_tile_ids:ids});
+  const refresh = h.events.at(-1).payload;
+  assert.equal(refresh.outcome, 'applied');
+  assert.equal(refresh.before.structure_count, 14); assert.equal(refresh.after.structure_count, 14);
+  assert.equal(refresh.after.swaps, 4); assert.equal(refresh.after.ink, 2);
+  assert.equal(refresh.before.total_score, refresh.after.total_score);
+  assert.equal(refresh.tile_changes.filter(t => t[1] === 'hand' && t[2] === 'discard').length, 5);
+  assert.ok(engine.restore(JSON.stringify(s)), 'full-hand exchange preserves a valid save');
+  const finalPreview = engine.currentSettlementPreview(s);
+  assert.ok(finalPreview.total > previousPreview.total, 'new held honors affect the actual final score');
+  const {result} = await h.act('settle', s, () => engine.settle(s));
+  const terminal = h.events.find(e => e.name === 'hand_completed').payload;
+  assert.equal(terminal.win_score, result.total); assert.equal(result.total, finalPreview.total);
+  assert.deepEqual(result.heldTiles, s.hand);
+  assert.equal(result.heldTiles.some(t => ids.includes(t.id)), false);
+  assert.equal(h.events.filter(e => e.name === 'hand_completed').length, 1);
+  await h.act('exchange', s, () => engine.exchange(s, [s.hand[0].id]), {selected_tile_ids:[s.hand[0].id]});
+  assert.equal(h.events.at(-1).payload.outcome, 'rejected');
+  assert.deepEqual(h.events.at(-1).payload.before, h.events.at(-1).payload.after);
 });
 
 test('formed discard records one use per run, survives resume and joins later legal or false-win facts', async () => {

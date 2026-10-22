@@ -22,24 +22,40 @@ function bring(s,faces){const ids=[];for(const face of faces){let t=s.hand.find(
 function structuralEntities(s){const all=[...s.hand,...s.formed,...s.deck,...s.discard];assert.equal(all.length,136);assert.equal(new Set(all.map(t=>t.id)).size,136);for(let face=0;face<34;face++)assert.equal(all.filter(t=>t.original===face).length,4);}
 function rewardState(core='core_high',extras=[]){const s=final('mcr',flush,core,extras);E.settle(s);E.finishSettlement(s);assert.equal(s.phase,'reward');return s;}
 
-test('V7 offers four mutually exclusive starter cores and requires explicit start',()=>{
+test('V8 offers four mutually exclusive starter cores and requires explicit start',()=>{
  for(const core of E.CORE_IDS){const s=E.newRun();assert.deepEqual(s.offers,E.CORE_IDS);assert.equal(E.chooseStarter(s,'jade'),false);assert.ok(E.chooseStarter(s,core));assert.equal(s.phase,'prepare');assert.deepEqual(s.relics,[core,'rank_brush']);assert.ok(E.restore(JSON.stringify(s)));
   const before=JSON.stringify(s);assert.equal(E.commit(s,[s.hand[0].id]).valid,false);assert.equal(E.declareKong(s,s.hand.slice(0,4).map(t=>t.id)).ok,false);assert.equal(E.settle(s).valid,false);assert.equal(E.addRelic(s,'jade'),false);assert.equal(JSON.stringify(s),before);
-  assert.ok(E.beginPlay(s));assert.equal(s.phase,'play');assert.equal(s.swaps,0);assert.equal(E.beginPlay(s),false);assert.ok(E.restore(JSON.stringify(s)));
+  assert.ok(E.beginPlay(s));assert.equal(s.phase,'play');assert.equal(s.swaps,5);assert.equal(E.beginPlay(s),false);assert.ok(E.restore(JSON.stringify(s)));
  }
 });
-test('five preparation exchanges of at most five preserve physical supply and cap baseline exposure at 51',()=>{
+test('five exchanges shared across preparation and play preserve supply and cap baseline exposure at 51',()=>{
  for(const mode of ['mcr','riichi']){const s=preparing(mode),seen=new Set(s.hand.map(t=>t.id));assert.equal(s.deck.length,124);
-  const before=JSON.stringify(s);assert.equal(E.exchange(s,s.hand.slice(0,6).map(t=>t.id)),false);assert.equal(JSON.stringify(s),before);
-  for(let i=0;i<5;i++){assert.ok(E.exchange(s,s.hand.slice(0,5).map(t=>t.id)));s.hand.forEach(t=>seen.add(t.id));assert.ok(E.restore(JSON.stringify(s)));}
-  assert.equal(s.openingSwapsUsed,5);assert.equal(seen.size,37);assert.equal(E.exchange(s,[s.hand[0].id]),false);assert.ok(E.beginPlay(s));
-  for(let i=0;i<14;i++){const kept=s.hand.slice(1).map(t=>t.id);assert.ok(E.commit(s,[s.hand[0].id]).valid);assert.ok(kept.every(id=>s.hand.some(t=>t.id===id)));s.hand.forEach(t=>seen.add(t.id));}
+  for(const ids of [[],s.hand.slice(0,6).map(t=>t.id),[s.hand[0].id,s.hand[0].id],['missing']]){const before=JSON.stringify(s);assert.equal(E.exchange(s,ids),false);assert.equal(JSON.stringify(s),before);}
+  for(let i=0;i<2;i++){assert.ok(E.exchange(s,s.hand.slice(0,5).map(t=>t.id)));s.hand.forEach(t=>seen.add(t.id));assert.ok(E.restore(JSON.stringify(s)));}
+  assert.equal(s.swaps,3);assert.ok(E.beginPlay(s));assert.equal(s.swaps,3);assert.equal(s.openingSwapsUsed,2);
+  for(let i=0;i<14;i++){
+   if(i<3){assert.ok(E.exchange(s,s.hand.slice(0,5).map(t=>t.id)));s.hand.forEach(t=>seen.add(t.id));assert.ok(E.restore(JSON.stringify(s)));}
+   const kept=s.hand.slice(1).map(t=>t.id);assert.ok(E.commit(s,[s.hand[0].id]).valid);assert.ok(kept.every(id=>s.hand.some(t=>t.id===id)));s.hand.forEach(t=>seen.add(t.id));
+  }
+  assert.equal(s.openingSwapsUsed,5);assert.equal(s.swaps,0);const exhausted=JSON.stringify(s);assert.equal(E.exchange(s,[s.hand[0].id]),false);assert.equal(JSON.stringify(s),exhausted);
   assert.equal(seen.size,51);assert.equal(s.discard.length,25);assert.equal(s.deck.length,85);assert.equal(s.hand.length,12);assert.equal(E.structuralCount(s),14);assert.ok(E.restore(JSON.stringify(s)));structuralEntities(s);
  }
 });
-test('preparation and play share one edit while redraw and formed replacement stay closed',()=>{
- const s=preparing('mcr',7,'core_pung',['rank_brush']);const id=bring(s,[1])[0];assert.ok(E.transform(s,[id],'rank',1).ok);assert.equal(s.ink,0);assert.ok(E.beginPlay(s));assert.ok(E.commit(s,[id]).valid);
- const before=JSON.stringify(s);assert.equal(E.exchange(s,[s.hand[0].id]),false);assert.equal(E.transform(s,[id],'rank',-1).ok,false);assert.equal(E.replaceFormed(s,[id],[s.hand[0].id]).ok,false);assert.equal(E.addRelic(s,'jade'),false);assert.equal(JSON.stringify(s),before);
+test('candidate exchange stays available at full fourteen but closes after settlement without changing ordinary score',()=>{
+ const s=final('mcr',flush,'core_pung'),ids=s.hand.slice(0,5).map(t=>t.id),formed=JSON.stringify(s.formed),before=E.currentSettlementPreview(s),wall=s.deck.length;
+ assert.ok(E.exchange(s,ids));assert.equal(s.deck.length,wall-5);assert.equal(s.hand.length,12);assert.equal(s.openingSwapsUsed,1);assert.equal(s.swaps,4);assert.equal(JSON.stringify(s.formed),formed);assert.equal(E.currentSettlementPreview(s).total,before.total);structuralEntities(s);assert.ok(E.restore(JSON.stringify(s)));
+ const frozen=E.settle(s);for(const finish of [false,true]){if(finish)E.finishSettlement(s);const raw=JSON.stringify(s);assert.equal(E.exchange(s,[s.hand[0].id]),false);assert.equal(JSON.stringify(s),raw);assert.deepEqual(s.last,frozen);assert.ok(E.restore(JSON.stringify(s)));}
+ const short=playing();short.deck=[];const raw=JSON.stringify(short);assert.equal(E.exchange(short,[short.hand[0].id]),false);assert.equal(JSON.stringify(short),raw);
+});
+test('edits remain preparation-only for rank, suit and wild and never consume resources during play',()=>{
+ for(const action of ['rank','suit','wild'])for(const count of [0,1,14]){
+  const s=preparing('mcr',7,'core_high',['suit_ribbon']),id=bring(s,[1])[0];E.beginPlay(s);
+  if(count===1)E.commit(s,[id]);if(count===14)arrange(s,flush);
+  const tile=count===14?s.formed.find(t=>t.face===1):[...s.hand,...s.formed].find(t=>t.id===id),before=JSON.stringify(s);
+  assert.equal(E.transform(s,[tile.id],action,1).ok,false);assert.equal(JSON.stringify(s),before);assert.equal(s.ink,2);
+ }
+ const s=preparing('mcr',7,'core_pung'),id=bring(s,[1])[0];assert.ok(E.transform(s,[id],'rank',1).ok);assert.equal(s.ink,0);assert.ok(E.beginPlay(s));assert.ok(E.commit(s,[id]).valid);
+ const before=JSON.stringify(s);assert.equal(E.transform(s,[id],'rank',-1).ok,false);assert.equal(E.replaceFormed(s,[id],[s.hand[0].id]).ok,false);assert.equal(E.addRelic(s,'jade'),false);assert.equal(JSON.stringify(s),before);assert.ok(E.exchange(s,[s.hand[0].id]));assert.ok(E.restore(JSON.stringify(s)));
 });
 test('one edit preserves physical identity, enforces tool ownership and covers rank, suit and wild',()=>{
  const rank=arrange(preparing('mcr'),[0,0,0,0,1],'hand'),id=rank.hand.find(t=>t.face===1).id;
@@ -49,32 +65,35 @@ test('one edit preserves physical identity, enforces tool ownership and covers r
  for(const action of ['suit','wild']){
   const s=preparing('mcr'),tileId=bring(s,[1])[0];
   if(action==='suit'){assert.equal(E.transform(s,[tileId],action,1).ok,false);s.relics.push('suit_ribbon');}
-  else {assert.deepEqual(s.relics,['core_high','rank_brush']);}assert.ok(E.beginPlay(s));assert.ok(E.transform(s,[tileId],action,1).ok);
+  else {assert.deepEqual(s.relics,['core_high','rank_brush']);}assert.ok(E.transform(s,[tileId],action,1).ok);assert.ok(E.beginPlay(s));
   const changed=s.hand.find(t=>t.id===tileId);assert.equal(changed.original,1);assert.equal(changed.face%9,1);assert.equal(changed.wild,action==='wild');assert.equal(s.ink,0);
   assert.equal(E.transform(s,[tileId],action,2).ok,false);structuralEntities(s);assert.ok(E.restore(JSON.stringify(s)));
  }
 });
-test('wild ability belongs to the high core and shares the only edit even at full fourteen',()=>{
+test('wild ability belongs to the high core, is prepared once and resolves after the hand is formed',()=>{
  for(const core of ['core_pung','core_held','core_growth']){const s=preparing('mcr',7,core,['wild_jade']),id=bring(s,[1])[0],before=JSON.stringify(s);assert.equal(E.transform(s,[id],'wild').ok,false);assert.equal(JSON.stringify(s),before);assert.equal(E.restore(before),null);}
- const s=final('mcr',[1,2,3,10,11,12,19,20,21,4,4,4,13,22]),tile=s.formed.find(t=>t.face===22),id=tile.id;
- assert.equal(E.currentSettlementPreview(s).legal,false);assert.ok(E.transform(s,[id],'wild').ok);assert.equal(s.ink,0);assert.equal(s.relics.length,2);assert.ok(E.currentSettlementPreview(s).legal);assert.equal(s.formed.find(t=>t.id===id).original,22);assert.ok(E.restore(JSON.stringify(s)));
+ const s=preparing(),id=bring(s,[22])[0];assert.ok(E.transform(s,[id],'wild').ok);assert.equal(s.ink,0);assert.equal(s.relics.length,2);assert.ok(E.restore(JSON.stringify(s)));
+ E.beginPlay(s);arrange(s,[1,2,3,10,11,12,19,20,21,4,4,4,13,22]);assert.ok(E.currentSettlementPreview(s).legal);assert.equal(s.formed.find(t=>t.id===id).original,22);assert.ok(E.restore(JSON.stringify(s)));
  const before=JSON.stringify(s);assert.equal(E.transform(s,[id],'rank',1).ok,false);assert.equal(JSON.stringify(s),before);
  const bad=structuredClone(s);bad.relics=['core_pung','rank_brush'];assert.equal(E.restore(JSON.stringify(bad)),null);
 });
-test('full fourteen can be repaired in place once before settlement and cannot be edited afterward',()=>{
- const s=final('mcr',[1,2,3,10,11,12,19,20,21,4,4,4,13,14],'core_pung');
- assert.equal(E.currentSettlementPreview(s).legal,false);const t=s.formed.find(t=>t.face===14),beforeIds=s.formed.map(t=>t.id),wall=s.deck.length;
- assert.ok(E.transform(s,[t.id],'rank',-1).ok);assert.equal(E.currentSettlementPreview(s).legal,true);assert.deepEqual(s.formed.map(t=>t.id),beforeIds);assert.equal(s.deck.length,wall);assert.equal(s.ink,0);assert.ok(E.restore(JSON.stringify(s)));
- const p=E.settle(s);assert.ok(p.legal);const settled=JSON.stringify(s);assert.equal(E.transform(s,[t.id],'rank',1).ok,false);assert.equal(JSON.stringify(s),settled);assert.ok(E.restore(JSON.stringify(s)));
+test('full fourteen and settled hands reject all edits even when the preparation allowance was unused',()=>{
+ const s=final('mcr',[1,2,3,10,11,12,19,20,21,4,4,4,13,14],'core_high',['suit_ribbon']);
+ assert.equal(E.currentSettlementPreview(s).legal,false);const t=s.formed.find(t=>t.face===14),before=JSON.stringify(s);
+ for(const action of ['rank','suit','wild']){assert.equal(E.transform(s,[t.id],action,action==='rank'?-1:1).ok,false);assert.equal(JSON.stringify(s),before);}
+ const p=E.settle(s);assert.equal(p.legal,false);const settled=JSON.stringify(s);for(const action of ['rank','suit','wild']){assert.equal(E.transform(s,[t.id],action,1).ok,false);assert.equal(JSON.stringify(s),settled);}assert.ok(E.restore(JSON.stringify(s)));
 });
-test('high rescue has one shared use, requires both relics and cannot create a wildcard',()=>{
- const s=preparing('mcr',7,'core_high',['high_rescue']);const id=bring(s,[1])[0];assert.equal(E.highRescue(s,{type:'rank',ids:[id],arg:1}).ok,false);E.beginPlay(s);E.commit(s,[id]);
- const before=JSON.stringify(s);assert.equal(E.highRescue(s,{type:'wild',ids:[id]}).ok,false);assert.equal(E.highRescue(s,{type:'rank',ids:[id],arg:9}).ok,false);assert.equal(JSON.stringify(s),before);
- assert.ok(E.highRescue(s,{type:'rank',ids:[id],arg:1}).ok);assert.equal(s.ink,0);assert.equal(s.formed.find(t=>t.id===id).face,2);assert.equal(s.rescueUsed,true);assert.equal(E.highRescue(s,{type:'exchange',ids:[s.hand[0].id]}).ok,false);assert.ok(E.restore(JSON.stringify(s)));
- const r=playing('mcr',7,'core_high',['high_rescue']),wall=r.deck.length;assert.ok(E.highRescue(r,{type:'exchange',ids:r.hand.slice(0,3).map(t=>t.id)}).ok);assert.equal(r.deck.length,wall-3);assert.equal(r.ink,2);assert.equal(E.highRescue(r,{type:'suit',ids:[r.hand[0].id],arg:0}).ok,false);structuralEntities(r);
- for(const core of ['core_pung','core_high']){const t=playing('mcr',7,core,core==='core_pung'?['high_rescue']:[]);assert.equal(E.highRescue(t,{type:'exchange',ids:[t.hand[0].id]}).ok,false);}
- const shared=preparing('mcr',7,'core_high',['high_rescue']),tid=bring(shared,[1])[0];assert.ok(E.transform(shared,[tid],'rank',1).ok);E.beginPlay(shared);assert.equal(E.highRescue(shared,{type:'rank',ids:[tid],arg:1}).ok,false);assert.equal(shared.rescueUsed,false);assert.ok(E.highRescue(shared,{type:'exchange',ids:[shared.hand[0].id]}).ok);
- const full=final('mcr',flush,'core_high',['high_rescue']);assert.equal(E.highRescue(full,{type:'exchange',ids:[full.hand[0].id]}).ok,false);
+test('high rescue shares one use between preparation editing and play-only exchange with one shared ink budget',()=>{
+ const s=preparing('mcr',7,'core_high',['high_rescue']),id=bring(s,[1])[0];
+ for(const request of [{type:'exchange',ids:[id]},{type:'wild',ids:[id]},{type:'rank',ids:[id],arg:9}]){const before=JSON.stringify(s);assert.equal(E.highRescue(s,request).ok,false);assert.equal(JSON.stringify(s),before);}
+ assert.ok(E.highRescue(s,{type:'suit',ids:[id],arg:1}).ok);assert.equal(s.ink,0);assert.equal(s.hand.find(t=>t.id===id).face,10);assert.equal(s.rescueUsed,true);assert.ok(E.restore(JSON.stringify(s)));
+ E.beginPlay(s);E.commit(s,[id]);const used=JSON.stringify(s);assert.equal(E.highRescue(s,{type:'exchange',ids:[s.hand[0].id]}).ok,false);assert.equal(JSON.stringify(s),used);assert.ok(E.restore(JSON.stringify(s)));
+ const r=playing('mcr',7,'core_high',['high_rescue']),rid=bring(r,[1])[0];
+ for(const request of [{type:'rank',ids:[rid],arg:1},{type:'suit',ids:[rid],arg:1},{type:'wild',ids:[rid]},{type:'exchange',ids:r.hand.slice(0,4).map(t=>t.id)}]){const before=JSON.stringify(r);assert.equal(E.highRescue(r,request).ok,false);assert.equal(JSON.stringify(r),before);}
+ const wall=r.deck.length;assert.ok(E.highRescue(r,{type:'exchange',ids:r.hand.slice(0,3).map(t=>t.id)}).ok);assert.equal(r.deck.length,wall-3);assert.equal(r.ink,2);assert.equal(r.swaps,5);assert.equal(r.openingSwapsUsed,0);assert.equal(r.rescueUsed,true);assert.ok(E.restore(JSON.stringify(r)));structuralEntities(r);
+ for(const phase of ['prepare','play'])for(const core of ['core_pung','core_high']){const t=preparing('mcr',7,core,core==='core_pung'?['high_rescue']:[]),tid=bring(t,[1])[0];if(phase==='play')E.beginPlay(t);const before=JSON.stringify(t);assert.equal(E.highRescue(t,{type:phase==='prepare'?'rank':'exchange',ids:[tid],arg:1}).ok,false);assert.equal(JSON.stringify(t),before);}
+ const shared=preparing('mcr',7,'core_high',['high_rescue']),tid=bring(shared,[1])[0];assert.ok(E.transform(shared,[tid],'rank',1).ok);const raw=JSON.stringify(shared);assert.equal(E.highRescue(shared,{type:'rank',ids:[tid],arg:1}).ok,false);assert.equal(JSON.stringify(shared),raw);E.beginPlay(shared);assert.ok(E.highRescue(shared,{type:'exchange',ids:[shared.hand[0].id]}).ok);
+ const full=final('mcr',flush,'core_high',['high_rescue']),before=JSON.stringify(full);for(const type of ['exchange','rank','suit'])assert.equal(E.highRescue(full,{type,ids:[full.hand[0].id],arg:1}).ok,false);assert.equal(JSON.stringify(full),before);E.settle(full);const settled=JSON.stringify(full);assert.equal(E.highRescue(full,{type:'exchange',ids:[full.hand[0].id]}).ok,false);assert.equal(JSON.stringify(full),settled);
 });
 test('single payments stop at four and never get multiplied into hand score',()=>{
  const s=playing('mcr',3,'core_pung',['single_seal']);for(let i=0;i<5;i++)assert.ok(E.commit(s,[s.hand[0].id]).valid);assert.equal(s.singleCount,4);assert.equal(s.processScore,800);assert.equal(s.totalScore,800);
@@ -82,7 +101,7 @@ test('single payments stop at four and never get multiplied into hand score',()=
 });
 test('formed discard permanently removes one or two tiles without drawing or refunding resources and payments',()=>{
  for(const count of [1,2]){
-  const s=playing('mcr',3,'core_pung',['single_seal']),editId=bring(s,[1])[0];assert.ok(E.transform(s,[editId],'rank',1).ok);
+  const s=preparing('mcr',3,'core_pung',['single_seal']),editId=bring(s,[1])[0];assert.ok(E.transform(s,[editId],'rank',1).ok);assert.ok(E.beginPlay(s));
   assert.ok(E.commit(s,[editId]).valid);for(let i=0;i<3;i++)assert.ok(E.commit(s,[s.hand[0].id]).valid);
   const ids=s.formed.slice(0,count).map(t=>t.id),removed=s.formed.slice(0,count),hand=JSON.stringify(s.hand),wall=JSON.stringify(s.deck),resources=[s.ink,s.swaps,s.openingSwapsUsed,s.rescueUsed,s.singleCount,s.processScore,s.score,s.totalScore];
   assert.ok(E.discardFormed(s,ids).ok);assert.equal(E.structuralCount(s),4-count);assert.deepEqual(s.formedDiscard,{round:0,tileIds:ids});assert.ok(removed.every(t=>s.discard.includes(t)&&t.entered));
@@ -128,6 +147,7 @@ test('retriggered pung events repeat base and multiplier but do not repeat coins
 test('held terminal events include the final refill and freeze stable tile IDs',()=>{
  const s=final('mcr',flush,'core_held',['retrigger_held']);const faces=[0,8,2,3,5,6,10,11,12,13,14,15];bring(s,faces);E.sortHand(s);const before=JSON.stringify(s),p=E.currentSettlementPreview(s);assert.equal(JSON.stringify(s),before);assert.deepEqual(p.heldTiles,s.hand);assert.ok(Object.isFrozen(p.heldTiles));assert.equal(p.gains.filter(g=>g.id==='core_held').length,4);
  const ids=new Set(p.heldTiles.map(t=>t.id));assert.ok(p.steps.filter(t=>t.relicId==='core_held').every(t=>t.tileIds.every(id=>ids.has(id))));const raw=JSON.stringify(p.heldTiles);E.settle(s);assert.equal(JSON.stringify(s.last.heldTiles),raw);assert.ok(E.restore(JSON.stringify(s)));
+ const refreshed=final('mcr',pungs,'core_held');bring(refreshed,[0,8,9,17,18,26,27,28,29,30,31,32]);const old=E.currentSettlementPreview(refreshed),terminal=refreshed.hand[0].id;refreshed.deck.push(refreshed.deck.splice(refreshed.deck.findIndex(t=>t.face===2),1)[0]);assert.ok(E.exchange(refreshed,[terminal]));const next=E.currentSettlementPreview(refreshed);assert.equal(old.gains.filter(g=>g.id==='core_held').length,12);assert.equal(next.gains.filter(g=>g.id==='core_held').length,11);assert.ok(next.mult<old.mult);assert.ok(!next.heldTiles.some(t=>t.id===terminal));assert.deepEqual(E.settle(refreshed).heldTiles,next.heldTiles);assert.ok(E.restore(JSON.stringify(refreshed)));
 });
 test('held burst tiers count physical tiles once, repeat their tier and ignore candidate display order',()=>{
  const terminals=[0,8,9,17,18,26,27,28,29,30,31,32],fillers=[2,3,5];
@@ -154,14 +174,15 @@ test('one compatible reward per clear, four slots and explicit noncore replaceme
  const skip=rewardState();assert.ok(E.skipReward(skip));assert.equal(E.skipReward(skip),false);assert.equal(skip.relics.length,2);assert.ok(E.nextRound(skip));
 });
 test('six rounds preserve growth and cumulative score while transient preparation resets',()=>{
- const s=preparing('mcr',7,'core_growth');for(let round=0;round<6;round++){assert.equal(s.round,round);assert.equal(s.swaps,5);assert.equal(s.rescueUsed,false);E.beginPlay(s);arrange(s,flush);const before=s.totalScore,p=E.settle(s);assert.equal(s.totalScore,before+p.total);assert.ok(E.finishSettlement(s));if(round<5){assert.ok(s.offers.some(id=>COMPATIBLE_RELICS.core_growth.includes(id)));assert.ok(E.skipReward(s));assert.ok(E.nextRound(s));assert.equal(s.phase,'prepare');}else assert.equal(s.phase,'victory');}assert.equal(E.nextRound(s),false);
+ const s=preparing('mcr',7,'core_growth');for(let round=0;round<6;round++){assert.equal(s.round,round);assert.equal(s.swaps,5);assert.equal(s.openingSwapsUsed,0);assert.equal(s.rescueUsed,false);assert.equal(s.ink,2);const editId=bring(s,[1])[0];assert.ok(E.transform(s,[editId],'rank',1).ok);E.beginPlay(s);assert.ok(E.exchange(s,s.hand.slice(0,5).map(t=>t.id)));arrange(s,flush);const before=s.totalScore,p=E.settle(s);assert.equal(s.totalScore,before+p.total);assert.ok(E.finishSettlement(s));if(round<5){assert.ok(s.offers.some(id=>COMPATIBLE_RELICS.core_growth.includes(id)));assert.ok(E.skipReward(s));assert.ok(E.nextRound(s));assert.equal(s.phase,'prepare');}else assert.equal(s.phase,'victory');assert.ok(E.restore(JSON.stringify(s)));}assert.equal(E.nextRound(s),false);
 });
 test('all scoring steps replay to authoritative totals without mutating preview state',()=>{
  for(const [core,extras,faces] of [['core_high',['jade','coin'],flush],['core_pung',['stone','retrigger_meld'],pungs],['core_growth',['river','retrigger_meld'],flush],['core_held',['retrigger_held'],flush]]){const s=final('mcr',faces,core,extras),before=JSON.stringify(s),p=E.currentSettlementPreview(s);assert.equal(JSON.stringify(s),before);assert.deepEqual(p,E.currentSettlementPreview(s));let base=0,mult=1;for(const step of p.steps){if(step.target==='base'){assert.equal(step.before,base);base=step.after;}if(step.target==='multiplier'){assert.equal(step.before,mult);mult=step.after;}}assert.equal(base,p.base);assert.equal(mult,p.mult);assert.equal(p.total,Number(BigInt(base)*BigInt(mult.toFixed(6).replace('.',''))/1000000n));assert.equal(p.steps.at(-1).event,'round_result');}
 });
-test('V7 rejects legacy, forged equipment/resources and altered frozen held snapshots',()=>{
- const s=playing();assert.equal(E.VERSION,7);assert.ok(E.restore(JSON.stringify(s)));for(const patch of [{version:6},{rulesVersion:'opening-build-v6'},{relics:['core_high','wild_jade']},{version:5},{rulesVersion:'opening-build-v5'},{scoreVersion:'four-core-v5'},{ink:4},{ink:1},{relics:['core_high','ink']},{version:4},{rulesVersion:'free-play-v4'},{scoreVersion:'exponential-v3'},{hand:null},{deck:[]},{totalScore:7},{relics:['core_high','core_pung']},{relics:['core_high','jade','stone','ink','river']},{openingSwapsUsed:6},{swaps:1},{rescueUsed:true}])assert.equal(E.restore(JSON.stringify({...s,...patch})),null);
+test('V8 rejects legacy, forged equipment/resources and altered frozen held snapshots',()=>{
+ const s=playing();assert.equal(E.VERSION,8);assert.ok(E.restore(JSON.stringify(s)));for(const patch of [{version:7},{rulesVersion:'opening-build-v7'},{version:6},{rulesVersion:'opening-build-v6'},{relics:['core_high','wild_jade']},{version:5},{rulesVersion:'opening-build-v5'},{scoreVersion:'four-core-v5'},{ink:4},{ink:1},{relics:['core_high','ink']},{version:4},{rulesVersion:'free-play-v4'},{scoreVersion:'exponential-v3'},{hand:null},{deck:[]},{totalScore:7},{relics:['core_high','core_pung']},{relics:['core_high','jade','stone','ink','river']},{openingSwapsUsed:6},{swaps:1},{rescueUsed:true}])assert.equal(E.restore(JSON.stringify({...s,...patch})),null);
  const p=preparing();assert.equal(E.restore(JSON.stringify({...p,swaps:4})),null);assert.ok(E.retire(p));assert.ok(E.restore(JSON.stringify(p)));
+ const rescue=preparing('mcr',7,'core_high',['high_rescue']);assert.equal(E.restore(JSON.stringify({...rescue,rescueUsed:true})),null);const id=bring(rescue,[1])[0];assert.ok(E.transform(rescue,[id],'wild').ok);assert.equal(E.restore(JSON.stringify({...rescue,rescueUsed:true})),null);
  const finished=final();E.settle(finished);for(const mutate of [x=>x.last.passed=!x.last.passed,x=>x.last.heldTiles[0].face=33,x=>x.growth.coreGrowth+=1]){const bad=structuredClone(finished);mutate(bad);assert.equal(E.restore(JSON.stringify(bad)),null);}
 });
 test('real terminal/honor hands and special patterns remain mode-specific',()=>{

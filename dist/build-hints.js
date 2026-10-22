@@ -8,7 +8,7 @@ const unique = values => [...new Set(values)];
 const ids = tiles => tiles.map(t => t.id);
 const number = value => Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 6 });
 const baseNumber = value => number(Number(value || 0) * BALANCE.baseScale);
-const editsRemaining = state => Math.max(0, Math.floor((state.ink || 0) / BALANCE.editCost));
+const editsRemaining = state => state.phase === 'prepare' ? Math.max(0, Math.floor((state.ink || 0) / BALANCE.editCost)) : 0;
 const gainEffective = gain => ['base','addMult','retrigger'].includes(gain.kind) ? gain.value > 0 : ['mult','unlock','core'].includes(gain.kind) && gain.value > 1;
 
 // Only formed, fixed-face material is counted before settlement. A wild in a declared
@@ -66,13 +66,13 @@ function partialRows(state, m) {
     ...m.byFace.slice(27).flatMap(tiles=>Array.from({length:Math.floor(tiles.length/3)},(_,i)=>ids(tiles.slice(i*3,i*3+3))))];
   const swaps = state.swaps || 0, ink = state.ink || 0;
   const held = (state.hand || []).filter(t=>t.face>=27 || [1,9].includes(rank(t)));
-  add('core_high',`提高番值 · 花色万能${editsRemaining(state)?'可用':'额度已用'}`,'大番曲线＋内置花色万能',`先判番，再按大番曲线计分。自带花色万能能力，不另占槽；保留点数，仅变万／筒／索，不代字牌，与改点／换色共用每关一次${BALANCE.editCost}墨。`);
-  add('core_pung',`刻／杠材料 ${m.pungGroups.length} 组`,`每次面子事件 ×${BALANCE.pungFactor}`,pending,m.pungGroups.flat());
-  add('core_held',`当前候选有 ${held.length} 张幺九`,`前${BALANCE.heldBaseCount}张 ×${BALANCE.heldFactor}；其后 ×${BALANCE.heldBurstFactor}`,`${Math.min(held.length,BALANCE.heldBaseCount)} 张基础档＋${Math.max(0,held.length-BALANCE.heldBaseCount)} 张爆发档；每张触发 ${(state.relics||[]).includes('retrigger_held')?2:1} 次。须合法和牌，以最终候选为准；重触发不增加合格张数。`,ids(held));
-  add('core_growth',`已储存 ${baseNumber(Math.floor(state.growth?.coreGrowth || 0))} 底分`,`每次顺子事件 ×${BALANCE.growthRate}`,'只有合法结算才写入永久成长；本手处理完成长后，加入底分一次。',chows.flat());
-  add('retrigger_meld',`当前面子材料 ${melds.length} 组`,'对应面子额外触发1次','可重复面子底分、刻子倍率和顺子成长，不重复金币，也不递归生成触发。',melds.flat());
-  add('retrigger_held',`当前候选有 ${held.length} 张幺九`,'留牌计分额外触发1次','需与留牌核心配合，最终快照中每张符合条件的牌额外计分一次。',ids(held));
-  add('high_rescue',state.rescueUsed?'本关已使用':'本关尚未使用','组牌时一次补缺',`需同时装备大番核心、且成型区未满14。可换最多${BALANCE.highRescueSize}张，或花共用${BALANCE.editCost}墨改1张点数／花色；补缺二选一，编辑不另送改牌次数。`,[],'support');
+  add('core_high',`提高番值 · 花色万能${state.phase!=='prepare'?'已关闭':editsRemaining(state)?'可用':'额度已用'}`,'大番曲线＋内置花色万能',`先判番，再按大番曲线计分。仅准备时可制作花色万能牌，不另占槽；保留点数，仅变万／筒／索，不代字牌，与改点／换色共用每关一次${BALANCE.editCost}墨。`);
+  add('core_pung',`刻／杠材料 ${m.pungGroups.length} 组`,`每次刻／杠计分 ×${BALANCE.pungFactor}`,'刻子＝三张相同牌；杠＝四张相同牌。'+pending,m.pungGroups.flat());
+  add('core_held',`候选幺九（一、九及字牌）${held.length} 张`,`前${BALANCE.heldBaseCount}张 ×${BALANCE.heldFactor}；其后 ×${BALANCE.heldBurstFactor}`,`${Math.min(held.length,BALANCE.heldBaseCount)} 张基础档＋${Math.max(0,held.length-BALANCE.heldBaseCount)} 张爆发档；每张触发 ${(state.relics||[]).includes('retrigger_held')?2:1} 次。须合法和牌，以最终候选为准；重触发不增加合格张数。`,ids(held));
+  add('core_growth',`已储存 ${baseNumber(Math.floor(state.growth?.coreGrowth || 0))} 底分`,`每次顺子事件 ×${BALANCE.growthRate}`,'顺子＝三张同花色连续数牌。只有合法结算才写入永久成长；本手处理完成长后，加入底分一次。',chows.flat());
+  add('retrigger_meld',`当前面子材料 ${melds.length} 组`,'对应面子额外触发1次','面子＝一组顺子、刻子或杠。额外计分会重复面子底分、刻子倍率和顺子成长，不重复金币，也不递归生成触发。',melds.flat());
+  add('retrigger_held',`候选幺九（一、九及字牌）${held.length} 张`,'留牌计分额外触发1次','需与留牌核心配合，最终快照中每张符合条件的牌额外计分一次。',ids(held));
+  add('high_rescue',state.rescueUsed?'本关已使用':'本关尚未使用','准备改牌／组牌弃换二选一',`需同时装备大番核心。准备时可花共用${BALANCE.editCost}墨改1张点数／花色；或组牌且未满14时额外弃换最多${BALANCE.highRescueSize}张。整关共用1次补缺，组牌时不能改牌。`,[],'support');
   add('jade', '等待合法和牌', `底分 +${baseNumber(BALANCE.jadeBase)}`, '完整和牌后计入整手底分。');
   add('river', `顺子材料 ${chows.length} 组`, `已累计 ${baseNumber(state.growth?.river)} 底分；每顺子再成长 ${baseNumber(BALANCE.riverBase)}`, pending + wildNote, chows.flat());
   add('stone', `刻／杠材料 ${m.pungGroups.length} 组`, `每次底分 +${baseNumber(BALANCE.stoneBase)}，每组得 1 铜钱`, pending + wildNote, m.pungGroups.flat());
@@ -111,8 +111,8 @@ function partialRows(state, m) {
   add('ink', `剩余 ${ink} 墨`, '基础六关暂不刷新', '每关共用一次改牌，不通过墨泉追加次数。', [], 'support');
   add('wind', `剩余 ${swaps} 次换牌`, '每关额外 2 次已计入资源', '基础六关暂不刷新；成型区不支持替换。', [], 'support');
   add('single_seal', `本关已触发 ${state.singleCount || 0}/4 次`, `已得 ${baseNumber((state.singleCount || 0) * BALANCE.singleBase)} 过程分`, '有效单张首次入区即得分；过程分不再随最终和牌倍率重复放大。', [], 'support');
-  add('rank_brush', `本关还可改牌 ${editsRemaining(state)} 次`, `每次 ${BALANCE.editCost} 墨：数牌点数 ±1`, '准备与组牌共用额度；可选候选或成型区非杠数牌，满14张未结算仍可用。点数限1～9，不保证和牌。', [], 'support');
-  add('suit_ribbon', `本关还可改牌 ${editsRemaining(state)} 次`, `每次 ${BALANCE.editCost} 墨：保持点数换花色`, '准备与组牌共用额度；可改两区非杠数牌，字牌不能改，万能牌可定色。满14张未结算仍可用。', [], 'support');
+  add('rank_brush', `本关还可改牌 ${editsRemaining(state)} 次`, `每次 ${BALANCE.editCost} 墨：数牌点数 ±1`, '仅准备时可改候选数牌，开始组牌即关闭；与换色、万能共用额度。点数限1～9，不保证和牌。', [], 'support');
+  add('suit_ribbon', `本关还可改牌 ${editsRemaining(state)} 次`, `每次 ${BALANCE.editCost} 墨：保持点数换花色`, '仅准备时可改候选数牌，开始组牌即关闭；与改点、万能共用额度。字牌不能改，万能牌可定色。', [], 'support');
   return rows;
 }
 
@@ -160,7 +160,7 @@ export function buildHints(state, preview) {
   const rows = RELICS.filter(relic => owned.has(relic.id)).map(relic => {
     const row = { id: relic.id, name: relic.name, state:'progress',progress:'等待合法和牌',effect:relic.kind,detail:relic.desc,tileIds:[], ...candidates.get(relic.id) };
     if (!complete) return row;
-    if (legal === false) return SUPPORT.has(relic.id) ? row : { ...row, state: 'inactive', progress: '先修复牌形', effect: '当前结算将诈胡', detail: `当前14个结构位置尚未组成合法牌型。${editsRemaining(state) && ['rank_brush','suit_ribbon','core_high'].some(id=>owned.has(id)) ? '尚可用对应工具改写非杠数牌，但不保证修复成功。' : '本关已无普通改牌机会；若有合法杠仍可声明。'}已有过程分保留。`, tileIds: [] };
+    if (legal === false) return SUPPORT.has(relic.id) ? row : { ...row, state: 'inactive', progress: '先修复牌形', effect: '当前结算将诈胡', detail: `当前14个结构位置尚未组成合法牌型。准备已结束，改牌关闭。${!state.formedDiscard?'本趟尚有一次成型弃除，可腾出1～2个非杠位置后重新组牌，不保证修复成功。':'本趟成型弃除已用。'}已有过程分保留。`, tileIds: [] };
     if (legal === null) return { ...row, state: 'inactive', progress: '等待结算验证', detail: result?.reason || '未取得有效结算预览，暂不确认联动。', tileIds: [] };
     const ownGains = gains.filter(gain => gain.id === relic.id);
     if (ownGains.length) return { ...row, state: 'active', progress: '本次已触发', effect: gainText(ownGains),

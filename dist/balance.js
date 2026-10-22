@@ -1,4 +1,4 @@
-// V7 acquisition; V6 score curves and thresholds. Keep mechanics, scoring and acquisition tuning in one place.
+// V8 action timing; V7 acquisition; V6 score curves and thresholds. Keep mechanics, scoring and acquisition tuning in one place.
 // These are playtest parameters, not claims of final four-route balance.
 export const CORE_IDS = ['core_high', 'core_pung', 'core_held', 'core_growth'];
 export const STARTER_RELIC_ID = 'rank_brush';
