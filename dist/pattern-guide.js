@@ -59,8 +59,7 @@ export function renderPatternGuide(input = {}) {
   return `<section class="pattern-guide" aria-labelledby="pattern-guide-title">
     <div class="section-kicker">知牌成局 · 番型图鉴</div>
     <h2 id="pattern-guide-title">这一手，还能怎么叠？</h2>
-    <p class="pattern-guide-intro">查看本作的成立条件、组合限制与奇物要求。切换图鉴模式不会改变当前挑战。</p>
-    <div class="pattern-mode-switch" aria-label="图鉴规则模式">${Object.entries(modes).map(([key, name]) => `<button type="button" data-act="guide-mode" data-mode="${key}" class="${mode === key ? 'active' : ''}" aria-pressed="${mode === key}">${name}</button>`).join('')}</div>
+    <p class="pattern-guide-intro">${modes[mode]} · 查看本作的成立条件、组合限制与奇物要求。</p>
     <div class="pattern-summary" aria-label="役种支持情况">
       <div><strong>${count('base')}</strong><span>基础可计分</span></div>
       <div><strong>${count('relic')}</strong><span>奇物扩展 · 已持有 ${held}</span></div>
